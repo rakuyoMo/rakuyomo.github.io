@@ -1,0 +1,2053 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://blog.rakuyoo.top</id>
+    <title>Rakuyo&apos;s blog</title>
+    <updated>2023-03-13T02:27:11.507Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://blog.rakuyoo.top"/>
+    <link rel="self" href="https://blog.rakuyoo.top/atom.xml"/>
+    <logo>https://blog.rakuyoo.top/images/avatar.png</logo>
+    <icon>https://blog.rakuyoo.top/favicon.ico</icon>
+    <rights>All rights reserved 2023, Rakuyo&apos;s blog</rights>
+    <entry>
+        <title type="html"><![CDATA[圆角 & 离屏渲染实践]]></title>
+        <id>https://blog.rakuyoo.top/off-screen-rendering-practice/</id>
+        <link href="https://blog.rakuyoo.top/off-screen-rendering-practice/">
+        </link>
+        <updated>2023-03-06T11:22:48.000Z</updated>
+        <summary type="html"><![CDATA[<p>下文主要针对各种加圆角的情况进行实践，看看会不会出现离屏渲染的情况。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>下文主要针对各种加圆角的情况进行实践，看看会不会出现离屏渲染的情况。</p>
+<!-- more -->
+<h1 id="测试条件">测试条件</h1>
+<ul>
+<li>测试平台：iPhone 12，iOS 16.3.1，Xcode 14.2。</li>
+<li>测试方法：运行项目后，通过 Xcode 设置 “Debug -&gt; View Debugging -&gt; Rendering -&gt; Color Off-screen Rendered” 来打开离屏渲染检测。</li>
+<li>主要测试点：
+<ul>
+<li>是否开启 <code>masksToBounds</code></li>
+<li>是否设置图片</li>
+<li>是否设置背景色”</li>
+<li>父视图是否具有透明度</li>
+</ul>
+</li>
+</ul>
+<h1 id="结论">结论</h1>
+<p>这里先把结论放到最前面，后面您可以跳过实践过程，直接切到<a href="#%E5%B0%9D%E8%AF%95%E8%A7%A3%E5%86%B3%E7%A6%BB%E5%B1%8F%E6%B8%B2%E6%9F%93%E9%97%AE%E9%A2%98">解决方案</a>一节。</p>
+<blockquote>
+<p>✅ 代表不会触发离屏渲染；❌ 代表会触发离屏渲染。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align:center"></th>
+<th style="text-align:center">UIView</th>
+<th style="text-align:center">UIImageView</th>
+<th style="text-align:center">UIButton</br>（只有文字）</th>
+<th style="text-align:center">UIButton</br>（图片/背景图）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">直接设置</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">❌</td>
+</tr>
+<tr>
+<td style="text-align:center">背景色</br>（非透明）</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">❌</td>
+</tr>
+<tr>
+<td style="text-align:center">父视图具有透明度</br>（<code>alpha</code>）</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+</tr>
+</tbody>
+</table>
+<p>下面重点说一下 <code>UIImageView</code> 和 <code>UIButton</code> 的测试过程：</p>
+<h1 id="uiimageview">UIImageView</h1>
+<p>iOS 9 对 <code>UIImageView</code> 进行了一系列优化，相比较过去而言，触发离屏渲染的场景要小了不少</p>
+<h2 id="直接设置">直接设置</h2>
+<pre><code class="language-swift">lazy var testView = UIImageView().then {
+    $0.image = UIImage(named: &quot;Forms/share-cover&quot;)
+    $0.layer.masksToBounds = true
+    $0.layer.cornerRadius = 30
+}
+</code></pre>
+<p>一个设置了图片的 UIImageView。示例中同时设置了 <code>masksToBounds</code> 和 <code>cornerRadius</code>。从图片上可以看出来，并不会触发离屏渲染：</p>
+<blockquote>
+<p>UIImageView 不设置 <code>masksToBounds</code>，只设置 <code>cornerRadius</code> 的话不会显示圆角。</p>
+</blockquote>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyoo.top/post-images/1678103185585.png" alt="" loading="lazy"></figure>
+<h2 id="添加背景色">添加背景色</h2>
+<p>那如果我们<s>手贱</s>再给它添加一个背景色呢？</p>
+<pre><code class="language-swift">lazy var testView = UIImageView().then {
+    $0.image = UIImage(named: &quot;Forms/share-cover&quot;)
+    $0.layer.masksToBounds = true
+    $0.layer.cornerRadius = 30
+    $0.backgroundColor = .white // 添加一个白色的背景色
+}
+</code></pre>
+<figure data-type="image" tabindex="2"><img src="https://blog.rakuyoo.top/post-images/1678103345883.png" alt="" loading="lazy"></figure>
+<p>果然手贱是没有好处的，设置了背景色后则会触发离屏渲染。</p>
+<h1 id="uibutton">UIButton</h1>
+<p><code>UIButton</code> 默认也是没有背景色的，需要同时考虑文字和图片两种情况。</p>
+<h2 id="文字">文字</h2>
+<p>如果不设置背景色的话，只有文字的 <code>UIButton</code> 对象是显示不出来圆角的，不过我也是分别测了一下。</p>
+<pre><code class="language-swift">lazy var testView = UIButton(type: .custom).then {
+    $0.setTitle(&quot;这是一个标题&quot;, for: .normal)
+    $0.layer.cornerRadius = 30
+}
+</code></pre>
+<p>结论是：不论设置不设置背景色，只有文字的 <code>UIButton</code> 对象添加圆角后都<strong>不会触发离屏渲染</strong>。</p>
+<p>同时只需要设置 <code>cornerRadius</code>，不需要开启 <code>masksToBounds</code> 就可以显示出来圆角。</p>
+<h2 id="图片-背景图">图片 &amp; 背景图</h2>
+<blockquote>
+<p>因为现象一致，所以图片和背景图在这里归位一类进行讨论。</p>
+</blockquote>
+<p>带图片的 <code>UIButton</code> 是重点测试对象，分下面几种情况：</p>
+<h2 id="直接设置-2">直接设置</h2>
+<pre><code class="language-swift">lazy var testView = UIButton(type: .custom).then {
+    $0.setTitle(&quot;这是一个标题&quot;, for: .normal)
+    $0.layer.masksToBounds = true
+    $0.layer.cornerRadius = 30
+    $0.setImage(UIImage(named: &quot;Forms/share-cover&quot;), for: .normal)
+}
+</code></pre>
+<blockquote>
+<p>如果 <code>UIButton</code> 只设置 <code>cornerRadius</code> 而不开启 <code>masksToBounds</code>，那么图片是不会显示出圆角的。</p>
+</blockquote>
+<figure data-type="image" tabindex="3"><img src="https://blog.rakuyoo.top/post-images/1678103345883.png" alt="" loading="lazy"></figure>
+<p>从图上看，是会触发离屏渲染。</p>
+<h1 id="尝试解决离屏渲染问题">尝试解决离屏渲染问题</h1>
+<p>实践了哪些情况会触发离屏渲染，接下来就想办法尝试解决这些问题。</p>
+<h2 id="用父视图进行包裹">用父视图进行包裹</h2>
+<p>有的文章会提到用一个父视图包裹需要添加圆角的视图，然后将圆角添加到父视图上。</p>
+<p>实践发现该方法并不能解决离屏渲染问题。</p>
+<h2 id="避免开启-maskstobounds">避免开启 <code>masksToBounds</code></h2>
+<p><code>UIImageView</code> 视图可以在不开启 <code>masksToBounds</code>，仅设置 <code>cornerRadius</code> 的情况下显示圆角，只包含文字的 <code>UIButton</code> 对象也一样。</p>
+<p>所以在这种情况下，不开启 <code>masksToBounds</code> 也可以避免触发离屏渲染。</p>
+<h2 id="为图片添加圆角">为图片添加圆角</h2>
+<p>直接为图片添加圆角是比较常用的避免离屏渲染的方法。只不过现在比较常用的 <code>UIImageView</code> 视图已经不会触发离屏渲染了，但是 <code>UIButton</code> 依然可以这么做。</p>
+<p>下面提几点实际需求里可能会遇到的问题：</p>
+<h3 id="拼接图片">“拼接图片”</h3>
+<p>例如微信的群聊头像，可能涉及到多个图片在一个视图控件中进行展示。</p>
+<p>这个时候最好将多张图片拼到一起，然后对这张图片整体设置圆角。而不是在一个 <code>UIView</code> 中尝试添加多个 <code>UIImageVIew</code>，再对 <code>UIView</code> 设置圆角。</p>
+<h3 id="视图尺寸不固定">视图尺寸不固定</h3>
+<p>一般 UIButton 会遇到 “尺寸不固定 + 需要圆角 + 背景色” 的情况。</p>
+<p>例如页面某个位置有一个 “距离屏幕两侧 10px，可用状态背景色为蓝色，不可用状态下为灰蓝色” 的按钮。</p>
+<p>此时可以考虑找 UI 切一个带圆角的纯色图片直接用作底色，但是我们开发也可以自己生成这样一张图片，然后通过拉伸来达到相同的效果。</p>
+<p>首先我们先找喵神借用一个非常好用的<a href="https://github.com/onevcat/Kingfisher/blob/master/Sources/Image/ImageProcessor.swift#L307">枚举</a>，来表示圆角：</p>
+<pre><code class="language-swift">extension UIImage {
+    enum Radius {
+        /// 圆角半径应该按照图片**宽度**的比例计算。
+        /// 通常关联的值应该在0和0.5之间，其中0表示没有圆角，0.5表示使用图片宽度的一半作为圆角半径。
+        case widthFraction(CGFloat)
+        
+        /// 圆角半径应该按照图片**高度**的比例计算。
+        /// 通常关联的值应该在0和0.5之间，其中0表示没有圆角，0.5表示使用图片高度的一半作为圆角半径。
+        case heightFraction(CGFloat)
+        
+        /// 使用一个固定的点值作为圆角半径。
+        case point(CGFloat)
+        
+        func compute(with size: CGSize) -&gt; CGFloat {
+            let cornerRadius: CGFloat
+            switch self {
+            case .point(let point):
+                cornerRadius = point
+            case .widthFraction(let widthFraction):
+                cornerRadius = size.width * widthFraction
+            case .heightFraction(let heightFraction):
+                cornerRadius = size.height * heightFraction
+            }
+            return cornerRadius
+        }
+    }
+}
+</code></pre>
+<p>之后生成纯色图片：</p>
+<pre><code class="language-swift">extension UIImage {
+    static func color(
+        _ color: UIColor,
+        size: CGSize = .init(width: 1, height: 1),
+        radius: Radius? = nil
+    ) -&gt; UIImage {
+        let cornerRadius = radius?.compute(with: size)
+        
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let image = renderer.image { _ in
+            let rect = CGRect(origin: .zero, size: size)
+            let path: UIBezierPath
+            
+            if let cornerRadius = cornerRadius {
+                path = .init(roundedRect: rect, cornerRadius: cornerRadius)
+            } else {
+                path = .init(rect: rect)
+            }
+            
+            color.setFill()
+            path.fill()
+        }
+        
+        guard let cornerRadius = cornerRadius else { return image }
+        
+        let insets = { UIEdgeInsets(top: $0, left: $0, bottom: $0, right: $0) }(cornerRadius)
+        return image.resizableImage(withCapInsets: insets, resizingMode: .stretch)
+    }
+}
+</code></pre>
+<p>你还可以扩展这个方法，配置需要圆角的位置，而不是为四个边都添加圆角，比较简单，这里就不再赘述了。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[iOS自编笔试题]]></title>
+        <id>https://blog.rakuyoo.top/ios-self-paced-test-questions/</id>
+        <link href="https://blog.rakuyoo.top/ios-self-paced-test-questions/">
+        </link>
+        <updated>2023-03-06T04:45:22.000Z</updated>
+        <summary type="html"><![CDATA[<p>最近要负责面试，于是各处搜罗了一些面试题，用于笔试（不包含算法），也当作自己的一个复习。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>最近要负责面试，于是各处搜罗了一些面试题，用于笔试（不包含算法），也当作自己的一个复习。</p>
+<!-- more -->
+<p>面试题部分请参考：<a href="https://blog.rakuyoo.top/ios-self-paced-interview-questions/">iOS自编面试题</a></p>
+<p>规则：</p>
+<ol>
+<li>40分钟作答时间。</li>
+<li>禁止使用手机查阅答案。禁止使用 ChatGPT 类软件查阅答案。</li>
+<li>类名、变量名以及方法名，不记得全拼的允许使用缩写。</li>
+</ol>
+<p>注：</p>
+<ol>
+<li>本题目多数由 ChatGPT 生成，对应答案已记录在册。</li>
+</ol>
+<h1 id="swift">Swift</h1>
+<ol>
+<li>
+<p>Swift中的let和var有什么区别？何时应该使用let？</p>
+</li>
+<li>
+<p>Swift中的属性（Property）有哪些类型？它们的作用是什么？</p>
+</li>
+<li>
+<p>Swift的常量（static）在什么时候确定？</p>
+</li>
+<li>
+<p>在Swift中，switch case 一个 NSObject 子类时，比较的是什么？</p>
+</li>
+<li>
+<p>请解释 Swift 中的范型擦除（Generic Erasure）是什么，并提供一个范型擦除的例子。</p>
+</li>
+</ol>
+<h1 id="ios-开发">iOS 开发</h1>
+<ol>
+<li>
+<p>你在实际工作中使用过UICollectionViewCompositionalLayout吗？如果使用过，请详细描述一下实现的功能。</p>
+</li>
+<li>
+<p>请列举5-10个你最常用的三方库，并选择一个你最喜欢的进行介绍，阐述原因。</p>
+</li>
+</ol>
+<h1 id="架构相关">架构相关：</h1>
+<ol>
+<li>什么是单例模式？在iOS开发中，如何实现一个单例？</li>
+</ol>
+<h1 id="代码格式规范">代码格式规范</h1>
+<ol>
+<li>
+<p>请列出你认为的 Swift 代码格式规范，包括但不限于缩进、空格、命名等方面。</p>
+</li>
+<li>
+<p>在你的项目中，你如何确保代码格式的一致性？请举例说明。</p>
+</li>
+<li>
+<p>请设计一个小模块，尽可能全面地向我展示你自己的编码风格。</p>
+</li>
+</ol>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[iOS自编面试题]]></title>
+        <id>https://blog.rakuyoo.top/ios-self-paced-interview-questions/</id>
+        <link href="https://blog.rakuyoo.top/ios-self-paced-interview-questions/">
+        </link>
+        <updated>2023-03-03T05:57:15.000Z</updated>
+        <summary type="html"><![CDATA[<p>最近要负责面试，于是各处搜罗了一些面试题，用于当面面试使用（非笔试题），也当作自己的一个复习。同时提供了一个我自己角度的评判，仅供参考。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>最近要负责面试，于是各处搜罗了一些面试题，用于当面面试使用（非笔试题），也当作自己的一个复习。同时提供了一个我自己角度的评判，仅供参考。</p>
+<!-- more -->
+<p>笔试题部分请参考：<a href="https://blog.rakuyoo.top/ios-self-paced-test-questions/">iOS自编笔试题</a></p>
+<blockquote>
+<p>以下所以答案，如果面试时未能回答，作为补充问题回答正确后，相应分值 - 1。<br>
+回答了其他答案，正确且合理的情况下，酌情给分。</p>
+</blockquote>
+<h1 id="swift-相关">Swift 相关</h1>
+<p>主要考察Swift语法相关内容</p>
+<h2 id="基础">基础</h2>
+<h3 id="什么是swift方法默认值什么情况下会使用它">什么是Swift方法默认值？什么情况下会使用它？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>在定义函数时给参数赋一个默认值，调用该函数时可以不传该参数值</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>减少函数重载的需要</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>避免在调用函数时多次输入相同的值</td>
+</tr>
+</tbody>
+</table>
+<h3 id="什么是optional类型它的作用是什么如何使用optional类型">什么是Optional类型，它的作用是什么？如何使用Optional类型？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>用来表示一个值可能存在，也可能不存在的情况</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>Optional 类型的作用是为避免因为没有处理 nil 而导致程序崩溃的问题</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>Optional 类型可以通过在类型名后加一个 ? 来定义</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>如果一个 Optional 类型的变量有值，那么可以使用可选绑定 （if let）将其取出</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>在使用 Optional 类型时，尽量避免使用强制解包</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>Optional 的实际实现是一个枚举</td>
+</tr>
+</tbody>
+</table>
+<h3 id="swift中的struct和class有什么区别什么情况下应该使用struct">Swift中的struct和class有什么区别？什么情况下应该使用struct？</h3>
+<p>区别：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>class 支持继承，而 struct 不支持继承</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>class 支持类型转换，而 struct 不支持类型转换</td>
+<td>这里的类型转换指的是子类和父类之间的隐式类型转换</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>class 是引用类型，而 struct 是值类型</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<p>使用情况：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>如果对象的复杂度较高，并需要支持继承和类型转换，应该使用 class</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>如果对象比较简单，并且需要高性能，可以考虑使用 struct</td>
+</tr>
+</tbody>
+</table>
+<h3 id="什么是-swift-中的访问控制access-control它有哪些级别">什么是 Swift 中的访问控制（Access Control）？它有哪些级别？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1/3</td>
+<td>Open: 可以被同一模块内和外部模块的代码访问，允许被继承和重写</td>
+<td>提到外部模块计3分，否则1分</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1/3</td>
+<td>Public: 可以被同一模块内和外部模块的代码访问，但是在外部模块不能被重写或继承，内部模块可以</td>
+<td>提到外部模块计3分，否则1分</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1/3</td>
+<td>Internal: 只能被同一模块内的代码访问，不能被外部模块访问（默认访问级别）</td>
+<td>提到是默认权限计3分，否则1分</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>fileprivate: 只能被同一源文件内的代码访问</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>private: 只能在所定义的作用域内访问（比如函数、方法、类、结构体等），不能被同一文件中的其他作用域访问。</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>Xcode 生成的 struct 的初始化方法是 Internal 属性，有外部访问需求的话要手动实现 init 方法</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<h3 id="什么是-swift属性观察器property-observer">什么是 Swift属性观察器（Property Observer）？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>知道属性观察器是 willSet 和 didSet</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>只能应用于存储属性，而不能应用于计算属性</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2+1</td>
+<td>如果属性是在初始化期间（init和定义时赋值）设置的，则不会调用 willSet 和 didSet 观察器</td>
+<td>回答 init，2分，回答定义时，1分，总分3分</td>
+</tr>
+</tbody>
+</table>
+<h3 id="swift中一个方法如何返回多个值">Swift中一个方法如何返回多个值？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>可以使用元组（Tuple）来实现一个方法返回多个值的效果</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">0</td>
+<td>自定义类型、数组、字典等</td>
+</tr>
+</tbody>
+</table>
+<h3 id="什么是-swift-中的-extension扩展如何使用-extension">什么是 Swift 中的 Extension（扩展）？如何使用 Extension？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>允许开发者向已有的类型添加新的方法、计算属性等，而无需继承子类或使用 Objective-C runtime</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>不能添加存储属性或属性观察器</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>扩展中的方法不能和已有方法重名</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>使得代码更加模块化，易于维护</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>也可以对第三方类进行扩展，而无需改动原代码，更加方便地满足自己的需求</td>
+</tr>
+</tbody>
+</table>
+<h3 id="swift中的协议protocol是什么它有什么作用">Swift中的协议（protocol）是什么？它有什么作用？</h3>
+<blockquote>
+<p>如果回答中包含了协议中的范型等内容，参考 <a href="#%E4%BB%80%E4%B9%88%E6%98%AF%E6%B3%9B%E5%9E%8Bgeneric%E7%B1%BB%E5%9E%8B%E5%AE%83%E4%BB%AC%E5%9C%A8swift%E4%B8%AD%E6%9C%89%E4%BB%80%E4%B9%88%E4%BD%9C%E7%94%A8">什么是范型</a> 一题中的分值。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>协议定义了一组方法、属性</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>可以被类、结构体和枚举类型实现，然后实现方就可以使用协议中提供的内容</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>提高代码的模块化程度、可重用性和可维护性，减少代码的耦合性</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1/2</td>
+<td>可以扩展协议，为协议添加默认实现</td>
+<td>如果面试者没有提，可以进行提问“Swift 协议如何做默认实现？”</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">5</td>
+<td>习惯使用扩展遵循协议，而不是在声明类型时</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">-5</td>
+<td>习惯在声明类型时遵循协议</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1/3/10</td>
+<td>提到了面向协议编程</td>
+<td>仅仅提到，计1分；有对应描述、解释，计3分；描述详细，并配合示例，计10分</td>
+</tr>
+</tbody>
+</table>
+<h3 id="什么是泛型generic类型它们在swift中有什么作用">什么是泛型（Generic）类型？它们在Swift中有什么作用？</h3>
+<blockquote>
+<p>笔试题中包含范型擦出，所以本题主要考察面试者有没有 “用范型提高代码可读性、维护性” 的意识。<br>
+在这里不必回答范型擦出。回答范型擦出不额外计分。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>可以用于定义函数、类、结构体、枚举等多种类型的通用类型机制</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>泛型类型可以用于消除代码重复，提高代码的可读性和可维护性</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>定义协议时，可以使用关联类型来实现更加灵活的数据处理</td>
+</tr>
+</tbody>
+</table>
+<h3 id="什么是swift字面量协议">什么是Swift字面量协议？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>ExpressibleByNilLiteral</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>ExpressibleByIntegerLiteral：允许类型从整数字面量创建实例。</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>ExpressibleByFloatLiteral：允许类型从浮点数字面量创建实例。</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>ExpressibleByBooleanLiteral：允许类型从布尔字面量创建实例。</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>ExpressibleByStringLiteral：允许类型从字符串字面量创建实例。</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>ExpressibleByArrayLiteral：允许类型从数组字面量创建实例。</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>ExpressibleByDictionaryLiteral：允许类型从字典字面量创建实例。</td>
+</tr>
+</tbody>
+</table>
+<p>只要提到有这么几个协议（不用说出具体的名字），可以通过数字、字符串、Bool、数组、字典字面量来初始化对应的类型即可。</p>
+<h3 id="什么是延迟加载懒加载lazy-loading在swift中你一般什么时候使用它">什么是延迟加载（懒加载，Lazy Loading）？在Swift中你一般什么时候使用它？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>在Swift中，延迟加载可以通过使用 lazy 关键字来实现</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>lazy 关键字可以用于属性</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>在第一次访问该变量或属性时，系统会执行相应的代码进行初始化</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">5</td>
+<td>几乎无脑使用懒加载来定义任何的属性</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<h3 id="swift中的高阶函数higher-order-function有哪些请分别说明它们的作用">Swift中的高阶函数（Higher Order Function）有哪些？请分别说明它们的作用。</h3>
+<blockquote>
+<p>主要包含以下几个即可，其余的例如 contains、allSatisfy 等说了也计1分。<br>
+如果只说出了函数名，没有说明作用，依然得分。或者能说出来功能，具体函数名拼不全也可。</p>
+<p>如果下面这些没有说全，面试官可提示 “还有没有了？”</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>map：将一个集合中的每个元素通过一个函数映射为另一个元素，返回一个新的集合</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>filter：过滤一个集合中符合特定条件的元素，返回一个新的集合</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>reduce：通过对一个集合中的所有元素进行累加或累积操作，返回一个最终的结果</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>flatMap：将一个集合中的每个元素通过一个函数映射为另一个集合，然后将所有集合中的元素合并为一个新的集合</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>compactMap：对一个序列进行变换操作，并返回一个新的序列，该序列将所有的 nil 元素去除</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>sorted：对一个集合中的元素进行排序，返回一个新的排序后的集合</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>forEach：对一个集合中的每个元素执行一段特定的代码</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<h3 id="flatmap-和-compactmap-这两个之间有什么区别">flatMap 和 compactMap 这两个之间有什么区别？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>flatMap 用于高维数组的降维，例如二维数组拍平为一维数组</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>compactMap 用于过滤数组中的可选值，去掉所有返回 nil 的元素</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>Swift 4.2 中将这两个函数拆开，不可混用</td>
+<td>提到不可混用即可</td>
+</tr>
+</tbody>
+</table>
+<h2 id="进阶">进阶</h2>
+<h3 id="在swift中如何实现一段代码在整个程序的生命周期内只会执行一次">在Swift中如何实现一段代码在整个程序的生命周期内只会执行一次？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">0</td>
+<td>dispatch_once</td>
+<td>不得分，Swift 3 及以上版本已废弃</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">0</td>
+<td>单例</td>
+<td>不得分，题目要求的是 “一段代码”，而不是一个对象</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>(lazy var)/static + Void 类型的属性，定义时使用 {}() 包括需要执行的代码。借助了懒加载的特性</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="swift中的类型推断type-inference是什么请说明它的作用">Swift中的类型推断（Type Inference）是什么？请说明它的作用</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>编译器能够推断出变量或常量的类型而不需要显式声明其类型</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>使代码更加简洁，减少了类型声明的冗余，同时也减少了因类型声明错误而引起的编译错误的可能性</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">-10</td>
+<td>不建议使用</td>
+<td>如果面试者说建议显式声明类型（除非是为了解决Xcode代码提示的bug），否则扣10分</td>
+</tr>
+</tbody>
+</table>
+<h3 id="swift中的final关键字是什么意思它的作用是什么">Swift中的final关键字是什么意思？它的作用是什么？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1+2+2</td>
+<td>final 关键字可以修饰类、方法和变量</td>
+<td>提到类计1分；提到方法、变量每个2分，总分5分</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>final 修饰后不可集成、不可重写</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>private 的类型，其内的属性和方法会在编译时自动添加 final</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<h3 id="swift中的string类型和objc中的nsstring类型有什么区别">Swift中的String类型和ObjC中的NSString类型有什么区别？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>底层实现不同，Swift 的 String 类型是一个值类型，而ObjC的 NSString 类型是一个类</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>Swift的 String 类型可以无缝地与ObjC中的 NSString 类型互相转换</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>Swift中的字符串是Unicode兼容的，可以直接使用Unicode字符和表情符号，而ObjC中的字符串是基于ASCII编码的，无法直接处理Unicode字符和表情符号</td>
+</tr>
+</tbody>
+</table>
+<h3 id="swift中的枚举相比较objc中的枚举有什么优势">Swift中的枚举相比较ObjC中的枚举有什么优势？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>每个枚举成员可以有自己的关联值，这使得枚举更加灵活。而ObjC中的枚举只能包含整数</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>枚举是一等公民，它和类、结构体等类型一样，可以有自己的方法，甚至遵循协议。</td>
+</tr>
+</tbody>
+</table>
+<h3 id="swift中的延迟defer语句有什么作用">Swift中的延迟（Defer）语句有什么作用？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">0/2/3</td>
+<td>Defer语句可以用来在函数/作用域执行完毕之前执行一些清理工作</td>
+<td>回答 “函数” 0分，“作用域” 2分，能给出作用域的例子，例如 if 中使用的情况，3分。如果面试者没提到作用域问题，则可以当作<strong>进阶</strong>问题抛出</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>Defer语句可以用来执行一些清理工作</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>无论函数是正常返回还是抛出异常，都会执行</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>虽然形式上像是闭包，但更像是语法糖，所以不会捕获变量</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>当函数内有多个 defer 语句时，将按照倒序的顺序执行，即最后一个 defer 先执行</td>
+<td>如果面试者没回答，则可以当作<strong>进阶</strong>问题抛出</td>
+</tr>
+</tbody>
+</table>
+<h3 id="什么是swift方法派发有哪几种">什么是Swift方法派发？有哪几种？</h3>
+<blockquote>
+<p>方法调度和方法派发是一回事，不同的翻译</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>宏观上分为静态（直接）派发和动态派发两种</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>其中动态派发又包含两种：表派发/函数表派发和消息派发</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">5/6</td>
+<td>静态派发：编译时找到指令所在的位置。所以执行速度快，还允许编译期做各种优化，例如内联</td>
+<td>提到内联，额外加1分，共6分</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">5/6</td>
+<td>表派发：运行时决定实现方式，理论上速度也很快，编译期决定函数表</td>
+<td>提到编译期决定寒暑表，额外加1分，共6分</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">5</td>
+<td>消息派发：Objective-C 的逻辑，可以在运行时修改消息接收对象</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">5</td>
+<td>会通过看 SIL 确定派发方式</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<!-- 
+
+常见的消息派发情况：
+
+| | 直接调用 | Table | Message |
+|:---:|-----|-----|-----|
+| 明确执行 | final, static | - | dynamic |
+| 值类型 | 所有方法 | - | - |
+| 协议 | 拓展中的方法（不包含默认实现） | 定义的方法 | - |
+| 类 | 拓展中的方法 | 定义的方法 | 带有 @objc 的扩展 |
+
+因为比较复杂，上述表格也不全面，所以总体计10分，具体得分由面试官视情况而定。
+
+ -->
+<h3 id="请说明swift中array类型的底层实现方式">请说明Swift中Array类型的底层实现方式</h3>
+<blockquote>
+<p>总分值10分</p>
+</blockquote>
+<p>Array 使用了一个名为“缓冲区”（buffer）的数据结构来存储元素。</p>
+<p>缓冲区由三个部分组成：</p>
+<ol>
+<li>指向元素存储位置的指针</li>
+<li>缓冲区的容量大小</li>
+<li>缓冲区的元素个数</li>
+</ol>
+<h3 id="swift的switch语法和objc的switch语法在底层实现方式上有什么区别">Swift的switch语法和ObjC的switch语法，在底层实现方式上有什么区别？</h3>
+<blockquote>
+<p>总分值10分</p>
+</blockquote>
+<p>ObjC 的 switch 还是某种意义上的 goto 语法，命中的时候会跳到对应的代码的地址，这段代码是连续的，需要 break 来决定执行到哪里。这种实现方式主要是为了方便从早期 C 语言中继承而来。</p>
+<p>而 swift 的 switch 会被编译成类似 if else 的语法，作用域更明确。</p>
+<h3 id="sil是什么怎么将swift代码转换为sil代码">SIL是什么？怎么将Swift代码转换为SIL代码？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>SIL是Swift中间语言，是源代码和机器代码之间的一种中间代码</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1/2</td>
+<td>编译器会将Swift代码编译成SIL，然后对SIL进行优化和转换，最后将其编译成机器代码</td>
+<td>提到编译器对 SIL 进行优化，计2分，否则计1分</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>使用 swiftc -emit-sil + &lt;file_name.swift&gt; 将 swift 文件转换为 SIL 代码</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<h3 id="请简述-swift-extension-的实现原理">请简述 Swift extension 的实现原理</h3>
+<blockquote>
+<p>总分10分</p>
+</blockquote>
+<p>在 Swift 内部，每个类或结构体都有一个名为 vtable（虚函数表）的表格，其中记录了类或结构体的方法的地址。当 Swift 调用一个方法时，它会先检查类或结构体的类型，然后查找该类型的 vtable 表格，以获取该方法的地址并调用它。</p>
+<p>当我们在 Extension 中定义一个新方法时，Swift 编译器会将其添加到 vtable 表格中，并根据需要重新生成 vtable 表格，以确保所有方法都在正确的位置。这就是 Swift Extension 实现的底层原理。</p>
+<h1 id="ios-开发相关">iOS 开发相关</h1>
+<p>主要考察 iOS 开发相关知识点，和具体开发语言没有太大的关系。</p>
+<h2 id="基础-2">基础</h2>
+<h3 id="请简述ios开发中apns的推送机制">请简述iOS开发中，APNS的推送机制</h3>
+<blockquote>
+<p>总分5分</p>
+</blockquote>
+<p>APNS的推送机制包括以下几个步骤：</p>
+<ol>
+<li>
+<p>应用程序在设备上注册远程通知。注册成功后，设备会产生一个唯一的令牌（device token），用于标识该设备。</p>
+</li>
+<li>
+<p>应用程序将令牌发送给后台服务器，后台服务器将令牌与设备绑定起来。</p>
+</li>
+<li>
+<p>当需要向设备发送通知时，后台服务器发送一个推送通知请求到APNS服务器。</p>
+</li>
+<li>
+<p>APNS服务器将推送通知发送到指定的设备上。</p>
+</li>
+<li>
+<p>设备接收到推送通知后，根据推送通知的内容执行相应的操作，例如打开应用程序、显示提醒等。</p>
+</li>
+</ol>
+<h3 id="常见的触发离屏渲染的场景有哪些">常见的触发离屏渲染的场景有哪些？</h3>
+<blockquote>
+<p>总分10分</p>
+</blockquote>
+<h2 id="进阶-2">进阶</h2>
+<h3 id="离屏渲染是什么为什么会触发离屏渲染">离屏渲染是什么？为什么会触发离屏渲染</h3>
+<blockquote>
+<p>总分15分</p>
+</blockquote>
+<h3 id="什么是runlooprunloop的运行模式有哪几种">什么是RunLoop？RunLoop的运行模式有哪几种？</h3>
+<blockquote>
+<p>总分10分</p>
+</blockquote>
+<p>RunLoop是iOS中的一个事件循环机制，负责处理用户事件，如触摸事件、定时器事件、网络请求事件等，同时还要处理UI更新、线程通信等任务。<br>
+RunLoop会将事件源分发到相应的处理器进行处理，如果RunLoop没有事件需要处理，那么它会进入休眠状态，直到有新的事件到来。</p>
+<p>常见的RunLoop运行模式有以下几种：</p>
+<ol>
+<li>
+<p>DefaultRunLoopMode：默认模式，处理UI事件、定时器、网络事件等。</p>
+</li>
+<li>
+<p>UITrackingRunLoopMode：处理UIScrollView滑动过程中的事件，优先级高于DefaultRunLoopMode。</p>
+</li>
+<li>
+<p>CommonModes：是一个集合模式，可以添加多个模式，包括DefaultRunLoopMode和UITrackingRunLoopMode等，用于处理需要同时响应多个模式下的事件。</p>
+</li>
+</ol>
+<p>在运行RunLoop时，需要指定一个运行模式，如果没有指定，则会使用DefaultRunLoopMode。</p>
+<h3 id="ios开发中的响应链机制是什么请举例说明">iOS开发中的响应链机制是什么？请举例说明</h3>
+<blockquote>
+<p>总分15分</p>
+</blockquote>
+<p>在iOS应用中，将用户的触摸事件（touch event）传递到正确的视图（view）或者控制器（controller）的过程就是响应链。</p>
+<p>当用户在屏幕上进行触摸时，触摸事件会被UIWindow捕获，并从UIWindow开始向下传递，直到找到合适的响应者处理事件为止。</p>
+<p>当用户触摸到界面上的按钮时，iOS系统会将此事件封装成一个 UIEvent 对象，并通过 UIApplication 对象将该事件发送给当前 UIWindow 对象。接着，该 UIWindow 对象会将该事件发送给最前端的 UIResponder 对象，即当前展示在屏幕上的 UIViewController 的 view 属性对应的 UIView 对象。这一过程即为响应链的开始。</p>
+<p>接着，该 UIView 对象会通过 hitTest:withEvent: 方法判断当前触摸点是否在该 UIView 对象内。如果在，则该 UIView 对象会将该事件传递给自己的 touchesBegan:withEvent: 方法进行处理。如果不在，则该 UIView 对象会将该事件传递给其子视图进行处理。这一过程就是响应链的传递过程。</p>
+<p>当子视图接收到事件后，会按照相同的方式进行处理。如果该子视图的 userInteractionEnabled 属性为 NO，则该视图将不会响应该事件，并将该事件传递给下一个响应者。如果子视图的 userInteractionEnabled 属性为 YES，则该视图会先进行 hitTest:withEvent: 方法的判断，如果触摸点在该视图内，则该视图将该事件传递给自己的 touchesBegan:withEvent: 方法进行处理，否则将该事件传递给下一个响应者。</p>
+<p>最终，如果所有的子视图都没有处理该事件，则该事件会传递给该 UIView 对象的父视图进行处理，一直传递到 UIWindow 对象和 UIApplication 对象。如果该事件都没有被处理，则该事件将被丢弃。</p>
+<h1 id="架构相关">架构相关</h1>
+<p>主要考察架构、设计能力</p>
+<h2 id="基础-3">基础</h2>
+<h3 id="什么是mvc架构它的组成部分是什么在ios开发中如何实现mvc架构">什么是MVC架构？它的组成部分是什么？在iOS开发中，如何实现MVC架构？</h3>
+<blockquote>
+<p>总分10分</p>
+</blockquote>
+<h3 id="什么是mvvm架构它的组成部分是什么在ios开发中如何实现mvvm架构">什么是MVVM架构？它的组成部分是什么？在iOS开发中，如何实现MVVM架构？</h3>
+<blockquote>
+<p>总分15分</p>
+</blockquote>
+<h3 id="什么是装饰器decorator模式在swift中如何使用">什么是装饰器（Decorator）模式？在Swift中如何使用？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>装饰器模式允许开发者在不修改对象结构的情况下，动态地添加行为。</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>在 Swift 中，装饰器模式可以通过使用协议和扩展来实现。</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">5</td>
+<td>具体来说，可以定义一个协议来表示被装饰者的基本行为，然后创建一个装饰器协议，该协议继承自被装饰者协议，并添加了额外的行为。最后，可以使用一个类来实现装饰器协议，该类通过存储被装饰者对象的引用来实现对被装饰者对象的包装。</td>
+</tr>
+</tbody>
+</table>
+<h2 id="进阶-3">进阶</h2>
+<h3 id="什么是尾递归优化tail-call-optimization在swift中如何实现尾递归优化">什么是尾递归优化（Tail-Call Optimization）？在Swift中如何实现尾递归优化？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>尾递归优化是一种优化技术，它可以避免在递归算法中出现栈溢出的问题</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>在递归函数的最后一个操作是调用自身，并且没有其他操作时，尾递归优化可以将递归转换为循环，避免了栈的增长</td>
+</tr>
+</tbody>
+</table>
+<h3 id="什么是函数柯里化function-currying在swift中如何实现函数柯里化">什么是函数柯里化（Function Currying）？在Swift中如何实现函数柯里化？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>函数柯里化是一种将多个参数的函数转换为一系列只有单个参数的函数的技术</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>在swift中，可以通过将函数返回值声明为闭包类型，将原本需要的参数放到返回值的闭包中，来实现函数柯里化</td>
+</tr>
+</tbody>
+</table>
+<h2 id="设计">设计</h2>
+<h3 id="在你的项目中你是如何划分模块module和层级layer的请举例说明">在你的项目中，你是如何划分模块（Module）和层级（Layer）的？请举例说明。</h3>
+<blockquote>
+<p>总分10分</p>
+</blockquote>
+<p>开放式题目。</p>
+<h3 id="不用-target-action-的方式如何设计一个路由组件">不用 target-action 的方式如何设计一个路由组件？</h3>
+<blockquote>
+<p>总分20分</p>
+</blockquote>
+<p>开放式题目。</p>
+<h3 id="当你从objc转到swift之后你最大的感触是什么">当你从ObjC转到Swift之后，你最大的感触是什么？</h3>
+<blockquote>
+<p>总分20分</p>
+</blockquote>
+<p>开放式题目。</p>
+<h3 id="当你从objc转到swift之后你做了哪些事让你的swift代码看上去不那么objc">当你从ObjC转到Swift之后，你做了哪些事让你的Swift代码看上去不那么ObjC？</h3>
+<blockquote>
+<p>总分30分</p>
+</blockquote>
+<p>开放式题目。下面提供几个示例：</p>
+<ol>
+<li>使用Swift的数据结构和类型：使用Swift的Array、Dictionary等数据结构，避免使用NSArray和NSDictionary等。</li>
+<li>使用Swift的可选型（Optional）：使用可选型来处理变量是否存在的情况，而不是定义0，空字符串，或者使用ObjC中的nil或NSNotFound等。</li>
+<li>使用Swift的语言特性：使用Swift中的高阶函数和闭包等语言特性，避免使用ObjC中的循环和函数指针等。</li>
+<li>减少使用全局变量：尽量避免使用全局变量，而采用更具体和局部的方式来传递数据。</li>
+<li>减少使用强制类型转换：尽量避免使用强制类型转换，而采用更安全和优雅的方式来处理类型转换。</li>
+</ol>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Python：Celery 的简单使用]]></title>
+        <id>https://blog.rakuyoo.top/simple-use-of-python-celery/</id>
+        <link href="https://blog.rakuyoo.top/simple-use-of-python-celery/">
+        </link>
+        <updated>2023-02-23T07:12:07.000Z</updated>
+        <summary type="html"><![CDATA[<p>最近写的后端项目需要用到队列，其中有一些东西折腾了好一会儿，在这里记录一下。</p>
+<p><a href="https://github.com/celery/celery">Celery</a> 是一个开源的分布式任务队列，可实现异步任务调度、定时任务、任务结果处理等功能。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>最近写的后端项目需要用到队列，其中有一些东西折腾了好一会儿，在这里记录一下。</p>
+<p><a href="https://github.com/celery/celery">Celery</a> 是一个开源的分布式任务队列，可实现异步任务调度、定时任务、任务结果处理等功能。</p>
+<!-- more -->
+<blockquote>
+<p>本文基于 Celery 5.2.7 版本编写。</p>
+</blockquote>
+<h1 id="概览">概览</h1>
+<p>Celery 其实包含了几个概念：<code>Celery</code> 客户端、消息中间件 <code>Broker</code>、结果存储 <code>Backend</code> 以及 任务执行单元 <code>Worker</code>。</p>
+<p>大致的流程是：<code>Celer</code> 客户端发起任务 -&gt; 相关信息存储到消息中间件 <code>Broker</code> 中 -&gt; 任务执行单元 <code>Worker</code> 从 <code>Broker</code> 中读取任务（<code>Task</code>）然后执行 -&gt; 将执行结果存储到 <code>Backend</code> 中 -&gt; <code>Celery</code> 客户端从 <code>Backend</code> 中读取结果。</p>
+<p>Celery 支持多种消息中间件和结果存储，本文主要使用 Redis 作为中间件和结果存储。</p>
+<h1 id="celery-对象的初始化-配置"><code>Celery</code> 对象的初始化 &amp; 配置</h1>
+<p>在 <code>Celery</code> 类用 <code>__init__</code> 方法初始化之后，有两种配置方式：</p>
+<h2 id="__init__"><code>__init__</code></h2>
+<p>可以在初始化 <code>Celery</code> 对象的同时传入对应的配置。有以下几个比较常用的参数：</p>
+<ul>
+<li><code>main</code>：主模块的名称</li>
+<li><code>broker</code>：消息中间件存储的访问地址</li>
+<li><code>backend</code>：结果存储服务的访问地址（可选的）</li>
+</ul>
+<p>例如说一个可能的 <code>Celery</code> 对象的初始化代码为：</p>
+<pre><code class="language-python">from celery import Celery
+celery = Celery('flaskr', broker='redis://localhost:6379/0', backend='redis://localhost:6379/0')
+</code></pre>
+<p>可以使用同一个 Redis 服务同时作为中间件和结果存储。<br>
+<code>flaskr</code> 是包含 <code>Celery</code> 客户端的 Python 程序的名称，如果使用 Flask 框架开发，那么应当是和初始化 <code>Flask</code> 对象时使用的名称一致。</p>
+<p>上文有提到 <code>backend</code> 是可选的，如果不传该参数，那么就无法通过 Celery 查询到任务的执行结果。</p>
+<h2 id="config_from_object"><code>config_from_object</code></h2>
+<p><code>Celery</code> 类还提供了一个 <code>config_from_object</code> 方法，支持通过 “Python 配置文件” 进行配置。使用上代码类似下面这样：</p>
+<pre><code class="language-python">from celery import Celery
+
+celery = Celery('flaskr')
+celery.config_from_object('flaskr.tools.celery_config')
+</code></pre>
+<p><code>celery_config</code> 是文件名。<code>flaskr.tools.celery_config</code> 是这个文件的 “路径”，或者说当我们想要在代码中 <code>import</code> 该 python 文件时使用的路径。</p>
+<p><code>celery_config.py</code> 文件中的内容为：</p>
+<pre><code class="language-python">from os import environ
+
+CELERY_REDIS_URL = &quot;redis://&quot; + \
+                &quot;:&quot; + \
+                environ.get(&quot;REDIS_PASSWD&quot;) + \
+                &quot;@&quot; + \
+                environ.get(&quot;REDIS_HOST&quot;) + \
+                &quot;:&quot; + \
+                environ.get(&quot;REDIS_PORT&quot;) + \
+                &quot;/&quot; + \
+                environ.get(&quot;REDIS_DATABASE&quot;)
+
+BROKER_URL = CELERY_REDIS_URL
+CELERY_RESULT_BACKEND = CELERY_REDIS_URL
+</code></pre>
+<p>在该文件中，我们可以从环境变量中读取配置，或者直接写死了我们所需要的配置字段。</p>
+<h2 id="注意">注意</h2>
+<p><code>Celery</code> 对象的初始化以及配置<strong>必须</strong>要放在顶层，下面的代码是不行的：</p>
+<pre><code class="language-python">from celery import Celery
+
+celery = Celery('flaskr')
+
+def init_app(app):
+    celery.config_from_object('flaskr.tools.celery_config')
+</code></pre>
+<p>因为后续 <code>Worker</code> 将会根据配置的路径，寻找 <code>Celery</code> 对象，从该对象中获取相应的配置。</p>
+<p>该过程可以理解为：“<strong>不是</strong>获取一个已经初始化好了的对象，<strong>而是</strong>根据配置的路径，找到对应的文件/模块，重新初始化 <code>Celery</code> 对象”。</p>
+<p>该过程只会执行顶层属性、方法，也就是说它不会调用你的 <code>init_app</code> 方法，所以这么写之后 <code>Worker</code> 侧的 <code>Celery</code> 对象属于只是被初始化但是没有被配置过的状态，所有的配置项都会是默认值。</p>
+<h1 id="worker"><code>Worker</code></h1>
+<p><code>Worker</code> 服务是独立于 <code>Celery</code> 客户端程序的，需要单独另起一个服务。</p>
+<p>在终端执行下面的命令启动 <code>Worker</code> 服务：</p>
+<pre><code class="language-shell">celery -A flaskr.libs.system worker -l info
+</code></pre>
+<p>其中 <code>-A</code> 参数后面接着的 <code>flaskr.libs.system</code> 是 <code>Celery</code> 对象所在的模块/文件路径。和 <code>config_from_object</code> 一样，这里也是 “当我们想要在代码中 <code>import</code> 该 python 文件时使用的路径”。要确保该路径下包含着 <code>Celery</code> 对象。</p>
+<p><code>-l</code> 参数是日志等级，示例中指定到 <code>info</code> 级别。</p>
+<h1 id="celery-的使用">Celery 的使用</h1>
+<p>下面简单的介绍一下 Celery 框架的使用方法。</p>
+<p><a href="#%E6%A6%82%E8%A7%88">上文</a>中有提到，<code>Worker</code> 会在运行时读取 <code>Celery</code> 客户端中的 <code>Task</code> 任务并执行。</p>
+<h2 id="定义任务">定义任务</h2>
+<p>下面是一个简单的 <code>Task</code> 的定义：</p>
+<pre><code class="language-python"># in tasks.py
+from flaskr.libs.system import celery
+
+@celery.task
+def add(x, y):
+    return x + y
+</code></pre>
+<p>你可以将其定义为顶层/全局方法，也可以将其包裹在类中。</p>
+<blockquote>
+<p>如果包裹在类中，会涉及到 <code>self</code> 参数问题，请参考后面的小节：<a href="#%E4%BB%BB%E5%8A%A1%E4%B8%AD%E7%9A%84-self">任务中的 self</a></p>
+</blockquote>
+<p>上文我们在 <code>flaskr.libs.system</code> 模块下定义了 <code>celery</code> 对象，然后就可以在 <code>tasks.py</code> 文件中使用 <code>@celery.task</code> 装饰器，使一个方法成为 Celery 任务。</p>
+<blockquote>
+<p>注意：如果你的 <code>Celery</code> 对象不叫 <code>celery</code> 而是其他名字，例如 <code>app</code>。那么你的装饰器应该是 <code>@app.task</code> —— <code>task</code> 是 <code>Celery</code> 对象的方法。</p>
+</blockquote>
+<p>在 <code>Task</code> 任务内，<code>return</code> 结果代表着 “任务<strong>执行成功</strong>”，通过 <code>raise</code> 抛出异常意味着 “任务<strong>执行失败</strong>。”</p>
+<h2 id="执行任务">执行任务</h2>
+<p>对任务方法调用 <code>delay</code> 方法以传递参数并执行任务：</p>
+<pre><code class="language-python"># 使用参数 4，5 调用任务 add
+result = add.delay(4, 5)
+
+# 对执行结果调用 get() 方法以获取任务执行结果
+print(result.get())
+</code></pre>
+<p><code>get()</code> 方法获取的是任务执行成功之后的结果，即 <code>return</code> 的结果。</p>
+<p>如果要获取 <code>raise</code> 抛出的异常，我们可以使用 <code>result.result</code> 方法获取异常。</p>
+<h2 id="判断状态">判断状态</h2>
+<p>在获取任务的执行结果之前，我建议您先判断当前任务的执行状态。</p>
+<p>Celery 框架提供了 <code>AsyncResult</code> 类来查询任务执行状态：</p>
+<pre><code class="language-python">def exec_task(self):
+    &quot;&quot;&quot;执行任务，并返回任务 ID&quot;&quot;&quot;
+    result = add.delay(4, 5)
+    task_id = result.task_id
+    return task_id
+
+def check_status(self, task_id):
+    &quot;&quot;&quot;根据任务 ID 查询任务状态&quot;&quot;&quot;
+    from flaskr.libs.system import celery
+    result = celery.AsyncResult(task_id)
+</code></pre>
+<blockquote>
+<p>有一些文章会执行使用 <code>AsyncResult</code> 类，而不是通过 <code>celery</code> 对象调用 <code>AsyncResult</code>。<br>
+但是在我实际操作过程中发现，不通过 <code>celery</code> 对象调用的话会找不到 <code>Backend</code>，怀疑也是和配置有关。</p>
+</blockquote>
+<p><code>result</code> 对象有一个 <code>task_id</code> 属性，使用该属性值作为参数初始化 <code>AsyncResult</code> 对象，就可以查询该任务的状态：</p>
+<ul>
+<li><code>result.state</code>：获取当前任务的状态（字符串）</li>
+<li><code>result.ready()</code>：判断任务是否已经结束（成功 or 失败）</li>
+<li><code>result.successful()</code>：判读任务是否成功</li>
+<li><code>result.get()</code>：和上文提及的一样，获取执行成功的任务的结果（<code>return</code>）</li>
+<li><code>result.result</code>：和上文提及的一样，获取执行失败的任务抛出的异常（<code>raise</code>）</li>
+</ul>
+<p>一种有可能的处理流程如下：</p>
+<pre><code class="language-python">def check_status(self, task_id):
+    # 查询任务状态
+    from flaskr.libs.system import celery
+    result = celery.AsyncResult(task_id)
+
+    logging.info(f&quot;查询任务结果，任务ID（{task_id}）对应的状态为：{result.state}&quot;)
+
+    # 任务仍在执行中
+    if not result.ready():
+        return { &quot;code&quot;: &quot;105&quot;, &quot;message&quot;: &quot;任务仍在执行中&quot; }
+    
+    # 任务失败
+    if not result.successful():
+        error = result.result
+        return { &quot;code&quot;: &quot;9999&quot;, &quot;message&quot;: f&quot;{str(error)}&quot; }
+
+    # 获取任务执行结果
+    task_result = result.get()
+    return { &quot;code&quot;: &quot;200&quot;, &quot;data&quot;: task_result, &quot;message&quot;: &quot;任务执行成功&quot; }
+</code></pre>
+<h2 id="任务中的-self">任务中的 self</h2>
+<p><code>.task()</code> 方法有一个 <code>bind</code> 参数，它的默认值是 <code>False</code>。该参数可以控制是否将任务绑定到实例对象上。这关乎到 <code>self</code> 参数的具体值。</p>
+<h3 id="定义在类中的任务">定义在类中的任务</h3>
+<p>如果你的任务定义是包裹在类中，像是这样：</p>
+<pre><code class="language-python">from flaskr.libs.system import celery
+
+class Tasks(object):
+    def __init__(self, value):
+        self.value = value
+
+    @celery.task
+    def add(self, x):
+        return x + self.value
+</code></pre>
+<p>那么此时需要注意，因为 <code>bind</code> 参数的默认值是 <code>False</code>，所以此时 <code>add</code> 任务没有被绑定到 <code>Tasks</code> 类实例上，所以此时 <code>self</code> 参数指的是任务本身，而不是 <code>Tasks</code> 类的实例对象。此时在 <code>add</code> 方法中，你将无法获取到 <code>self.value</code> 的值。</p>
+<p>如果你想在 <code>add</code> 方法中使用 <code>self.value</code>，你需要将 <code>bind</code> 参数设置为 <code>True</code>，像是这样：</p>
+<pre><code class="language-python">...
+
+@celery.task(bind=True)
+def add(self, x):
+    return x + self.value
+
+...
+</code></pre>
+<p>此时你可以顺利的获取到 <code>self.value</code> 的值。</p>
+<h3 id="定义在顶层的任务">定义在顶层的任务</h3>
+<p>如果任务直接定义在文件中，类似下面这样：</p>
+<pre><code class="language-python">from flaskr.libs.system import celery
+
+@celery.task
+def add(x, y):
+    return x + y
+</code></pre>
+<p>那么首先，此时 <code>bind</code> 参数的值是 <code>False</code>。这个时候您无法在 <code>add</code> 方法的参数列表中添加 <code>self</code>，也无法在方法实现内使用 <code>self</code> 参数，这会导致编译失败。</p>
+<p>如果你将 <code>bind</code> 设置为 <code>True</code>，那么就可以添加 <code>self</code> 参数了，例如下面这样：</p>
+<pre><code class="language-python">from flaskr.libs.system import celery
+
+@celery.task(bind=True)
+def add(self, x, y):
+    return x + y
+</code></pre>
+<p>那么此时 <code>self</code> 代表什么呢？</p>
+<p><a href="#%E4%BB%BB%E5%8A%A1%E4%B8%AD%E7%9A%84-self">上文</a>有提到，<code>bind</code> 参数用于将任务绑定到类实例。</p>
+<p>实际上，此时 Celery 会在后台自动将该任务转换为一个带有实例方法的类，使你可以在任务函数中访问实例属性和方法。在这种情况下，<code>self</code> 参数表示当前任务的实例对象，就像在类中定义任务一样。</p>
+<h2 id="重试">重试</h2>
+<p>Celery 框架本身支持 “<strong>重试</strong>” 功能，包含自动重试和手动重试两种方法。这里简单介绍一下手动重试的用法。</p>
+<h3 id="retry-方法的调用"><code>retry</code> 方法的调用</h3>
+<pre><code class="language-python"># in tasks.py
+from flaskr.libs.system import celery
+
+@celery.task(bind=True)
+def add(self, x, y):
+    try:
+        # 某些可能会抛出异常的方法
+        return __some_method_may_throw_exceptions()
+
+    except Exception as e:
+        # 出错每15秒尝试一次，总共尝试3次
+        raise self.retry(exc=e, countdown=15, max_retries=3)
+
+    finally:
+        pass
+</code></pre>
+<p>该例子中，我们在文件内直接定义了一个任务，而且 <code>bind</code> 参数被设置为了 <code>True</code>。此时我们要通过 <code>self</code> 参数来调用 <code>retry</code> 方法，执行手动重试。</p>
+<p>那如果 <code>bind</code> 是 False 的情况呢？此时我们可以使用 <code>add.retry(...)</code> 来触发手动重试。</p>
+<p>如果任务定义在类中：</p>
+<ul>
+<li>如果 <code>bind</code> 是 <code>False</code>，则可以直接使用 <code>self.retry(...)</code> 触发手动重试。</li>
+<li>如果 <code>bind</code> 是 <code>True</code>，则需要使用 <code>add.retry(...)</code> 触发手动重试。</li>
+</ul>
+<p>总结一下不同的场景：</p>
+<ul>
+<li>任务定义在类中：
+<ul>
+<li>如果 <code>bind</code> 是 <code>False</code>，则可以直接使用 <code>self.retry(...)</code> 触发手动重试。</li>
+<li>如果 <code>bind</code> 是 <code>True</code>，则需要使用 <code>add.retry(...)</code> 触发手动重试。</li>
+</ul>
+</li>
+<li>任务定义在文件中：
+<ul>
+<li>如果 <code>bind</code> 是 <code>False</code>，则可以直接使用 <code>add.retry(...)</code> 触发手动重试。</li>
+<li>如果 <code>bind</code> 是 <code>True</code>，则需要使用 <code>self.retry(...)</code> 触发手动重试。</li>
+</ul>
+</li>
+</ul>
+<p>可以说定义在类中和定义在文件中，对于相同的 <code>bind</code> 参数，调用方式是相反的。</p>
+<h3 id="retry-方法的参数"><code>retry</code> 方法的参数</h3>
+<p>说完了调用，我们来说一下参数。</p>
+<p><code>countdown</code> 定义重试的间隔，<code>max_retries</code> 定义最多重试几次。</p>
+<p><code>exc</code> 参数是一个可选参数，它代表着 “当前任务失败时产生的异常”。通过将 <code>e</code> 参数传递到 <code>retry</code> 方法中，可以让重试失败后抛出最开始的异常。您也可以自定义该异常参数。</p>
+<p>在使用 <code>retry</code> 方法时，如果没有指定 <code>exc</code> 参数，Celery 框架将默认将任务的异常信息传递给 <code>retry</code> 方法。如果指定了 <code>exc</code> 参数，则会将指定的异常对象传递给 <code>retry</code> 方法。</p>
+<h3 id="retry-方法的结果"><code>retry</code> 方法的结果</h3>
+<p>在上面的例子中，我们使用了 <code>raise</code> 将 <code>retry</code> 失败后的异常抛出，意味着任务失败。</p>
+<p>同时我们还可以不使用该参数，在重试失败之后手动处理异常，例如：</p>
+<pre><code class="language-python"># in tasks.py
+from flaskr.libs.system import celery
+
+@celery.task(bind=True)
+def add(self, x, y):
+    try:
+        return __some_method_may_throw_exceptions()
+
+    except Exception as e:
+        max_retries = 3
+
+        # 超过最大次数，返回错误信息
+        if self.request.retries &gt;= max_retries:
+            return __create_error_response()    
+
+        self.retry(exc=e, countdown=15, max_retries=max_retries)
+
+    finally:
+        pass
+</code></pre>
+<p>在这个例子中，如果超过了最大重试次数，因为我们没有将重试的异常抛给外界，所以在最后一次重试失败之后会再次触发 <code>except</code>，此时我们可以判断是否超过了最大重试次数，意味着重试失败。</p>
+<p>当重试失败后，我们可以根据需求进行失败处理。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[可组合的 UICollectionView 布局：UICollectionViewCompositionalLayout]]></title>
+        <id>https://blog.rakuyoo.top/composable-uicollectionview-layout-uicollectionviewcompositionallayout/</id>
+        <link href="https://blog.rakuyoo.top/composable-uicollectionview-layout-uicollectionviewcompositionallayout/">
+        </link>
+        <updated>2023-02-22T02:34:43.000Z</updated>
+        <summary type="html"><![CDATA[<p><code>UICollectionViewCompositionalLayout</code> 是 Apple 在 iOS 13 引入的，用于构建基于组合的 <code>UICollectionView</code> 布局的类。它允许开发者根据一系列的组合布局，更轻松、更灵活地创建复杂的 <code>UICollectionView</code> 布局。</p>
+<p>本文主要围绕 <code>UICollectionViewCompositionalLayout</code> 中 “可组合” 这个特性进行讨论。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p><code>UICollectionViewCompositionalLayout</code> 是 Apple 在 iOS 13 引入的，用于构建基于组合的 <code>UICollectionView</code> 布局的类。它允许开发者根据一系列的组合布局，更轻松、更灵活地创建复杂的 <code>UICollectionView</code> 布局。</p>
+<p>本文主要围绕 <code>UICollectionViewCompositionalLayout</code> 中 “可组合” 这个特性进行讨论。</p>
+<!-- more -->
+<blockquote>
+<p>本文建立在您已经大致了解过 <code>UICollectionViewCompositionalLayout</code>，知道它是什么，以及基础的用法。下文将不再对其进行讲解。</p>
+</blockquote>
+<h1 id="组合类-flowlayout-布局">组合类 FlowLayout 布局</h1>
+<p>在上一篇文章 <a href="https://blog.rakuyoo.top/notes-of-nscollectionlayoutgroup/">NSCollectionLayoutGroup 之子视图的填充</a> 的最后有提到一个场景，这里复用一下这个场景：</p>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyoo.top/post-images/1676794970773.png" alt="" loading="lazy"></figure>
+<p>在前文中，我有说中间的 “工具Group” 不能使用 <code>subitems</code> 的形式进行初始化，应该使用 <code>subitem + count</code> 的形式初始化 —— 其实这不完全对。</p>
+<p>实际需求上，如图这种类 FlowLayout 的布局往往会要求 “每行X个”，即平分展示。</p>
+<p>此时如果你们需要考虑下面的场景：</p>
+<ul>
+<li>屏幕旋转。</li>
+<li>iPad 等屏幕尺寸会发生变化的情况。</li>
+<li>AutoLayout 侧不想要获取屏幕尺寸去计算出 cell 宽度。</li>
+</ul>
+<p>那么 <code>subitem + count</code> 就没法做了：<code>subitem + count</code> 会忽略布局方向上的尺寸，所以此时很难单纯用 AutoLayout 做出平分的效果，或者说为了实现平分，需要多次刷新页面布局。</p>
+<p>此时有一种用 <code>subitems</code> 实现的方式：以每行/列作为一个 Group，Group 内使用 <code>subitems</code>。大致的代码如下所示：</p>
+<pre><code class="language-swift">let itemSize = NSCollectionLayoutSize(
+    widthDimension: .fractionalWidth(1/4), 
+    heightDimension: .estimated(69)
+)
+
+let normalLayoutSize = NSCollectionLayoutSize(
+    widthDimension: .fractionalWidth(1), 
+    heightDimension: .estimated(500)
+)
+
+let toolsListGroup = NSCollectionLayoutGroup.horizontal(
+    layoutSize: normalLayoutSize,
+    subitems: [ .init(layoutSize: itemSize) ]
+)
+
+let rows = 5
+let toolsGroup = NSCollectionLayoutGroup.vertical(
+    layoutSize: normalLayoutSize,
+    subitems: [
+        [toolsTitleItem],
+        Array(repeating: toolsListGroup, count: rows),
+        [
+            toolsFooterItem,
+            sectionPaddingItem
+        ],
+    ].flatMap { $0 }
+)
+</code></pre>
+<p>上面的代码首先定义了2个 Size，一个是 Item 的尺寸，另外一个算是一个 “占位符”。</p>
+<p>然后是2个 Group：</p>
+<ul>
+<li><code>toolsListGroup</code> 以行为单位展示 cell。</li>
+<li><code>toolsGroup</code> 则是最外面的 Group，它的 <code>subitems</code> 包含多个不同的 Group。其中的 <code>Array(repeating: toolsListGroup, count: $0)</code>  则是根据行数生成对应数量的 Group。</li>
+</ul>
+<p>这种写法有一个注意点还有一个疑惑：</p>
+<ul>
+<li>
+<p>注意点是：当 cell 的数量不是行的整数倍的时候，需要手动创建占位 cell。<br>
+举例来说，cell 有 5 个，对应的就是2行，cell 分布是 4 + 1。此时因为后面还有其他等待被填充的 Item/Group，如果没有创建占位 cell，则后面的 cell 会被提前，使用 <code>toolsListGroup</code> 里的 Item 布局。</p>
+</li>
+<li>
+<p>疑惑的是：我并不知道为什么这么做能生效。<br>
+按理说 <code>subitems</code> 的布局方式是不会限制内容的数量的，那么为什么它能每行正好装4个（就这个例子来说，每个Cell的宽度是屏幕的1/4），下一行的 Cell 则使用下一个 Group 的布局？</p>
+</li>
+</ul>
+<p>有关于 <code>UICollectionViewCompositionalLayout</code> 组合复杂布局的文档还是太少，目前还没找到这么做能生效的原因。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[NSCollectionLayoutGroup 之子视图的填充]]></title>
+        <id>https://blog.rakuyoo.top/notes-of-nscollectionlayoutgroup/</id>
+        <link href="https://blog.rakuyoo.top/notes-of-nscollectionlayoutgroup/">
+        </link>
+        <updated>2023-02-19T07:04:16.000Z</updated>
+        <summary type="html"><![CDATA[<p>本篇主要讲解 <code>NSCollectionLayoutGroup</code> 内 “子视图” 的填充方式。<br>
+算是为 <code>UICollectionViewCompositionalLayout</code> 的讲解做一些铺垫，毕竟把 Item 的填充方式了解清楚了之后，才能组合多种 Group 来进行更复杂的布局。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>本篇主要讲解 <code>NSCollectionLayoutGroup</code> 内 “子视图” 的填充方式。<br>
+算是为 <code>UICollectionViewCompositionalLayout</code> 的讲解做一些铺垫，毕竟把 Item 的填充方式了解清楚了之后，才能组合多种 Group 来进行更复杂的布局。</p>
+<!-- more -->
+<p><code>NSCollectionLayoutGroup</code> 不考虑方向的话，有两种填充子视图的方法。</p>
+<h1 id="概览">概览</h1>
+<p>通过头文件您能查到如下几个初始化方法：</p>
+<pre><code class="language-swift">open class func vertical(layoutSize: NSCollectionLayoutSize, subitems: [NSCollectionLayoutItem]) -&gt; Self
+
+@available(iOS, introduced: 13.0, deprecated: 16.0)
+open class func vertical(layoutSize: NSCollectionLayoutSize, subitem: NSCollectionLayoutItem, count: Int) -&gt; Self
+
+@available(iOS 16.0, *)
+open class func vertical(layoutSize: NSCollectionLayoutSize, repeatingSubitem subitem: NSCollectionLayoutItem, count: Int) -&gt; Self
+
+@available(iOS, introduced: 16.0, deprecated: 16.0, renamed: &quot;vertical(layoutSize:repeatingSubitem:count:)&quot;)
+public class func verticalGroup(with size: NSCollectionLayoutSize, repeatingSubitem subitem: NSCollectionLayoutItem, count: Int) -&gt; NSCollectionLayoutGroup
+</code></pre>
+<p>第三个方法是 iOS 16 新出的，同时废弃了第二个方法，而第四个方法在 iOS 16 引入同时由在 iOS 16 废除。<br>
+后文将围绕前两个方法展开讨论，不涉及到后两个方法。</p>
+<h1 id="subitem-count">subitem + count</h1>
+<p>这种初始化方式将在每个 Group 中重复 count 个 item。使用这种方法进行初始化时，在不同的方向上，<code>layoutSize</code> 会有不同的表现：</p>
+<h2 id="vertical">vertical</h2>
+<pre><code class="language-swift">func vertical(layoutSize: NSCollectionLayoutSize, subitem: NSCollectionLayoutItem, count: Int) -&gt; NSCollectionLayoutGroup
+</code></pre>
+<p>在纵向上，<code>NSCollectionLayoutItem</code> 的 <code>widthDimension</code> 生效，但是<code>heightDimension</code> 将被忽略。</p>
+<p>Item 的实际高度会是  <code>.fractionalHeight(1/count)</code>。</p>
+<p>假设现在有下面这些代码：</p>
+<pre><code class="language-swift">let itemSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1/3), heightDimension: .absolute(100))
+let item = NSCollectionLayoutItem(layoutSize: itemSize)
+let groupSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .absolute(100))
+let group = NSCollectionLayoutGroup.vertical(layoutSize: groupSize, subitem: item, count: 2)
+</code></pre>
+<p>此时 Item 的实际高度会是 50，相当于一个高度为 100 的 Group 内有2个高度为 50 的 Item。</p>
+<h2 id="horizontal">horizontal</h2>
+<pre><code class="language-swift">func horizontal(layoutSize: NSCollectionLayoutSize, subitem: NSCollectionLayoutItem, count: Int) -&gt; NSCollectionLayoutGroup
+</code></pre>
+<p>和 vertical 时的情况相对应：</p>
+<p>在横向上，<code>NSCollectionLayoutItem</code> 的 <code>heightDimension</code> 生效，但是<code>widthDimension</code> 将被忽略。</p>
+<p>Item 的实际宽度会是  <code>.fractionalWidth(1/count)</code>。</p>
+<p>这里就不再用代码举例说明了。</p>
+<h1 id="subitems">subitems</h1>
+<p>和上一种初始化方法相比，使用 <code>subitems</code> 的方式来进行初始化要简单的多，因为它内部的 Item 的大小完全取决于 Item 自身。考虑如下代码：</p>
+<pre><code class="language-swift">let itemSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1/3), heightDimension: .absolute(100))
+let item = NSCollectionLayoutItem(layoutSize: itemSize)
+let groupSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .absolute(300))
+let group = NSCollectionLayoutGroup.vertical(layoutSize: groupSize, subitems: [item])
+</code></pre>
+<p>该示例中，每个 Item 的高度就是 100，而宽度是 Group 的 1/3。每个 Group 中有多少个 Item 取决于数据源传递给 <code>UICollectionView</code> 的数量。</p>
+<p>有一点需要注意的是，Group 只是用来辅助布局的，它本身并不会生成任何视图。所以尽管在本示例中它的高度只有 300，不足 <code>UICollectionView</code> 的高度，但是 Item 依然会充满整个 <code>UICollectionView</code>，而不是仅仅在高度为 300 的范围内进行滑动。</p>
+<blockquote>
+<p>我并不能肯定这种现象可以称之为 “忽略 Group 的 layoutSize”，所以没有使用这种表述。</p>
+</blockquote>
+<h1 id="总结">总结</h1>
+<p>这两种初始化方式各有各的用途：</p>
+<p>在不考虑嵌套布局（Group 中嵌套 Item 和 Group）的情况下，这两种布局的使用场景大体上一致，只需要注意各自对 Item 大小的计算规则即可。绝大多数情况下我自己会选择 <code>subitems</code> 的初始化方式，因为 Item 的大小计算规则更为直观。</p>
+<p>但是在嵌套布局的前提下，这两种初始化方式就会有比较大的差异。</p>
+<p>首先嵌套布局的最外层只能使用 <code>subitems</code> 的方式初始化，数组中包含多种不同的 Item 或者 Group。<br>
+其次如果需要指定 Item 的数量，那么就只能使用 <code>subitem + count</code> 的初始化形式。</p>
+<p>考虑下图的场景：<br>
+<img src="https://blog.rakuyoo.top/post-images/1676794970773.png" alt="" loading="lazy"></p>
+<p>如果现在要求顶部的标题、中间的工具和下方的灰色分隔条，三部分放到一个 <code>NSCollectionLayoutGroup</code> 对象中，可以使用 <code>[标题Item + 工具Group + 灰条Item]</code> 的组合布局形式。</p>
+<p>此时 “工具Group” 就不能使用 <code>subitems</code> 的方式进行初始化了，必须要指定工具的数量，否则 <code>UICollectionView</code> 会把下方的灰条也融到工具 Group 中。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[NSCollectionLayoutSection 注意事项之 orthogonalScrollingBehavior]]></title>
+        <id>https://blog.rakuyoo.top/note-of-orthogonalscrollingbehavior/</id>
+        <link href="https://blog.rakuyoo.top/note-of-orthogonalscrollingbehavior/">
+        </link>
+        <updated>2023-02-19T01:54:27.000Z</updated>
+        <summary type="html"><![CDATA[<p>本篇文章记录使用 <code>NSCollectionLayoutSection</code> 类的 <code>orthogonalScrollingBehavior</code> 属性的过程中遇到的问题。</p>
+<p>通过设置该属性可以控制对应 Section 的滑动效果。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>本篇文章记录使用 <code>NSCollectionLayoutSection</code> 类的 <code>orthogonalScrollingBehavior</code> 属性的过程中遇到的问题。</p>
+<p>通过设置该属性可以控制对应 Section 的滑动效果。</p>
+<!-- more -->
+<blockquote>
+<p>在阅读以下内容时，我将默认您已经掌握了 <code>UICollectionViewCompositionalLayout</code> 的基础用法，不再对一些细节进行补充说明。</p>
+</blockquote>
+<h1 id="_uicollectionvieworthogonalscrollerembeddedscrollview"><code>_UICollectionViewOrthogonalScrollerEmbeddedScrollView</code></h1>
+<blockquote>
+<p>因为该类型名称太长，同时会多次重复提及，故下文使用 <code>_UICollectionViewOSEScrollView</code> 代替。</p>
+</blockquote>
+<p><code>orthogonalScrollingBehavior</code> 的默认值是 <code>.none</code>，当我们将其设置为其他值后，系统就会在 <code>UICollectionView</code> 上添加一层类型为 <code>_UICollectionViewOSEScrollView</code> 的 <code>UIScrollView</code> 子类作为 Cell 的父视图，如下图所示：</p>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyoo.top/post-images/1676789230003.png" alt="" loading="lazy"></figure>
+<p><strong>此时 Cell 的父视图不再是 <code>UICollectionVIew</code></strong>。</p>
+<p>我们测试过以下情况：</p>
+<ul>
+<li><code>UICollectionViewCompositionalLayout</code> 只有一种布局。</li>
+<li><code>NSCollectionLayoutGroup</code> 的滑动方向和 <code>UICollectionView</code> 的滑动方向一致或不一致。</li>
+<li><code>NSCollectionLayoutSection</code> 的尺寸和 <code>UICollectionView</code> 相等或不相等。</li>
+</ul>
+<p>在这三种情况下，只要修改了 <code>orthogonalScrollingBehavior</code> 属性，就会添加 <code>_UICollectionViewOSEScrollView</code> 视图。</p>
+<p>在正式展开说明之前插一句：本文后面所提及的内容，都是在下面这个布局的基础上进行修改的：</p>
+<pre><code class="language-swift">let itemSize = NSCollectionLayoutSize(
+    widthDimension: .fractionalWidth(1/3),
+    heightDimension: .absolute(50))
+            
+let item = NSCollectionLayoutItem(layoutSize: itemSize)
+            
+let group = NSCollectionLayoutGroup.horizontal(
+    layoutSize: .init(
+        widthDimension: .fractionalWidth(1),
+        heightDimension: .fractionalHeight(0.5)),
+    subitems: [item])
+            
+            
+let section = NSCollectionLayoutSection(group: group)
+            
+return section
+</code></pre>
+<h2 id="获取时机">获取时机</h2>
+<p>那么该如何获取该视图呢，经过<strong>不完全测试</strong>，列表不包含任何 Cell 时，不会添加该视图。<br>
+该视图可在 <code>viewDidLayoutSubviews</code> 方法中通过遍历子视图获得。</p>
+<pre><code class="language-swift">var orthogonalScrollView: UIScrollView? {
+    subviews.first { &quot;\(type(of: $0))&quot; == &quot;_UICollectionViewOrthogonalScrollerEmbeddedScrollView&quot; } as? UIScrollView
+}
+</code></pre>
+<h2 id="clipstobounds"><code>clipsToBounds</code></h2>
+<p><code>_UICollectionViewOSEScrollView</code> 的 <code>clipsToBounds</code> 属性默认是 <code>false</code>，这会导致一个问题：</p>
+<p>如果您的 Section 设置了 <code>contentInsets</code> 之类的属性，导致比 <code>UICollectionView</code> 小，那么在滑动 <code>_UICollectionViewOSEScrollView</code> 的时候，其内容会超出 Section 的范围。</p>
+<h3 id="ios-15-及以上">iOS 15 及以上</h3>
+<p><code>_UICollectionViewOSEScrollView</code> 是严格跟着 Section 范围走的，例如下图：</p>
+<figure data-type="image" tabindex="2"><img src="https://blog.rakuyoo.top/post-images/1676775749906.png" alt="" loading="lazy"></figure>
+<p>蓝色选中的范围是 <code>_UICollectionViewOSEScrollView</code>，可以看到滑动的时候 Cell 明显超出了它的范围。</p>
+<p><a href="#%E8%8E%B7%E5%8F%96%E6%97%B6%E6%9C%BA">上文</a>有提到获取 <code>_UICollectionViewOSEScrollView</code> 的时机，您可以在获取后通过手动将 <code>clipsToBounds</code> 设置为 <code>ture</code> 来解决该问题。</p>
+<h3 id="ios-15-以下">iOS 15 以下</h3>
+<blockquote>
+<p>经不完全测试，iOS 14.7.1 及以下版本符合该小节内容。iOS 14.7.1 - iOS 15 之间的版本没有经过测试，不确定符合上一小节还是该小节。</p>
+</blockquote>
+<p><code>_UICollectionViewOSEScrollView</code> 的范围是跟着 <code>UICollectionView</code> 走的，由下图所示：</p>
+<figure data-type="image" tabindex="3"><img src="https://blog.rakuyoo.top/post-images/1676776215449.png" alt="" loading="lazy"></figure>
+<p>和上一张图对比之后，可以很明显的发现区别（代码相同）。值得一提的是此时 <code>_UICollectionViewOSEScrollView</code> 的 <code>contentInset</code> 是 <code>.zero</code></p>
+<p>此时设置 <code>clipsToBounds</code> 就没有用了。</p>
+<h2 id="跟随滑动">跟随滑动</h2>
+<figure data-type="image" tabindex="4"><img src="https://blog.rakuyoo.top/post-images/1676774590869.png" alt="" loading="lazy"></figure>
+<p>如果您准备用 <code>UICollectionViewCompositionalLayout</code> 实现类似如上图的效果，那么您需要确保滑块是添加到 <code>_UICollectionViewOSEScrollView</code> 上。</p>
+<p>考虑到该视图的获取时机，我建议您还是改用 <code>UICollectionViewFlowLayout</code> 实现。</p>
+<h1 id="continuous"><code>.continuous</code></h1>
+<p>原本以为配合 <code>UICollectionLayoutSectionOrthogonalScrollingBehavior.continuous</code>，最终可以达到和 <code>UICollectionViewCompositionalLayout</code> 一样的效果，但是事实是并不会。</p>
+<p>本文使用的例子里包含一个横滑的 group，item 的宽度是 group 的 1/3，group 的宽度和 UICollectionView 宽度一致。但是如果把 item 的宽度改为某个固定的值，例如 <code>50</code>，那么就会发现：<strong>屏幕上只会显示完整的 Cell</strong>。如下图所示：</p>
+<figure data-type="image" tabindex="5"><img src="https://blog.rakuyoo.top/post-images/1676788317059.png" alt="" loading="lazy"></figure>
+<p>右侧剩余的宽度不够第四个 Cell 显示出来，那么它就会隐藏掉，在后面再显示：</p>
+<figure data-type="image" tabindex="6"><img src="https://blog.rakuyoo.top/post-images/1676788374333.png" alt="" loading="lazy"></figure>
+<p>如果不修改 <code>orthogonalScrollingBehavior</code>（即值为 <code>.none</code>），则不会有该问题，但是 Cell 在超出屏幕后会换行展示，因为没有 <code>_UICollectionViewOSEScrollView</code> ...</p>
+<p>所以<strong>建议</strong>这种需求还是使用 <code>UICollectionViewFlowLayout</code> 组合实现。<br>
+或者您知道什么更好的方式，请在评论区留言告诉我，谢谢。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[fastlane match error: 503]]></title>
+        <id>https://blog.rakuyoo.top/fastlane-match-error-503/</id>
+        <link href="https://blog.rakuyoo.top/fastlane-match-error-503/">
+        </link>
+        <updated>2023-01-29T03:35:49.000Z</updated>
+        <summary type="html"><![CDATA[<p>使用 <code>match</code> 命令更新开发证书的时候，遇到了 <code>503 Service Temporarily Unavailable</code> 的报错，搜到解决方案后想着还是记录一下吧。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>使用 <code>match</code> 命令更新开发证书的时候，遇到了 <code>503 Service Temporarily Unavailable</code> 的报错，搜到解决方案后想着还是记录一下吧。</p>
+<!-- more -->
+<blockquote>
+<p>本文转载自 <a href="https://www.archie.tw/p/fastlane-503-service-temporarily-unavailable/">Fastlane 503 Service Temporarily Unavailable</a></p>
+</blockquote>
+<p>究其原因是因为 match 命令调用 Apple 服务<strong>太频繁/量过大</strong>，导致 503 服务暂时不可用。</p>
+<p>此时可以使用下面的命令，清除 <code>fastlane spaceship</code> 的 <code>cookie</code> 来达到重制的目的：</p>
+<pre><code class="language-bash">rm $HOME/.fastlane/spaceship/*/cookie
+</code></pre>
+<p>之后重新调用 <code>fastlane match</code> 命令即可。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[VPN 配置在 iOS 和 macOS 下的区别]]></title>
+        <id>https://blog.rakuyoo.top/difference-between-vpn-entitlement-config-in-ios-and-macos/</id>
+        <link href="https://blog.rakuyoo.top/difference-between-vpn-entitlement-config-in-ios-and-macos/">
+        </link>
+        <updated>2023-01-29T03:34:45.000Z</updated>
+        <summary type="html"><![CDATA[<p>最近尝试使用 Mac Catalyst 将 App 移植到 macOS 上，打包时遇到了该问题，故记录一下。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>最近尝试使用 Mac Catalyst 将 App 移植到 macOS 上，打包时遇到了该问题，故记录一下。</p>
+<!-- more -->
+<p>在 <code>.entitlements</code> 文件中，需要使用 key <code>com.apple.developer.networking.networkextension</code> 来标记需要 VPN 权限。</p>
+<p>但是这个 key 的值在 iOS 和 macOS 上是不同的：</p>
+<ul>
+<li>iOS：<code>packet-tunnel-provider</code></li>
+<li>macOS：<code>packet-tunnel-provider-systemextension</code></li>
+</ul>
+<p>区别就在于 macOS 下多了 <code>-systemextension</code> 这部分，所以如果 App 提供 VPN 功能，那么 Mac Catalyst 和非 Mac Catalyst 的 Settings 就不能使用同一份 <code>.entitlements</code> 文件了。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Combine 操作符速查表]]></title>
+        <id>https://blog.rakuyoo.top/cheatsheet-combine-operators/</id>
+        <link href="https://blog.rakuyoo.top/cheatsheet-combine-operators/">
+        </link>
+        <updated>2023-01-29T03:26:47.000Z</updated>
+        <summary type="html"><![CDATA[<p>文章以图文的形式，记录 Combine 中各操作符的用法以及效果。下文为原文章内容的转载 + 翻译。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>文章以图文的形式，记录 Combine 中各操作符的用法以及效果。下文为原文章内容的转载 + 翻译。</p>
+<!-- more -->
+<blockquote>
+<p>本文转载自 <a href="https://tanaschita.com/20221121-cheatsheet-combine-operators/">Cheat sheet on s for iOS development</a><br>
+点击查看原文以更好的效果查看内容。</p>
+</blockquote>
+<hr>
+<h2 id="allsatisfy_"><code>allSatisfy(_:)</code></h2>
+<blockquote>
+<p>Publishes true if all elements match the condition. Publishes false &amp; completes if it receives an element that does not match the condition.</p>
+</blockquote>
+<p>如果所有的元素都符合条件，则返回 <code>true</code>。如果收到一个不符合条件的元素，则返回 <code>false</code> 并完成信号。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/allSatisfyTrue.webp" width=50% height=50%>
+<h2 id="append_"><code>append(_:)</code></h2>
+<blockquote>
+<p>Appends the specified elements after the upstream publisher completes.</p>
+</blockquote>
+<p>在上游发布者完成后添加指定的元素。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/append.webp" width=50% height=50%>
+<h2 id="collect_"><code>collect(_:)</code></h2>
+<blockquote>
+<p>Collects up to the specified number of elements and emits them in an array.</p>
+</blockquote>
+<p>收集多达指定数量的元素，并将它们发射到一个数组中。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/collect.webp" width=50% height=50%>
+<h2 id="combinelatest_"><code>combineLatest(_:)</code></h2>
+<blockquote>
+<p>Publishes a tuple of the most recent element from multiple publishers when any of them emits a value.</p>
+</blockquote>
+<p>当任何一个发布者发出一个值时，发布一个来自多个发布者的最新元素的元组。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/combineLatest.webp" width=50% height=50%>
+<h2 id="compactmap_"><code>compactMap(_:)</code></h2>
+<blockquote>
+<p>Transforms each element with the provided closure and publishes any returned non-nil optional result.</p>
+</blockquote>
+<p>用提供的闭包对每个元素进行转换，并公布任何返回的非零的可选结果。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/compactMap.webp" width=50% height=50%>
+<h2 id="contains_"><code>contains(_:)</code></h2>
+<blockquote>
+<p>Publishes true &amp; completes after receiving a matching value, or false when upstream publisher completes without producing a matching value.</p>
+</blockquote>
+<p>在收到一个匹配的值后发布真值&amp;完成，或者在上游发布者完成后没有产生一个匹配的值时发布假值。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/contains.webp" width=50% height=50%>
+<h2 id="count"><code>count()</code></h2>
+<blockquote>
+<p>Publishes the count of all received elements when the upstream publisher completes.</p>
+</blockquote>
+<p>当上游发布器完成时，发布所有收到的元素的计数。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/count.webp" width=50% height=50%>
+<h2 id="dropfirst_"><code>dropFirst(_:)</code></h2>
+<blockquote>
+<p>Omits a specified number of elements, then republishes all remaining elements.</p>
+</blockquote>
+<p>省略指定数量的元素，然后重新发布所有剩余的元素。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/dropFirst.webp" width=50% height=50%>
+<h2 id="dropwhile"><code>drop(while:)</code></h2>
+<blockquote>
+<p>Omits elements until a given closure returns false, then republishes all remaining elements.</p>
+</blockquote>
+<p>省略元素，直到一个给定的闭包返回错误，然后重新发布所有剩余的元素。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/dropWhile.webp" width=50% height=50%>
+<h2 id="filter_"><code>filter(_:)</code></h2>
+<blockquote>
+<p>Republishes all elements that match a provided closure.</p>
+</blockquote>
+<p>重新发布所有符合所提供的闭包的元素。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/filter.webp" width=50% height=50%>
+<h2 id="first"><code>first()</code></h2>
+<blockquote>
+<p>Publishes the first element of the upstream publisher, then completes.</p>
+</blockquote>
+<p>发布上游发布器的第一个元素，然后完成。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/first.webp" width=50% height=50%>
+<h2 id="firstwhere"><code>first(where:)</code></h2>
+<blockquote>
+<p>Publishes the first element of a stream that satisfies a condition, then completes.</p>
+</blockquote>
+<p>发布一个满足条件的流的第一个元素，然后完成。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/firstWhere.webp" width=50% height=50%>
+<h2 id="flatmapmaxpublishers_"><code>flatMap(maxPublishers:_:)</code></h2>
+<blockquote>
+<p>Transforms all elements from an upstream publisher into a new publisher.</p>
+</blockquote>
+<p>将上游发布器中的所有元素转化为一个新的发布器。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/flatMap.webp" width=50% height=50%>
+<h2 id="ignoreoutput"><code>ignoreOutput()</code></h2>
+<blockquote>
+<p>Ignores all elements and passes along only the upstream publisher's completion state.</p>
+</blockquote>
+<p>忽略所有元素，只传递上游发布者的完成状态。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/ignoreOutput.webp" width=50% height=50%>
+<h2 id="last"><code>last()</code></h2>
+<blockquote>
+<p>Publishes the last element of the upstream publisher after it completes.</p>
+</blockquote>
+<p>在上游发布器完成后，发布它的最后一个元素。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/last.webp" width=50% height=50%>
+<h2 id="lastwhere"><code>last(where:)</code></h2>
+<blockquote>
+<p>Publishes the last element that satisfies a condition after the upstream publisher completes.</p>
+</blockquote>
+<p>在上游发布器完成后，发布满足条件的最后一个元素。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/lastWhere.webp" width=50% height=50%>
+<h2 id="map_"><code>map(_:)</code></h2>
+<blockquote>
+<p>Transforms each element it receives from the upstream publisher with the provided closure.</p>
+</blockquote>
+<p>用所提供的闭包对它从上游发布者那里收到的每个元素进行转换。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/map.webp" width=50% height=50%>
+<h2 id="max"><code>max()</code></h2>
+<blockquote>
+<p>Publishes the maximum value received after the upstream publisher completes.</p>
+</blockquote>
+<p>在上游发布者完成后，发布收到的最大值。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/max.webp" width=50% height=50%>
+<h2 id="mergewith"><code>merge(with:)</code></h2>
+<blockquote>
+<p>Publishes an element whenever any of the upstream publishers emits an element.</p>
+</blockquote>
+<p>每当任何一个上游发布者发出一个元素，就发布一个元素。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/merge.webp" width=50% height=50%>
+<h2 id="min"><code>min()</code></h2>
+<blockquote>
+<p>Publishes the minimum value received after the upstream publisher completes.</p>
+</blockquote>
+<p>发布上游发布者完成后收到的最小值。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/min.webp" width=50% height=50%>
+<h2 id="outputat"><code>output(at:)</code></h2>
+<blockquote>
+<p>Republishes an element specified by its position, or completes if upstream publisher completes before the specified element.</p>
+</blockquote>
+<p>重新发布一个由其位置指定的元素，如果上游发布者在指定的元素之前完成，则完成。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/output.webp" width=50% height=50%>
+<h2 id="outputin"><code>output(in:)</code></h2>
+<blockquote>
+<p>Republishes elements specified by a range of positions.</p>
+</blockquote>
+<p>重新发布由某个位置范围指定的元素。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/outputRange.webp" width=50% height=50%>
+<h2 id="prefix_"><code>prefix(_:)</code></h2>
+<blockquote>
+<p>Republishes elements up to a specified maximum count.</p>
+</blockquote>
+<p>重新发布元素，直到指定的最大数量。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/prefix.webp" width=50% height=50%>
+<h2 id="prefixwhile"><code>prefix(while:)</code></h2>
+<blockquote>
+<p>Emits values while elements meet the specified condition, otherwise it completes.</p>
+</blockquote>
+<p>当元素满足指定的条件时发出数值，否则就会完成。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/prefixWhile.webp" width=50% height=50%>
+<h2 id="prepend_"><code>prepend(_:)</code></h2>
+<blockquote>
+<p>Prepends elements with the specified values.</p>
+</blockquote>
+<p>用指定的值对元素进行预置。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/prepend.webp" width=50% height=50%>
+<h2 id="reduce__"><code>reduce(_:_:)</code></h2>
+<blockquote>
+<p>Applies a closure to all elements and publishes a final result when the upstream publisher completes.</p>
+</blockquote>
+<p>对所有元素应用一个闭包，并在上游发布器完成后发布一个最终结果。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/reduce.webp" width=50% height=50%>
+<h2 id="removeduplicates"><code>removeDuplicates()</code></h2>
+<blockquote>
+<p>Publishes an element only if it doesn't match the previous element.</p>
+</blockquote>
+<p>只在一个元素与前一个元素不匹配时才发布。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/removeDuplicates.webp" width=50% height=50%>
+<h2 id="replacenilwith"><code>replaceNil(with:)</code></h2>
+<blockquote>
+<p>Replaces nil elements with the provided element.</p>
+</blockquote>
+<p>用所提供的元素替换nil元素。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/replaceNil.webp" width=50% height=50%>
+<h2 id="scan__"><code>scan(_:_:)</code></h2>
+<blockquote>
+<p>Transforms elements by applying a closure that receives its previous return value and the next element from the upstream publisher.</p>
+</blockquote>
+<p>通过应用一个闭包来转换元素，该闭包从上游发布者那里接收其先前的返回值和下一个元素。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/scan.webp" width=50% height=50%>
+<h2 id="switchtolatest"><code>switchToLatest()</code></h2>
+<blockquote>
+<p>Republishes elements sent by the most recently received publisher.</p>
+</blockquote>
+<p>重新发布由最近收到的发布者发送的元素。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/switchToLatest.webp" width=50% height=50%>
+<h2 id="zip_"><code>zip(_:)</code></h2>
+<blockquote>
+<p>Waits until both publishers emit an element, then publishes the oldest unconsumed element from each one as a tuple.</p>
+</blockquote>
+<p>等待，直到两个发布者都发出一个元素，然后将每个发布者中最古老的未被吸收的元素作为一个元组发布。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/zip.webp" width=50% height=50%>]]></content>
+    </entry>
+</feed>
