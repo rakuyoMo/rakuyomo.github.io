@@ -1,0 +1,1528 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://blog.rakuyoo.top</id>
+    <title>Rakuyo&apos;s blog</title>
+    <updated>2024-03-26T05:28:26.447Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://blog.rakuyoo.top"/>
+    <link rel="self" href="https://blog.rakuyoo.top/atom.xml"/>
+    <logo>https://blog.rakuyoo.top/images/avatar.png</logo>
+    <icon>https://blog.rakuyoo.top/favicon.ico</icon>
+    <rights>All rights reserved 2024, Rakuyo&apos;s blog</rights>
+    <entry>
+        <title type="html"><![CDATA[CSS选择器]]></title>
+        <id>https://blog.rakuyoo.top/css-selector/</id>
+        <link href="https://blog.rakuyoo.top/css-selector/">
+        </link>
+        <updated>2024-03-12T02:35:01.000Z</updated>
+        <summary type="html"><![CDATA[<p>CSS 有多种选择器，可以帮助我们针对不同的 HTML 标签设置样式。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>CSS 有多种选择器，可以帮助我们针对不同的 HTML 标签设置样式。</p>
+<!-- more -->
+<h1 id="选择器">选择器</h1>
+</br>
+<h2 id="通配符选择器">通配符选择器</h2>
+<p>通配符选择器（*）可以选择任何元素，通常用于设置默认样式。</p>
+<pre><code class="language-css">* {
+  margin: 0;
+  padding: 0;
+}
+</code></pre>
+<h2 id="类型选择器">类型选择器</h2>
+<p>类型选择器（Type Selectors）直接使用 HTML 标签来选择选择元素：</p>
+<pre><code class="language-css">p { color: blue; }
+</code></pre>
+<p>上面的代码将所有的 <code>&lt;p&gt;</code> 标签文本渲染为蓝色。</p>
+<h2 id="class-选择器">class 选择器</h2>
+<p>个人理解 class 选择器代表着 “一类有着相同样式的标签”，所以该选择器可以用于多个 HTML 标签。</p>
+<p>类选择器使用 <code>.</code> 开头，后接类名：</p>
+<pre><code class="language-html">&lt;style&gt;
+    .first {
+        font-weight: bold;
+        text-decoration: line-through;
+    }
+&lt;/style&gt;
+
+&lt;p class=&quot;first&quot;&gt;超越技术&lt;/p&gt;
+&lt;div&gt;哈哈.&lt;/div&gt;
+&lt;p&gt;一起学前端!&lt;/p&gt;
+</code></pre>
+<p>一个标签也可以包含多个 class，多个 class 之间使用空格分隔：</p>
+<pre><code class="language-html">&lt;!-- 包含两个 class：info 和 highlight --&gt;
+&lt;p class=&quot;info highlight&quot;&gt;...&lt;/p&gt;
+</code></pre>
+<p>此外，当你在不同的 HTML 标签中使用了相同的 class，然后还想选择某个具体的标签时，你可以像下面这样组合使用两个选择器：</p>
+<pre><code class="language-html">&lt;style&gt;
+    p.first { color: red; }
+&lt;/style&gt;
+
+&lt;p class=&quot;first&quot;&gt;该颜色会是红色&lt;/p&gt;
+&lt;span class=&quot;first&quot;&gt;该颜色不会是红色&lt;/span&gt;
+</code></pre>
+<h2 id="id-选择器">id 选择器</h2>
+<p>个人理解这里的 id 在使用场景上就和数据库中的主键一样，可以用来定位某个唯一的 HTML 标签，所以该选择器或者说 id 属性的值，在 HTML 文档中需要是<strong>唯一</strong>的，不能出现在多个元素上。</p>
+<p>id 选择器使用 <code>#</code> 号来定义：</p>
+<pre><code class="language-html">&lt;style&gt;
+    #my-id {
+    background-color: yellow;
+    }
+&lt;/style&gt;
+
+&lt;p id=&quot;my-id&quot;&gt;超越技术&lt;/p&gt;
+&lt;div&gt;哈哈.&lt;/div&gt;
+&lt;p&gt;一起学前端!&lt;/p&gt;
+</code></pre>
+<blockquote>
+<p>因为 id 选择器的唯一性，所以就没必要像上面提到的 class 选择器一样，通过标签再进一步缩小选择范围了。</p>
+</blockquote>
+<h2 id="属性选择器">属性选择器</h2>
+<p>我们都知道可以在 html 标签上自定义任意的属性，比如下面的例子：</p>
+<pre><code class="language-html">&lt;!-- 
+    `data-rakuyo` 不是很好，因为它不明所以；
+    但是它又很好，可以一眼让你看出它是一个自定义属性。 
+--&gt;
+&lt;div data-rakuyo&gt;...&lt;/div&gt;
+</code></pre>
+<p>属性选择器使用 <code>[]</code> 中括号包裹属性名称。针对上面的代码，我们可以通过属性选择器来选择该 <code>div</code> 标签：</p>
+<pre><code class="language-css">/* 选择所有带有 `data-rakuyo` 属性的元素，不论其所属哪个 html 标签 */
+[data-rakuyo] { font-weight: bold; }
+</code></pre>
+<p>再进一步缩小范围，属性选择器可以通过指定标签来筛选 “具有某些属性的标签”：</p>
+<pre><code class="language-css">/* 仅限带有 `data-style` 属性的 &lt;button&gt; 标签 */
+button[data-style] { font-weight: bold; }
+</code></pre>
+<p>可以通过具体的属性值来做条件筛选：</p>
+<pre><code class="language-html">&lt;style&gt;
+  [data-style=&quot;cancel&quot;] { color: gray; }
+  [data-style=&quot;done&quot;] { color: black; }
+&lt;/style&gt;
+
+&lt;button data-style=&quot;cancel&quot;&gt;取消&lt;/button&gt;
+&lt;button data-style=&quot;done&quot;&gt;下单&lt;/button&gt;
+</code></pre>
+<p>属性选择器还可以借助一些匹配操作符，比如 <code>$=</code> 和 <code>*=</code> 来实现特定的功能：</p>
+<pre><code class="language-css">/* 选择 `src` 属性以 `https` 开头的所有图片 */
+img[src^=&quot;https&quot;] { color: red; }
+
+/* 选择 `src` 属性以 `.jpg` 结尾的所有图片 */
+img[src$=&quot;.jpg&quot;] { border: 3px solid black; }
+
+/* 选择 `href` 属性包含 `external` *字符串* 的所有链接 */
+a[href*=&quot;external&quot;] { color: green; }
+
+/* 选择 `href` 属性包含 `external` *单词* 的所有链接 */
+a[href~=&quot;external&quot;] { color: green; }
+</code></pre>
+<blockquote>
+<p>注意 <code>*=</code> 和 <code>~=</code> 的区别。前者匹配字符串，而后者匹配的是一个完整的单词。</p>
+</blockquote>
+<h2 id="伪选择器">伪选择器</h2>
+<p>伪选择器包含 “<a href="%E4%BC%AA%E7%B1%BB%E9%80%89%E6%8B%A9%E5%99%A8">伪类选择器</a>” 和 “<a href="#%E4%BC%AA%E5%85%83%E7%B4%A0%E9%80%89%E6%8B%A9%E5%99%A8">伪元素选择器</a>” 两种。</p>
+<h3 id="伪类选择器">伪类选择器</h3>
+<p>伪类选择器用于定义元素在特定状态下的样式，比如鼠标悬停时的样式。或者用于选择第n个子元素。</p>
+<style>
+  /* 设置表格中某一列的文字不换行 */
+  .nowrap-column {
+    white-space: nowrap;
+  }
+</style>
+<p>对于特定状态，有以下几种：</p>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>说明</th>
+            <th>示例</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>:hover</code></td>
+            <td>用于在用户将鼠标悬停在元素上时应用样式</td>
+            <td><pre><code class="language-css">
+a:hover { 
+    color: red; 
+}
+            </code></pre></td>
+        </tr>
+        <tr>
+            <td><code>:active</code></td>
+            <td>用于选取被用户激活（例如鼠标点击）的元素</td>
+            <td><pre><code class="language-css">
+button:active {
+    background-color: gray;
+}
+        </tr>
+        <tr>
+            <td><code>:visited</code></td>
+            <td>用于选取用户已访问过的链接</td>
+            <td><pre><code class="language-css">
+a:visited {
+    color: purple;
+}
+        </tr>
+        <tr>
+            <td><code>:focus</code></td>
+            <td>用于选取当前获取了焦点的元素</br>通常在用户通过键盘或者鼠标进行交互时出现</td>
+            <td><pre><code class="language-css">
+input:focus {
+    border-color: blue;
+}         
+        </tr>
+    </tbody>
+</table>
+<p>对于选择子元素，有以下几种用法：</p>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>说明</th>
+            <th>示例</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td class="nowrap-column"><code>:nth-of-type(n)</code></td>
+            <td>该选择器允许你选择相同类型的且特定位置的子元素</br></br>请注意，<strong><code>n</code>从1开始，且不能是负数</strong></td>
+            <td><pre><code class="language-css">
+/* 这会使每隔两个段落文字变为红色 */
+p:nth-of-type(2n) {
+    color: red;
+}
+            </code></pre></td>
+        </tr>
+        <tr>
+            <td class="nowrap-column"><code>:nth-child(n)</code></td>
+            <td>该选择器允许你选择特定位置的子元素</td>
+            <td><pre><code class="language-css">
+/* 列表中的奇数项背景色变为浅灰色 */
+li:nth-child(odd) {
+    background-color: lightgray;
+}
+            </code></pre></td>
+        </tr>
+        <tr>
+            <td class="nowrap-column"><code>:nth-last-child(n)</code></td>
+            <td>该选择器与<code>:nth-child(n)</code>类似，但是它从元素的<strong>末尾<strong>开始计数。</td>
+            <td><pre><code class="language-css">
+/* 
+ * 这会使每个无序列表（ul）的
+ * 倒数第二个列表项（li）的文字颜色变为蓝色 
+ */
+ul li:nth-last-child(2) {
+    color: blue;
+}
+            </code></pre></td>
+        </tr>
+        <tr>
+            <td class="nowrap-column"><code>:first-child</code></br></br>“nth-child(1)”</td>
+            <td>该选择器选取某个元素的<strong>第一个</strong>子元素</td>
+            <td><pre><code class="language-css">
+/* 
+ * 这会使每个无序列表（ul）的第一个列表项（li）的文字加粗 
+ */
+ul li:first-child {
+    font-weight: bold;
+}
+            </code></pre></td>
+        </tr>
+        <tr>
+            <td class="nowrap-column"><code>:last-child</code></br></br>“nth-last-child(1)”</td>
+            <td>该选择器选取某个元素的<strong>最后一个</strong>子元素</td>
+            <td><pre><code class="language-css">
+/* 
+ * 这会使每个无序列表（ul）
+ * 的最后一个列表项（li）的文字变为斜体 
+ */
+ul li:last-child {
+    font-style: italic;
+}
+            </code></pre></td>
+        </tr>
+    </tbody>
+</table>
+<p>我觉得 <code>:nth-of-type</code> 和 <code>:nth-child</code> 的概念比较接近，同时容易混淆，所以在这里特意将他们两个单独拿出来，用一个例子来看看这两个选择器之间的区别。</p>
+<pre><code class="language-html">&lt;div class=&quot;container&quot;&gt;
+    &lt;p&gt;Paragraph 1&lt;/p&gt;
+    &lt;div&gt;Div 1&lt;/div&gt;
+    &lt;p&gt;Paragraph 2&lt;/p&gt;
+    &lt;p&gt;Paragraph 3&lt;/p&gt;
+    &lt;div&gt;Div 2&lt;/div&gt;
+&lt;/div&gt;
+</code></pre>
+<p>针对上面这段 html，两个选择器的结果为：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">选择器</th>
+<th style="text-align:center">结果</th>
+<th style="text-align:center">说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"><code>.container p:nth-of-type(2)</code></td>
+<td style="text-align:center">选择到 <code>&lt;p&gt;Paragraph 2&lt;/p&gt;</code></td>
+<td style="text-align:center">这个选择器将选择容器 <code>.container</code> 内的第二个 <code>&lt;p&gt;</code> 元素。在给定的 HTML 结构中，第二个 <code>&lt;p&gt;</code> 元素是 &quot;Paragraph 2&quot;，因此该选择器会影响到这个段落元素。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>.container p:nth-child(2)</code></td>
+<td style="text-align:center">不会选择任何元素</td>
+<td style="text-align:center">这个选择器将选择容器 <code>.container</code> 内所有的 <code>&lt;p&gt;</code> 元素中的第二个子元素。在给定的 HTML 结构中，第二个子元素是 &quot;Div 1&quot;，而不是 <code>&lt;p&gt;</code> 元素。因此，这个选择器不会选择任何元素，因为在该结构中，第二个子元素不是 <code>&lt;p&gt;</code> 元素。</td>
+</tr>
+</tbody>
+</table>
+<p>简而言之，<code>nth-child(n)</code> 会先按照顺序选择父视图的子元素，再看该子元素是否符合限制条件，如果符合则样式生效，否则不会生效；而 <code>nth-of-type(n)</code> 则相反，会先选择符合要求的元素，再按照顺序进行选择。</p>
+<blockquote>
+<p>同理可得，因为 <code>:first-child</code>、<code>:last-child</code> 和 <code>:nth-child(1)</code>、<code>:nth-last-child(1)</code> 相同，所以假如使用 <code>p:fist-child</code>，但是第一个标签不是 <code>&lt;p&gt;</code>，那么该样式也不会生效。</p>
+</blockquote>
+<h3 id="伪元素选择器">伪元素选择器</h3>
+<p>伪元素选择器用于选择元素的<strong>特定部分</strong>而不是元素本身。伪元素选择器以双冒号 <code>::</code> 开头。</p>
+<p>下面是一些常见的伪元素选择器：</p>
+<pre><code class="language-css">/* 选择元素的第一行文本 */
+p::first-line {
+    font-weight: bold;
+}
+
+/* 选择元素的第一个字母 */
+p::first-letter {
+    font-size: 150%;
+}
+
+/* 在元素内容之前插入内容 */
+p::before {
+    content: &quot;前置内容 &quot;;
+}
+
+/* 在元素内容之后插入内容 */
+p::after {
+    content: &quot; 后置内容&quot;;
+}
+
+/* 选择用户选中的文本部分 */
+::selection {
+    background-color: yellow;
+    color: black;
+}
+
+/* 选择输入框的占位符文本 */
+input::placeholder {
+    color: gray;
+}
+</code></pre>
+<p>除此之外还有一些不太常见的伪元素选择器：</p>
+<pre><code class="language-css">/* 选择列表项的标记部分（通常是列表项前面的符号，如圆点或数字） */
+li::marker {
+    color: red;
+}
+
+/* 选择元素的背景层，用于处理全屏元素的背景样式 */
+dialog::backdrop {
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+/* 选择拼写错误的文本部分 */
+::spelling-error {
+    text-decoration: underline wavy red;
+}
+
+/* 选择语法错误的文本部分 */
+::grammar-error {
+    text-decoration: underline dashed blue;
+}
+</code></pre>
+<h2 id="组合选择器">组合选择器</h2>
+<p>组合选择器是 CSS 中的一种选择器，允许你针对同时满足多个条件的元素应用样式。</p>
+<h3 id="后代选择器">后代选择器</h3>
+<p>后代选择器（Descendant Selector）允许你选择某个元素内部的所有后代元素。</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;UTF-8&quot;&gt;
+  &lt;title&gt;Descendant Selector Example&lt;/title&gt;
+  &lt;style&gt;
+    /* 选择 .container 内部的所有 p 元素 */
+    .container p {
+      color: blue;
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div class=&quot;container&quot;&gt;
+    &lt;p&gt;This is a paragraph.&lt;/p&gt;
+    &lt;div&gt;
+      &lt;p&gt;This is another paragraph.&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>在这个例子中，<code>.container p</code> 选择器会选择所有嵌套在 <code>.container</code> 内部的 <code>&lt;p&gt;</code> 元素，并将它们的颜色设为蓝色。即<strong>两个</strong> <code>&lt;p&gt;</code> 标签都会变成蓝色。</p>
+<h3 id="子选择器">子选择器</h3>
+<p>子选择器（Child Selector）用于选择某个元素的直接子元素。</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;UTF-8&quot;&gt;
+  &lt;title&gt;Child Selector Example&lt;/title&gt;
+  &lt;style&gt;
+    /* 选择 .container 下的直接子元素 p */
+    .container &gt; p {
+      font-weight: bold;
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div class=&quot;container&quot;&gt;
+    &lt;p&gt;This is a paragraph.&lt;/p&gt;
+    &lt;div&gt;
+      &lt;p&gt;This is another paragraph.&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>这个例子中，<code>.container &gt; p</code> 选择器只会选择 <code>.container</code> 直接子元素中的 <code>&lt;p&gt;</code> 元素，并将它们的字体加粗。而里层的 <code>This is another paragraph.</code> 并不会被加粗。</p>
+<p>对比 <a href="#%E5%90%8E%E4%BB%A3%E9%80%89%E6%8B%A9%E5%99%A8">后代选择器</a> 来看，后代选择器会一直查询到该叶子节点的最末端，渲染所有满足条件的标签，不管中间是否还有其他标签；而 <a href="#%E5%AD%90%E9%80%89%E6%8B%A9%E5%99%A8">子选择器</a> 只会渲染下一个层级（直接）的子节点，并不会进一步深入。</p>
+<h3 id="相邻兄弟选择器">相邻兄弟选择器</h3>
+<p>相邻兄弟选择器（Adjacent Sibling Selector）选择紧接在指定元素后的兄弟元素。</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;UTF-8&quot;&gt;
+  &lt;title&gt;Adjacent Sibling Selector Example&lt;/title&gt;
+  &lt;style&gt;
+    /* 选择 .container 后面紧邻的 p 兄弟元素 */
+    .container + p {
+      color: green;
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div class=&quot;container&quot;&gt;
+    &lt;p&gt;This is a paragraph.&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;p&gt;This is another paragraph.&lt;/p&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>在这个例子中，<code>.container + p</code> 选择器会选择紧接在 <code>.container</code> 元素后面的 <code>&lt;p&gt;</code> 元素，并将它们的颜色设为绿色。即 <code>This is another paragraph.</code> 会被渲染为绿色。</p>
+<p>有以下几点需要注意：</p>
+<ol>
+<li>“相邻兄弟选择器” 强调 <strong>相邻</strong>。如果我们将代码进行修改：</li>
+</ol>
+<pre><code class="language-html">&lt;div class=&quot;container&quot;&gt;
+    &lt;p&gt;This is a paragraph.&lt;/p&gt;
+&lt;/div&gt;
+&lt;span&gt;123&lt;/span&gt;
+&lt;p&gt;This is another paragraph.&lt;/p&gt;
+</code></pre>
+<p>此时 <code>.container</code> 不再有任何相邻的 <code>&lt;p&gt;</code> 节点，所以 <code>.container + p</code> 不会选择任何的标签进行渲染。</p>
+<ol>
+<li>“相邻兄弟选择器” 只会渲染相邻的 <strong>一个</strong> 节点。如果我们将代码进行修改：</li>
+</ol>
+<pre><code class="language-html">&lt;div class=&quot;container&quot;&gt;
+    &lt;p&gt;This is a paragraph.&lt;/p&gt;
+&lt;/div&gt;
+&lt;p&gt;This is another paragraph. 1&lt;/p&gt;
+&lt;p&gt;This is another paragraph. 2&lt;/p&gt;
+</code></pre>
+<p>那么只有相邻的第一个 <code>&lt;p&gt;</code> 标签，即 <code>This is another paragraph. 1</code> 会被渲染为绿色，另外一个 <code>&lt;p&gt;</code> 标签仍为黑色。</p>
+<h3 id="通用兄弟选择器">通用兄弟选择器</h3>
+<p>通用兄弟选择器（General Sibling Selector）选择与指定元素相邻的所有兄弟元素。</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;UTF-8&quot;&gt;
+  &lt;title&gt;General Sibling Selector Example&lt;/title&gt;
+  &lt;style&gt;
+    /* 选择 .container 后的所有 p 兄弟元素 */
+    .container ~ p {
+      font-style: italic;
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div class=&quot;container&quot;&gt;
+    &lt;p&gt;This is a paragraph.&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;p&gt;This is another paragraph.&lt;/p&gt;
+  &lt;p&gt;This is yet another paragraph.&lt;/p&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>在这个例子中，<code>.container ~ p</code> 选择器会选择紧跟在 <code>.container</code> 元素后的所有 <code>&lt;p&gt;</code> 元素，并将它们的字体样式设为斜体。很容易看出来，该选择器和 <a href="#%E7%9B%B8%E9%82%BB%E5%85%84%E5%BC%9F%E9%80%89%E6%8B%A9%E5%99%A8">相邻兄弟选择器</a> 互为一对。</p>
+<h3 id="组合选择器总结">组合选择器总结</h3>
+<p><a href="%E5%90%8E%E4%BB%A3%E9%80%89%E6%8B%A9%E5%99%A8">后代选择器（<code> </code>）</a> 和 <a href="%E5%AD%90%E9%80%89%E6%8B%A9%E5%99%A8">子选择器（<code>&gt;</code>）</a> 互为一对：同样是选择子元素，前者会深入到层级的最末端，而后者只会选择下一个层级，点到为止。</p>
+<p><a href="#%E7%9B%B8%E9%82%BB%E5%85%84%E5%BC%9F%E9%80%89%E6%8B%A9%E5%99%A8">相邻兄弟选择器（<code>+</code>）</a> 和 <a href="#%E9%80%9A%E7%94%A8%E5%85%84%E5%BC%9F%E9%80%89%E6%8B%A9%E5%99%A8">通用兄弟选择器（<code>~</code>）</a> 互为一对：同样是选择相邻元素，前者只选择同层级内相邻的节点，而后者会选择同层级内所有符合条件的节点。</p>
+<h1 id="课后思考">课后思考</h1>
+<p>现在我们提出来这么一个需求：从接口处获取商品的价格（忽略接口请求步骤），得到一个价格字符串，比如 <code>&quot;¥35.66&quot;</code>。针对该字符串进行渲染，要求如下：</p>
+<ol>
+<li>文字颜色均为红色。</li>
+<li><code>¥</code> 和 <code>.66</code> 部分样式一致：15号字。但是需要注意 <code>¥</code> 符号并不一定存在。</li>
+<li><code>35</code> 部分加粗，18号字。</li>
+</ol>
+<p>使用 js+html+css，留几秒钟思考给出答案。</p>
+</br>
+...
+</br>
+...
+</br>
+...
+</br>
+...
+</br>
+...
+</br>
+</br>
+</br>
+<p>参考答案如下：</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+    &lt;meta charset=&quot;UTF-8&quot;&gt;
+    &lt;style&gt;
+        /* 样式1：¥符号 15 号字，红色 */
+        .currency-sign,
+        .after-dot {
+            font-size: 15px;
+        }
+
+        /* 样式2：¥ 和 . 之间的内容，18号字，加粗，红色 */
+        .between {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .currency-sign,
+        .after-dot,
+        .between {
+            color: red;
+        }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;span class=&quot;currency-value&quot;&gt;&lt;/span&gt;
+
+    &lt;!-- 使用 JavaScript 定义变量 --&gt;
+    &lt;script&gt;
+        // 定义变量，代替接口请求的步骤
+        const currencyValue = &quot;¥35.66&quot;;
+
+        // 获取 span 标签
+        const spanElement = document.querySelector('.currency-value');
+
+        // 检查 span 标签是否存在
+        if (spanElement) {
+            // 检查 currencyValue 是否包含 &quot;¥&quot; 符号
+            if (currencyValue.includes('¥')) {
+                // 渲染 ¥ 符号
+                const currencySignSpan = document.createElement('span');
+                currencySignSpan.innerText = '¥';
+                currencySignSpan.classList.add('currency-sign');
+                spanElement.appendChild(currencySignSpan);
+            }
+
+            // 删去 &quot;¥&quot; 符号后的值
+            let valueWithoutSign = currencyValue.replace('¥', '');
+
+            // 按 &quot;.&quot; 分隔值
+            const [beforeDot, afterDot] = valueWithoutSign.split('.');
+
+            // 渲染 &quot;.&quot; 之前的内容
+            const beforeDotSpan = document.createElement('span');
+            beforeDotSpan.innerText = beforeDot;
+            beforeDotSpan.classList.add('between');
+            spanElement.appendChild(beforeDotSpan);
+
+            // 渲染 &quot;.&quot; 符号 和 &quot;.&quot; 之后的内容
+            const afterDotSpan = document.createElement('span');
+            afterDotSpan.innerText = '.' + afterDot;
+            afterDotSpan.classList.add('after-dot');
+            spanElement.appendChild(afterDotSpan);
+        }
+    &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>然后我们可以再进一步，如果改成 vue3 + TypeScript 呢？</p>
+<pre><code class="language-html">&lt;template&gt;
+  &lt;span class=&quot;currency-value&quot;&gt;
+    &lt;span v-if=&quot;hasCurrencySign&quot; class=&quot;currency-sign&quot;&gt;¥&lt;/span&gt;
+    &lt;span class=&quot;between&quot;&gt;{{ beforeDot }}&lt;/span&gt;
+    &lt;span class=&quot;after-dot&quot;&gt;.{{ finalAfterDot }}&lt;/span&gt;
+  &lt;/span&gt;
+&lt;/template&gt;
+
+&lt;script setup lang=&quot;ts&quot;&gt;
+import { ref } from 'vue';
+
+const currencyValue = ref&lt;string&gt;(&quot;¥35.66&quot;);
+
+const hasCurrencySign = currencyValue.value.includes('¥');
+const [beforeDot, afterDot] = currencyValue.value.replace('¥', '').split('.');
+const finalAfterDot = afterDot || '00';
+&lt;/script&gt;
+
+&lt;style scoped&gt;
+/* 样式1：¥符号 15 号字，红色 */
+.currency-sign,
+.after-dot {
+    font-size: 15px;
+}
+
+/* 样式2：¥ 和 . 之间的内容，18号字，加粗，红色 */
+.between {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.currency-sign,
+.after-dot,
+.between {
+    color: red;
+}
+&lt;/style&gt;
+</code></pre>
+<p>可见因为 vue 中的模版可以直接引用变量，为我们减少了大量的 DOM 操作，代码量得以减少了不少。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[HTML 元素显示模式]]></title>
+        <id>https://blog.rakuyoo.top/html-element-display-mode/</id>
+        <link href="https://blog.rakuyoo.top/html-element-display-mode/">
+        </link>
+        <updated>2024-03-06T08:47:54.000Z</updated>
+        <summary type="html"><![CDATA[<p>记录前端的学习过程。<br>
+本篇文章是最基础的 HTML 部分。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>记录前端的学习过程。<br>
+本篇文章是最基础的 HTML 部分。</p>
+<!-- more -->
+<h1 id="元素显示模式">元素显示模式</h1>
+<p>HTML 元素一般分为 “块元素” 和 “行内元素”。</p>
+<h2 id="块元素">块元素</h2>
+<p><code>&lt;div&gt;</code> 是最典型的块元素。其余的还有 <code>&lt;h1&gt;</code> ~ <code>&lt;h6&gt;</code>、<code>&lt;p&gt;</code>、<code>&lt;ul&gt;</code>、<code>&lt;ol&gt;</code>、<code>&lt;li&gt;</code> 等。</p>
+<p>特性：</p>
+<ol>
+<li>独占一行</li>
+<li>高度、宽度、外边距和内边距都可以控制</li>
+<li>宽度默认是容器（父级宽度）的 100%</li>
+<li>是一个容器及盒子，里面可以放行内或者块级元素</li>
+</ol>
+<p>注意：</p>
+<ul>
+<li>文字类元素内部不能使用块级元素
+<ul>
+<li><code>&lt;p&gt;</code> 标签主要用于存放文字，因此 <code>&lt;p&gt;</code> 里面不能放块级元素，特别是不能放 <code>&lt;div&gt;</code></li>
+<li>同理，<code>&lt;h1&gt;</code> ~ <code>&lt;h6&gt;</code> 等都是文字类块级标签，里面也不能放其他块级元素</li>
+</ul>
+</li>
+</ul>
+<h2 id="行内元素">行内元素</h2>
+<p><span> 是最典型的行内元素。其余的还有 <code>&lt;a&gt;</code>、<code>&lt;strong&gt;</code>、<code>&lt;b&gt;</code>、<code>&lt;em&gt;</code>、<code>&lt;i&gt;</code>、<code>&lt;del&gt;</code>、<code>&lt;s&gt;</code>、<code>&lt;ins&gt;</code>、<code>&lt;u&gt;</code>等。<br>
+有的地方也将行内元素成为<em>内联元素</em>。</p>
+<p>特性：</p>
+<ol>
+<li>相邻行内元素在一行上，一行可以显示多个</li>
+<li>宽、高直接设置是无效的</li>
+<li>默认宽度就是它本身内容的宽度</li>
+<li>行内元素只能容纳<strong>文本</strong>或其他行内元素。</li>
+</ol>
+<p>注意：</p>
+<ul>
+<li>链接里不能再放链接</li>
+<li>特殊情况链接 <code>&lt;a&gt;</code> 里面可以放块级元素，但是给 <code>&lt;a&gt;</code> 转换成块级模式最安全</li>
+</ul>
+<h2 id="示例">示例</h2>
+<p>下面这段代码可以作为一个简单的示例。</p>
+<pre><code class="language-html">&lt;body&gt;
+    &lt;h1&gt;《前端小课》&lt;/h1&gt;
+    &lt;h2&gt;
+        一本帮你入门与进阶的前端书
+        &lt;!-- h2 和 p 都是块级元素，内部可以直接包含其他元素，比如 &lt;hr&gt; --&gt;
+        &lt;!-- html 标签之间，默认好像是会有一些间距的。所以这个 &lt;hr&gt; 如果写在 &lt;p&gt; 外层，会有不一样的 ui 效果 --&gt;
+        &lt;hr&gt;
+    &lt;/h2&gt;
+
+    &lt;!--   
+        用 div 这个块级元素包一下，可以保证代码占整行 
+        不用 div 包裹，那么这个元素的大小就是 code 的大小
+    --&gt;
+    &lt;div class=&quot;code-bg&quot;&gt;
+        &lt;code&gt;
+            const p = document.querySelector('p');
+            p.onclick = function() {
+                alert('噢，噢，噢，别点我了。');
+            }
+        &lt;/code&gt;
+    &lt;/div&gt;
+&lt;/body&gt;
+</code></pre>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Jellyfin + tinymediamanager + TMM 刮削]]></title>
+        <id>https://blog.rakuyoo.top/jellyfin-scraper-with-tmm/</id>
+        <link href="https://blog.rakuyoo.top/jellyfin-scraper-with-tmm/">
+        </link>
+        <updated>2024-02-05T06:50:49.000Z</updated>
+        <summary type="html"><![CDATA[<p>使用 tinymediamanager 配合 TMM（<a href="https://www.themoviedb.org">themoviedb</a>）实现 Jellyfin 刮削。</p>
+<p>网上现有的教程都比较老了，所以开一篇帖子记录一下自己配置的过程。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>使用 tinymediamanager 配合 TMM（<a href="https://www.themoviedb.org">themoviedb</a>）实现 Jellyfin 刮削。</p>
+<p>网上现有的教程都比较老了，所以开一篇帖子记录一下自己配置的过程。</p>
+<!-- more -->
+<h1 id="tmm-api-key">TMM API Key</h1>
+<p>因为是使用 TMM 来实现刮削，所以我们先上<a href="https://www.themoviedb.org">官网</a> 申请一下 API Key。</p>
+<blockquote>
+<p>首先你需要注册一个账号，注册账号比较简单，本篇不作介绍。</p>
+</blockquote>
+<p>在初次登录，未配置过 API 的情况下，有两种方法让我们进入到 API 申请页面：</p>
+<ol>
+<li>
+<p>直接拉到页面最底部，点击 <a href="https://www.themoviedb.org/settings/api/request">API</a> 。<br>
+<img src="https://blog.rakuyoo.top/post-images/1707116544113.png" alt="" loading="lazy"></p>
+</li>
+<li>
+<p>点击自己的头像，进入账户设置页面，然后点击列表左侧的 API 选项。<br>
+<img src="https://blog.rakuyoo.top/post-images/1707116300713.png" alt="" loading="lazy"></p>
+</li>
+</ol>
+<blockquote>
+<p>注意<br>
+申请过 API 之后就不能使用第一种方法了，会进入文档页面。只能使用第二种方法查看已经申请的 API。</p>
+</blockquote>
+<p>在 API 选项页面，我们选择 <strong>Developer</strong> 类型，创建 API Key。</p>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyoo.top/post-images/1707116627856.png" alt="" loading="lazy"></figure>
+<p>进入到信息填写页面，这里我借用一张别人的图做示例：</p>
+<figure data-type="image" tabindex="2"><img src="https://blog.rakuyoo.top/post-images/1707116745628.png" alt="" loading="lazy"></figure>
+<p>经过实际测试，有以下几点需要注意：</p>
+<ol>
+<li>应用信息部分直接按照上图所示填写即可，一模一样就行。</li>
+<li>姓名必须要使用英文。</li>
+<li>地址信息找一个<a href="https://www.meiguodizhi.com/cn-address">随机地址生成器</a>生成一下即可。注意 <strong>地址1</strong> 和 <strong>地址2</strong> 都要有，可以是中文，两个一样也可以。</li>
+</ol>
+<p>点击提交后即可完成申请，申请是秒过的，在新页面可以立刻查看到我们申请的 key：<br>
+<img src="https://blog.rakuyoo.top/post-images/1707117133718.png" alt="" loading="lazy"></p>
+<blockquote>
+<p>有的文章附图里，标题显示的是 “API密钥（v3 auth）”。在 TMM 最新版里直接显示 “API 密钥” 了，其实是一回事。</p>
+</blockquote>
+<h1 id="nas-配置">NAS 配置</h1>
+<p>回到群晖 NAS 上，首先需要通过 docker 安装 tinymediamanager</p>
+<h2 id="docker-compose">docker-compose</h2>
+<p>省流版，我做了一份 docker-compose 文件，如果您有编程经验可以直接参考使用：</p>
+<pre><code class="language-yaml">version: '3.8'
+services:
+  tinymediamanager:
+    container_name: tinymediamanager-tinymediamanager
+    image: tinymediamanager/tinymediamanager:latest
+    command: /app/tinyMediaManager -Dtmm.contentfolder=/data
+    extra_hosts:
+      - &quot;www.themoviedb.org:8.67.111.128&quot;
+      - &quot;www.themoviedb.org:18.154.144.22&quot;
+      - &quot;www.themoviedb.org:99.86.199.23&quot;
+      - &quot;image.tmdb.org:84.17.46.53&quot;
+      - &quot;image.tmdb.org:89.187.162.242&quot;
+      - &quot;image.tmdb.org:138.199.46.66&quot;
+      - &quot;api.themoviedb.org:13.33.33.60&quot;
+      - &quot;api.themoviedb.org:13.224.167.10&quot;
+      - &quot;api.themoviedb.org:99.84.192.81&quot;
+      - &quot;api.thetvdb.org:192.241.234.54&quot;
+    ports:
+      - 4000:4000
+    volumes:
+      - /volume1/video:/media:rw
+      - /volume1/docker/tiny-media-manager/config:/config:rw
+      - /volume1/docker/tiny-media-manager/data:/data:rw
+    environment:
+      PATH: &quot;/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin&quot;
+      LANG: &quot;en_US.UTF-8&quot;
+      LC_ALL: &quot;en_US.UTF-8&quot;
+      USER_ID: &quot;0&quot;
+      GROUP_ID: &quot;0&quot;
+      APP: &quot;tinyMediaManager&quot;
+      UMASK: &quot;0022&quot;
+      ALLOW_DIRECT_VNC: &quot;true&quot;
+      LC_TIME: &quot;C.UTF-8&quot;
+      ENABLE_CJK_FONT: &quot;1&quot;
+    restart: always
+    privileged: true
+    network_mode: bridge
+</code></pre>
+<p>该文件设置了以下内容：</p>
+<ul>
+<li>容器名：<code>tinymediamanager-tinymediamanager</code></li>
+<li>配置了 hosts，解决 TMDB 访问问题</li>
+<li>启用 “自动重新启动”</li>
+<li>使用高级权限执行容器</li>
+<li>端口号 4000</li>
+<li>挂载以下路径，均为读写权限
+<ul>
+<li>本地 <code>/volume1/video</code>，挂载到容器内 <code>/media</code></li>
+<li>本地 <code>/volume1/docker/tiny-media-manager/config</code>，挂载到容器内 <code>/config</code></li>
+<li>本地 <code>/volume1/docker/tiny-media-manager/data</code>，挂载到容器内 <code>/data</code></li>
+</ul>
+</li>
+</ul>
+<h2 id="手动安装">手动安装</h2>
+<p>如果不想使用 docker-compose 安装，可以手动安装</p>
+<h3 id="安装-tinymediamanager">安装 tinymediamanager</h3>
+<p>在注册表中搜索 tinymediamanager，这里我们选择第二个<a href="https://hub.docker.com/r/tinymediamanager/tinymediamanager">官方镜像</a>。</p>
+<blockquote>
+<p>大部分教程不是选择第一个 star 最多的，就是选择第三个所谓 “中文更友好” 的。其实在 2024 年，官方的用起来才是最简单的。</p>
+</blockquote>
+<figure data-type="image" tabindex="3"><img src="https://blog.rakuyoo.top/post-images/1707117348043.png" alt="" loading="lazy"></figure>
+<p>下载完成之后，我们先不要打开，进入后续的配置流程。</p>
+<h3 id="创建-tinymediamanager-容器">创建 tinymediamanager 容器</h3>
+<p>首先通过 ssh 登录群晖，然后通过下面的命令运行 tinymediamanager docker。</p>
+<blockquote>
+<p>这一步可以直接添加 host，解决 tinymediamanager 无法访问的问题。避免我们在后续进入 docker 容器内部修改 host。<br>
+但是主要注意一点的是，如果在 DSM 里手动关闭容器再重新启动，那么 host 配置就失效了。因为 TMM 容器内没有 vi，同时考虑以后再次修改，个人还是建议将 <code>/etc/hosts</code> 文件挂载出来，然后在文件内添加下列 host。</p>
+</blockquote>
+<pre><code class="language-shell">docker run \
+    --name=tinyMediaManager \
+    --add-host=www.themoviedb.org:8.67.111.128 \
+    --add-host=www.themoviedb.org:18.154.144.22 \
+    --add-host=www.themoviedb.org:99.86.199.23 \
+    --add-host=image.tmdb.org:84.17.46.53 \
+    --add-host=image.tmdb.org:89.187.162.242 \
+    --add-host=image.tmdb.org:138.199.46.66 \
+    --add-host=api.themoviedb.org:13.33.33.60 \
+    --add-host=api.themoviedb.org:13.224.167.10 \
+    --add-host=api.themoviedb.org:99.84.192.81 \
+    --add-host=api.thetvdb.org:192.241.234.54 \
+    tinymediamanager/tinymediamanager:latest
+</code></pre>
+<p>运行到下面这一步就 ok 了：<br>
+<img src="https://blog.rakuyoo.top/post-images/1707118101717.png" alt="" loading="lazy"></p>
+<p>此时容器已经创建好，我们可以 <code>ctrl+c</code> 停止运行，然后回到 NAS 上<strong>停止</strong>该容器，准许后续的编辑。</p>
+<h3 id="配置-tinymediamanager-容器">配置 tinymediamanager 容器</h3>
+<p>在 docker 文件夹下新建一个 <code>TinyMediaManager</code> 目录，然后新建 <code>data</code> 文件夹。<br>
+<img src="https://blog.rakuyoo.top/post-images/1707117557387.png" alt="" loading="lazy"></p>
+<p>在容器内找到刚才新创建好的容器，点击 <strong>详情-&gt;设置</strong> 进入配置。</p>
+<figure data-type="image" tabindex="4"><img src="https://blog.rakuyoo.top/post-images/1707118259529.png" alt="" loading="lazy"></figure>
+<p>端口号使用默认或根据你的实际情况填写。</p>
+<p>文件夹挂载需要挂载两个，一个是刚才创建的 <code>data</code> 文件夹，另一个是你当前 <strong>存储影片</strong> 的文件夹。</p>
+<p>环境变量需要注意以下几点：<br>
+<img src="https://blog.rakuyoo.top/post-images/1707118313980.png" alt="" loading="lazy"></p>
+<ol>
+<li><code>USER_ID</code> 和 <code>GROUP_ID</code> 修改为<code> 0</code>（root用户）。</li>
+<li><code>PASSWORD</code> 可以直接删掉。</li>
+<li>增加 <code>ENABLE_CJK_FONT</code> 这个 key，值为 <code>1</code>。</li>
+</ol>
+<blockquote>
+<p>对于 <code>ENABLE_CJK_FONT</code>，老版的教程里都需要添加，为了切换为中文后正常显示。我在装最新版的时候直接加上了，没有测试不加可以不可以。</p>
+</blockquote>
+<p>填完后我们就可以运行容器了。</p>
+<h3 id="官方镜像较其他镜像的优势">官方镜像较其他镜像的优势</h3>
+<p>截止到本文发布，官方镜像已经来到了 5.x 的版本，而其他两个镜像还是 3.x 的版本。</p>
+<p>相比较老版，新版的挂载目录从 <code>/config</code> 变为了 <code>/data</code>，默认端口从 5800 变为了 4000。</p>
+<p>在对中文的支持上，最新的官方镜像对中文的支持已经很好了，不需要额外的配置。而其他两个镜像版本对中文的支持比较麻烦：</p>
+<p>教程中往往提到我们需要将 <code>/etc/cont-init.d/10-cjk-font.sh</code> 文件中的 <code>http://dl-cdn.alpinelinux.org</code> 替换为 <code>http://mirrors.tuna.tsinghua.edu.cn/</code>。</p>
+<p>此举是为了下载中文字体，然而如果我们使用的是 romancin 的镜像，那么就算替换了也没用，设置为中文依然会乱码。这是因为该字体在清华源下已经失效了（阿里云好像也失效了）。有<a href="https://slarker.me/unraid-install-tinymediamanager/">网友</a>提到华为云是有效的，经过测试确实可以。</p>
+<p>最后，在刮削效率和结果上，也是新版更为出色。</p>
+<h2 id="tinymediamanager-配置">tinymediamanager 配置</h2>
+<p>打开浏览器，输入 <code>http://nas-ip:4000/</code> 进入 tinymediamanager。初始是一个英文的引导页面，我们一般直接 next 即可。</p>
+<p>进入主页面后，我们进入设置，修改语言为中文。<br>
+<img src="https://blog.rakuyoo.top/post-images/1707118803783.png" alt="" loading="lazy"></p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[群晖NAS公网访问配置（四）：配置云服务器]]></title>
+        <id>https://blog.rakuyoo.top/synology-with-cloud/</id>
+        <link href="https://blog.rakuyoo.top/synology-with-cloud/">
+        </link>
+        <updated>2024-01-30T08:50:17.000Z</updated>
+        <summary type="html"><![CDATA[<p>假如我们没有公网 IP，或者公网 IP 出现故障暂时无法访问，那么我们可以借助云服务器+WireGuard的形式实现内网穿透。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>假如我们没有公网 IP，或者公网 IP 出现故障暂时无法访问，那么我们可以借助云服务器+WireGuard的形式实现内网穿透。</p>
+<!-- more -->
+<p>本文为《群晖NAS公网访问配置》系列文章的第四篇。全部文章请参考：</p>
+<p><a href="https://blog.rakuyoo.top/synology-config-ddns/">群晖NAS公网访问配置（一）：配置DDNS</a><br>
+<a href="https://blog.rakuyoo.top/synology-with-wireguard/">群晖NAS公网访问配置（二）：配置WireGurad</a><br>
+<a href="https://blog.rakuyoo.top/synology-docker-public-access/">群晖NAS公网访问配置（三）：配置Nginx访问Docker服务</a><br>
+<a href="https://blog.rakuyoo.top/synology-with-cloud/">群晖NAS公网访问配置（四）：配置云服务器</a></p>
+<hr>
+<p>我在腾讯云上有一台 Ubuntu 轻量级服务器，本文将以其为基础进行各种配置。</p>
+<h1 id="云服务器配置">云服务器配置</h1>
+</br>
+<h2 id="增加记录">增加记录</h2>
+<p>首先我们需要增加一条新的记录值，作为创建 WireGuard 隧道的入口。这里可以参考之前的流程：<a href="https://blog.rakuyoo.top/synology-config-ddns/#%E6%B7%BB%E5%8A%A0%E5%9F%9F%E5%90%8D%E8%AE%B0%E5%BD%95">添加域名记录</a>。</p>
+<p>注意这里的记录值需要填写你服务器的公网 IP。</p>
+<h2 id="开放端口">开放端口</h2>
+<p>接着去到服务器管理后台，需要在防火墙中开放 NAS 中 WireGuard 的端口。在<a href="https://blog.rakuyoo.top/synology-with-wireguard/#%E5%88%9B%E5%BB%BA%E6%9C%8D%E5%8A%A1%E7%AB%AF%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6">前文</a>示例中，该值为 51820。</p>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyoo.top/post-images/1706607971823.png" alt="" loading="lazy"></figure>
+<h1 id="在云服务器上配置-wireguard">在云服务器上配置 WireGuard</h1>
+</br>
+<h2 id="安装-wireguard-服务">安装 WireGuard 服务</h2>
+<p>首先我们 ssh 到远端云服务器，然后安装 WireGuard 服务：</p>
+<pre><code class="language-shell">apt update &amp;&amp; apt install wireguard -y # 先更新再安装
+</code></pre>
+<blockquote>
+<p>该过程可能会超时，可以试着修改 sources.list 源解决。</p>
+</blockquote>
+<h2 id="创建配置">创建配置</h2>
+<p>然后我们创建并进入 <code>wireguard</code> 文件夹。</p>
+<pre><code class="language-shell">mkdir /etc/wireguard
+cd /etc/wireguard
+</code></pre>
+<p>接着按照 <a href="https://blog.rakuyoo.top/synology-with-wireguard/#%E9%85%8D%E7%BD%AE-wireguard-%E6%9C%8D%E5%8A%A1%E7%AB%AF">配置 WireGuard 服务端</a> 的方式，创建公私钥。</p>
+<p>注意这里我们需要创建<strong>两套</strong>客户端配置。因为现在我们是要将该云服务器作为 WireGuard 的服务端，NAS 和我们的操作终端（比如 Mac）都是客户端。</p>
+<p>接着我们创建 <code>wg0.conf</code> 配置文件。</p>
+<h1 id="客户端配置">客户端配置</h1>
+</br>
+<h2 id="nas-配置">NAS 配置</h2>
+<p>通过 SSH 连接 NAS，进入 <code>/etc/wireguard</code> 文件夹，创建一个新的 <code>wg1.conf</code> 配置文件。</p>
+<p>保存文件后，通过 <code>wg-quick up wg1</code> 命令启动配置。或者参考前文设置开机自启动。</p>
+<h2 id="客户端配置-2">客户端配置</h2>
+<p>客户端配置就简单很多了，和<a href="https://blog.rakuyoo.top/synology-with-wireguard/#%E6%B7%BB%E5%8A%A0%E6%96%B0%E7%9A%84%E5%AE%A2%E6%88%B7%E7%AB%AF">前文</a>中的操作是一模一样的。</p>
+<p>注意端口、IP 即可。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[群晖NAS公网访问配置（三）：配置Nginx访问Docker服务]]></title>
+        <id>https://blog.rakuyoo.top/synology-docker-public-access/</id>
+        <link href="https://blog.rakuyoo.top/synology-docker-public-access/">
+        </link>
+        <updated>2024-01-30T08:42:22.000Z</updated>
+        <summary type="html"><![CDATA[<p>当我们配置玩 DDNS 和 WireGuard 之后，我们已经可以安全的访问我们 NAS 上的文件以及各种服务了。</p>
+<p>但是如果你觉得通过端口访问 Docker 中各个服务太繁琐，或者 Docker 服务太多，要记的端口太多。那么我们可以通过配置 Nginx 的方式，来给各个 Docker 服务绑定一个域名。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>当我们配置玩 DDNS 和 WireGuard 之后，我们已经可以安全的访问我们 NAS 上的文件以及各种服务了。</p>
+<p>但是如果你觉得通过端口访问 Docker 中各个服务太繁琐，或者 Docker 服务太多，要记的端口太多。那么我们可以通过配置 Nginx 的方式，来给各个 Docker 服务绑定一个域名。</p>
+<!-- more -->
+<p>本文为《群晖NAS公网访问配置》系列文章的第三篇。全部文章请参考：</p>
+<p><a href="https://blog.rakuyoo.top/synology-config-ddns/">群晖NAS公网访问配置（一）：配置DDNS</a><br>
+<a href="https://blog.rakuyoo.top/synology-with-wireguard/">群晖NAS公网访问配置（二）：配置WireGurad</a><br>
+<a href="https://blog.rakuyoo.top/synology-docker-public-access/">群晖NAS公网访问配置（三）：配置Nginx访问Docker服务</a><br>
+<a href="https://blog.rakuyoo.top/synology-with-cloud/">群晖NAS公网访问配置（四）：配置云服务器</a></p>
+<h1 id="在云平台添加记录值">在云平台添加记录值</h1>
+<p>前面几篇<a href="https://blog.rakuyoo.top/synology-config-ddns/#%E6%B7%BB%E5%8A%A0%E5%9F%9F%E5%90%8D%E8%AE%B0%E5%BD%95">文章</a>中，我们在腾讯云上设置过多条主机记录，这里我们需要再添加一条作为我们 Docker 服务的入口域名。</p>
+<p>同样是在腾讯云 <a href="https://console.dnspod.cn/dns/list">我的域名</a> 页面，点击已注册域名，进入“记录管理”页面。</p>
+<p>单击<strong>添加记录</strong>，根据你服务的需求添加一条主机记录，比如我们为 calibre-web 添加域名，那么主机记录可以写 <code>calibre</code>。<br>
+记录值和你 NAS 的<strong>内网 IP</strong> 相同。比如我们在<a href="https://blog.rakuyoo.top/synology-with-wireguard/#%E8%85%BE%E8%AE%AF%E4%BA%91%E4%B8%8A%E7%9A%84%E9%85%8D%E7%BD%AE">上一篇文章</a>中设置的 <code>192.168.47.29</code>。</p>
+<h1 id="配置-nas-的-nginx">配置 NAS 的 Nginx</h1>
+<p>DSM 本身自带 Nginx，所以我们可以通过修改自带 Nginx 的方式来为 Docker 服务增加配置。</p>
+<blockquote>
+<p>DSM 的 Nginx 每次启动时会根据模板文件重新创建，不过这里我们不修改文件本身，所以无碍。</p>
+</blockquote>
+<p>通过 <code>ps aux|grep nginx</code> 命令我们可以看到 DSM 加载的是 <code>/etc/nginx/nginx.conf.run</code>，在该文件末尾有一行 <code>include sites-enabled/*</code>。这代表着我们可以将新增的配置放到 <code>/etc/nginx/sites-enabled</code> 文件夹下。</p>
+<p>进入 <code>sites-enabled</code> 文件夹，然后通过 vim 新建一个配置文件：</p>
+<pre><code class="language-shell">cd /etc/nginx/sites-enabled
+
+vim calibre.baidu.com.conf # 可使用你要配置的服务的域名作为文件名
+</code></pre>
+<p>在文件内填入下面的内容：</p>
+<pre><code class="language-shell">server {
+    listen       80;
+    server_name  calibre.baidu.com; # 服务的域名，根据实际情况替换
+
+    #charset koi8-r;
+    #access_log  /var/log/nginx/host.access.log  main;
+
+    location / {
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Scheme $scheme;
+        proxy_redirect off;
+        proxy_pass http://172.17.0.1:8083; # 填写群晖容器详情中设置的网关/IP地址+配置的端口
+
+        # 如果您要使用本地存储策略，请将下一行注释符删除，并更改大小为理论最大文件尺寸
+        client_max_body_size 2000m;
+    }
+
+}
+</code></pre>
+<p>保存后，使用下面的命令告诉 Nginx 使用指定的配置文件启动，然后重载 Nginx 的配置文件。</p>
+<pre><code class="language-shell">/usr/bin/nginx -c /etc/nginx/nginx.conf.run -t
+/usr/bin/nginx -c /etc/nginx/nginx.conf.run -s reload
+</code></pre>
+<p>现在您应该已经可以使用 <code>calibre.baidu.com</code> 代替 <code>sana.baidu.com:8083</code> 来访问您的 <code>calibre-web</code> 服务了。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[群晖NAS公网访问配置（二）：配置WireGurad]]></title>
+        <id>https://blog.rakuyoo.top/synology-with-wireguard/</id>
+        <link href="https://blog.rakuyoo.top/synology-with-wireguard/">
+        </link>
+        <updated>2024-01-30T05:39:47.000Z</updated>
+        <summary type="html"><![CDATA[<p>因为配置了公网 ip，为了安全，使用 WireGuard 控制访问。</p>
+<p>本文参考自：<a href="https://zhuanlan.zhihu.com/p/660225168">群晖DS220+安装 WireGuard 保姆级教程</a></p>
+]]></summary>
+        <content type="html"><![CDATA[<p>因为配置了公网 ip，为了安全，使用 WireGuard 控制访问。</p>
+<p>本文参考自：<a href="https://zhuanlan.zhihu.com/p/660225168">群晖DS220+安装 WireGuard 保姆级教程</a></p>
+<!-- more -->
+<p>本文为《群晖NAS公网访问配置》系列文章的第二篇。全部文章请参考：</p>
+<p><a href="https://blog.rakuyoo.top/synology-config-ddns/">群晖NAS公网访问配置（一）：配置DDNS</a><br>
+<a href="https://blog.rakuyoo.top/synology-with-wireguard/">群晖NAS公网访问配置（二）：配置WireGurad</a><br>
+<a href="https://blog.rakuyoo.top/synology-docker-public-access/">群晖NAS公网访问配置（三）：配置Nginx访问Docker服务</a><br>
+<a href="https://blog.rakuyoo.top/synology-with-cloud/">群晖NAS公网访问配置（四）：配置云服务器</a></p>
+<h1 id="安装-wireguard-套件">安装 WireGuard 套件</h1>
+</br>
+<h2 id="开启-ssh">开启 SSH</h2>
+<p>因为 WireGuard 安装后需要通过 SSH 执行相关命令，所以我们需要先开启群晖的 SSH 功能。</p>
+<p>在群晖 “终端机和SNMP -&gt; 终端机” 中勾选 <strong>启动SSH功能</strong>，端口号使用默认即可。然后点击应用即可完成开启。</p>
+<p>随后您可以尝试在终端中通过内网或公网ip/域名访问群晖。</p>
+<blockquote>
+<p>如果您还没有公网ip，那么您需要在内网环境下完成后续操作，因为群晖的 QC 是不支持 SSH 访问的。</p>
+</blockquote>
+<h2 id="安装-wireguard-套件-2">安装 WireGuard 套件</h2>
+<p>首先在 “套件中心 -&gt; 设置 -&gt; 套件来源” 中添加 <code>spk7.imnks.com/</code> 矿神源。随后搜索 <strong>WireGuard</strong>，找到对应套件后点击安装。</p>
+<p>安装完成后我们通过 SSH 访问群晖NAS。</p>
+<blockquote>
+<p>我这里为了方便，首先执行了 <code>sudo su</code> 命令，避免后续权限问题。</p>
+</blockquote>
+<p>SSH 登录群晖 NAS 后，我们执行下面的命令：</p>
+<pre><code class="language-shell"># 赋予Wireguard套件权限，在安装群晖套件时，我们在简介处也看到了该命令。
+sudo sed -i 's/package/root/g' /var/packages/WireGuard/conf/privilege
+</code></pre>
+<p>至此 WireGuard 套件安装完成。</p>
+<h1 id="配置-wireguard-服务端">配置 WireGuard 服务端</h1>
+<p>依次执行下面的命令进入 WireGuard 配置文件夹：</p>
+<pre><code class="language-shell"># 创建相关目录，该目录可能已经存在，无视相关报错即可。
+mkdir /etc/wireguard/
+
+# 进入Wireguard文件夹，后续操作都将在该文件夹中进行。
+cd /etc/wireguard/
+</code></pre>
+<h2 id="创建公私钥">创建公私钥</h2>
+<p>在该文件夹中，我们需要生成<strong>服务端公私钥</strong>以及<strong>客户端公私钥</strong>：</p>
+<pre><code class="language-shell">#生成服务器端私钥
+wg genkey &gt; server_privateKey 
+
+#生成服务器端私钥对应的公钥
+wg pubkey &lt; server_privateKey &gt; server_publicKey
+
+# 生成客户端私钥及对应的公钥
+wg genkey | tee client_privateKey | wg pubkey &gt; client_publicKey
+
+# 使用 cat 命令查看对应内容。
+cat server_privateKey
+cat server_publicKey
+cat client_privateKey
+cat client_publicKey
+</code></pre>
+<p>复制好这些秘钥，后面配置文件时需要用到。</p>
+<h2 id="创建服务端配置文件">创建服务端配置文件</h2>
+<p>按照注释，将下面配置中的内容替换为您在上一步中生成的内容。</p>
+<pre><code class="language-ini">[Interface]
+PrivateKey = serverprivatekey # 替换为服务器私钥
+Address = 10.8.0.1/24
+PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -A FORWARD -o %i -j ACCEPT; iptables -t nat -A POSTROUTING -o eth+ -j MASQUERADE
+PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -o eth+ -j MASQUERADE
+ListenPort = 51820 # 端口默认 51820，也可以自定义
+MTU = 1420
+
+
+[Peer]
+PublicKey = clientpublickey # 替换为客户端公钥
+AllowedIPs = 10.8.0.2/32
+</code></pre>
+<blockquote>
+<p>说明：<br>
+上述配置文件中的 Address 和 AllowedIPs，前三位需要在同一局域网内对齐。最后一位详见后文 <a href="#%E6%B7%BB%E5%8A%A0%E6%96%B0%E7%9A%84%E5%AE%A2%E6%88%B7%E7%AB%AF">添加新的客户端</a> 一节。</p>
+</blockquote>
+<p>编辑后内容后回到终端，使用 vim 或其他手段在 <code>/etc/wireguard/</code> 路径下创建 <code>wg0.conf</code> 文件，其内容为上述配置。</p>
+<h2 id="启动服务">启动服务</h2>
+<p>先回到群晖<strong>套件中心</strong>，启动 WireGuard 套件。<br>
+<img src="https://blog.rakuyoo.top/post-images/1706597538304.png" alt="" loading="lazy"></p>
+<blockquote>
+<p>之前启动了也无所谓，顺序不重要</p>
+</blockquote>
+<p>再回到SSH终端，使用下面的命令加载配置文件：</p>
+<pre><code class="language-shell"># 使用 `up` 命令加载 wg0 配置
+sudo wg-quick up wg0
+
+# 使用 `down` 命令停止 wg0，当前不执行
+# sudo wg-quick down wg0
+</code></pre>
+<p>随后我们使用 <code>wg</code> 命令即可查看当前状态：<br>
+<img src="https://blog.rakuyoo.top/post-images/1706597879878.png" alt="" loading="lazy"></p>
+<blockquote>
+<p>说明：<br>
+有客户端连接的时候 peer 才会显示 keepalive，此时我们还没有配置客户端连接，能够展示出来对应的配置即可。</p>
+</blockquote>
+<p>最后我们为 wg0 服务添加开机自启动：</p>
+<pre><code class="language-shell">sudo wg-autostart enable wg0 # 开启自启动
+
+# sudo wg-autostart disable wg0 # 关闭自启动
+</code></pre>
+<blockquote>
+<p>备注：群晖的 WireGuard 套件无法通过 systemctl 来配置开启自启动，不知道是 DSM 的问题还是套件的问题，这里没有进一步深究。</p>
+</blockquote>
+<h1 id="路由器设置监听端口号转发">路由器设置监听端口号转发</h1>
+<p>为了更好的理解后面的操作，我们先大致讲一下借助 WireGuard 要做的事情：</p>
+<p>我们之前在 <a href="https://blog.rakuyoo.top/synology-config-ddns/">群晖NAS配置DDNS</a> 一文中配置了 DDNS，在后面的操作中，我们将借助上面的域名来构建 WireGuard 隧道。等到隧道建立好了之后，我们再借助端口转发，通过隧道走内网服务。</p>
+<h2 id="腾讯云上的配置">腾讯云上的配置</h2>
+<p>因为之前我们创建的记录被我们用来建立隧道，所以我们需要新建一条记录来作为 NAS 真正的入口。</p>
+<p>所以这里我们新建一条记录，主机记录随你定，注意记录值需要填写为 NAS 在<strong>内网</strong>中的 IP 地址。</p>
+<blockquote>
+<p>后文我们使用以下域名作为示例：<br>
+用于创建 WireGuard 隧道的域名：gwa.baidu.com，记录值为公网 ip（39.156.66.10）<br>
+作为 NAS 入口的域名：sana.baidu.com，记录值为 NAS 内网 ip（192.168.47.29）</p>
+</blockquote>
+<h2 id="路由器静态-ip-分配">路由器静态 IP 分配</h2>
+<p>因为路由器重启会导致 ip 变化，而我们需要 NAS 内网的 IP 值。好在现在大部分路由器都支持 DHCP 静态 IP 分配。</p>
+<p>登录路由器后台，根据你的路由器的设置，将群晖对应设备的 IP 添加到 DHCP 静态 IP 列表，使其拥有固定的 IP 值。</p>
+<h2 id="通过-nas-设置端口转发">通过 NAS 设置端口转发</h2>
+<blockquote>
+<p>我这里选择的方案是通过群晖设置端口转发，而不是通过路由器。如果你希望通过路由器进行转发，则可以在路由器后台上进行设置。</p>
+</blockquote>
+<p>先留在路由器管理后台，我们需要开启路由器的 UPnP 功能，这样我们才能使用 NAS 来设置端口转发。</p>
+<p>开启路由器的 UPnP 之后，我们回到 NAS，来到 “控制面板 -&gt; 外部访问 -&gt; 路由器配置” 页面，如下图所示：<br>
+<img src="https://blog.rakuyoo.top/post-images/1706600108159.png" alt="" loading="lazy"></p>
+<p>点击<strong>新增</strong>按钮，选择 “自定义端口”，点击下一步。</p>
+<p>在接下来的步骤中，<strong>通讯协议</strong>我们选择 UDP，端口设置为 <a href="#%E5%88%9B%E5%BB%BA%E6%9C%8D%E5%8A%A1%E7%AB%AF%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6">创建服务端配置文件</a> 一节中，<code>ListenPort</code> 的值。<br>
+<img src="https://blog.rakuyoo.top/post-images/1706600155575.png" alt="" loading="lazy"></p>
+<p>最后点击完成。完成后我们可以回到路由器的 UPnP 页面，刷新看看是否有对应的记录。</p>
+<h1 id="配置-wireguard-客户端">配置 WireGuard 客户端</h1>
+<h2 id="下载客户端">下载客户端</h2>
+<p>WireGuard 客户端下载参考：<a href="https://itlanyan.com/wireguard-clients/">WireGuard客户端</a>。Apple 平台均需要国外的 Apple ID。</p>
+<h2 id="创建客户端配置文件">创建客户端配置文件</h2>
+<p>安装客户端的间隙，我们先准备好客户端配置文件：</p>
+<pre><code class="language-ini">[Interface]
+PrivateKey = clientprivatekey # 替换为客户端私钥
+Address = 10.8.0.2/32 # 这里需要对应上文 [创建服务端配置文件] 一节中，peer.AllowedIPs 里对应的值 
+MTU = 1420
+
+[Peer]
+PublicKey = serverpublickey # 替换为服务端公钥
+Endpoint = gwa.baidu.com:51820 # 用于创建 WireGuard 隧道的域名，加上上文设置的 ListenPort 端口
+AllowedIPs = 10.8.0.1/24, 192.168.47.29/24 # 分别是 [创建服务端配置文件] 一节中,Interface.Address，以及 NAS 内网 IP
+PersistentKeepalive = 25
+</code></pre>
+<p>将上述内容保存为 <code>wgnas.conf</code>（文件名随意）。之后我们打开 WireGuard 客户端，选择通过文件创建隧道，选择 <code>wgnas.conf</code>，即可完成配置设置。</p>
+<p>至此，您的域名配置应该符合下面的情况：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">WireGuard 开启状态</th>
+<th style="text-align:center">gwa.baidu.com</th>
+<th style="text-align:center">sana.baidu.com</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">开启</td>
+<td style="text-align:center">无法访问</td>
+<td style="text-align:center">能访问 NAS</td>
+</tr>
+<tr>
+<td style="text-align:center">关闭</td>
+<td style="text-align:center">无法访问</td>
+<td style="text-align:center">无法访问</td>
+</tr>
+</tbody>
+</table>
+<p>即只有在开着 WireGuard 的前提下，可以通过 <code>sana.baidu.com</code> 访问您的 NAS 服务。</p>
+<h2 id="添加新的客户端">添加新的客户端</h2>
+<p>上面的步骤里我们只添加了一个客户端，因为同一时间 WireGuard 只能识别一个隧道，如果您有多台设备，或者多人公用同一台 NAS，则需要设置多个 WireGuard 客户端配置，不能多台设备同时使用同一个配置文件。</p>
+<p>让我们打开 <a href="#%E5%88%9B%E5%BB%BA%E6%9C%8D%E5%8A%A1%E7%AB%AF%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6">创建服务端配置文件</a> 中的创建的配置文件。<br>
+其中 <code>Peer</code> 的部分代表着每个客户端。当我们需要新增客户端时，服务端需要添加一套新的 <code>Peer</code> 配置。</p>
+<pre><code class="language-ini">[Interface]
+PrivateKey = serverprivatekey
+Address = 10.8.0.1/24
+...
+ListenPort = 51820
+MTU = 1420
+# 上述内容保持不变
+
+[Peer]
+PublicKey = clientpublickey
+AllowedIPs = 10.8.0.2/32
+
+[Peer] # 新的 Peer 配置
+PublicKey = clientpublickey01 # 一套新的客户端公钥
+AllowedIPs = 10.8.0.3/32 # 注意这里需要修改 ip 地址最后一位，一般+1即可
+</code></pre>
+<p>随后按照 <a href="#%E5%88%9B%E5%BB%BA%E5%AE%A2%E6%88%B7%E7%AB%AF%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6">创建客户端配置文件</a> 中的方法，在新的客户端中加载新的配置文件即可。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[群晖NAS公网访问配置（一）：配置DDNS]]></title>
+        <id>https://blog.rakuyoo.top/synology-config-ddns/</id>
+        <link href="https://blog.rakuyoo.top/synology-config-ddns/">
+        </link>
+        <updated>2024-01-30T04:26:17.000Z</updated>
+        <summary type="html"><![CDATA[<p>本文使用DSM 7.0。请您确保已经获取了公网 ip，并且已经购买了域名。</p>
+<p>因为我的域名在腾讯云上，所以为了方便 DDNS 使用腾讯云的服务，步骤参考：<a href="https://cloud.tencent.com/document/product/400/70402">群晖（Synology）NAS 启用腾讯云 DDNS 并安装免费证书</a></p>
+]]></summary>
+        <content type="html"><![CDATA[<p>本文使用DSM 7.0。请您确保已经获取了公网 ip，并且已经购买了域名。</p>
+<p>因为我的域名在腾讯云上，所以为了方便 DDNS 使用腾讯云的服务，步骤参考：<a href="https://cloud.tencent.com/document/product/400/70402">群晖（Synology）NAS 启用腾讯云 DDNS 并安装免费证书</a></p>
+<!-- more -->
+<p>本文为《群晖NAS公网访问配置》系列文章的第一篇。全部文章请参考：</p>
+<p><a href="https://blog.rakuyoo.top/synology-config-ddns/">群晖NAS公网访问配置（一）：配置DDNS</a><br>
+<a href="https://blog.rakuyoo.top/synology-with-wireguard/">群晖NAS公网访问配置（二）：配置WireGurad</a><br>
+<a href="https://blog.rakuyoo.top/synology-docker-public-access/">群晖NAS公网访问配置（三）：配置Nginx访问Docker服务</a><br>
+<a href="https://blog.rakuyoo.top/synology-with-cloud/">群晖NAS公网访问配置（四）：配置云服务器</a></p>
+<h1 id="获取腾讯云-api-密钥">获取腾讯云 API 密钥</h1>
+<p>登录 <a href="https://console.dnspod.cn/account/token/apikey">腾讯云 API 密钥</a> ，新建腾讯云 API SecretId 及 SecretKey 密钥信息。如下图所示：<br>
+<img src="https://blog.rakuyoo.top/post-images/1706592498404.png" alt="" loading="lazy"></p>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyoo.top/post-images/1706592543941.png" alt="" loading="lazy"></figure>
+<p>复制好您的 Id 以及 Key，点击确定后 key 将无法查看。</p>
+<h1 id="添加域名记录">添加域名记录</h1>
+<p>在 <a href="https://console.dnspod.cn/dns/list">我的域名</a> 页面，点击已注册域名，进入“记录管理”页面。</p>
+<p>单击<strong>添加记录</strong>，添加一条主机记录为<strong>任意</strong>，记录值为任意 IP 的 A 记录。如下图所示：</p>
+<figure data-type="image" tabindex="2"><img src="https://blog.rakuyoo.top/post-images/1706591599196.png" alt="" loading="lazy"></figure>
+<blockquote>
+<p>说明：</p>
+<ol>
+<li>假如您的域名为 baidu.com，主机记录为 abc，那么对应的域名就是 abc.baidu.com。所以本步骤中的主机记录请根据您的实际情况填写。</li>
+<li>记录值可以填写为任意 IP 地址（比如0.0.0.0），最后 DDNS 绑定完成后，该值会自动更新为正确的公网 IP 地址，所以现在填的内容无所谓。</li>
+</ol>
+</blockquote>
+<h1 id="群晖配置-ddns">群晖配置 DDNS</h1>
+<p>首先按照下图所示，进入群晖添加 DDNS 的面板<br>
+<img src="https://blog.rakuyoo.top/post-images/1706592375717.png" alt="" loading="lazy"></p>
+<p>外部地址应当就是您的公网 ip 地址。</p>
+<p>其余各字段为：</p>
+<ul>
+<li>服务供应商：腾讯云。</li>
+<li>主机名称：请填写上一步中您添加的域名名称。比如 abc.baidu.com。</li>
+<li>用户名/电子邮件：请填写您获取到的 SecretId 信息。</li>
+<li>密码/密钥：请填写您获取到的 SecretKey 信息。</li>
+<li>从 Tencent Cloud 获取证书，并将其设置为默认证书：勾选选项后，可自动为您申请腾讯云 TrustAsia SSL 免费证书并替换 NAS 的默认 SSL 证书。</li>
+</ul>
+<blockquote>
+<p>备注：</p>
+<ol>
+<li>如果您不需要 https，那么这个证书不勾选也可以。</li>
+<li>此时可以单击测试联机，测试是否能联机成功。如状态栏显示为正常，则代表联机成功。</li>
+</ol>
+</blockquote>
+<p>最后单击确定，即可完成设置。等待解析生效后（解析生效时间一般需要 10分钟），即可使用域名（abc.baidu.com:5000，需要携带端口）访问NAS。</p>
+<h1 id="手动更新-ddns可选">手动更新 DDNS（可选）</h1>
+<p>完成设置后，单击群晖面板上的<strong>立即更新</strong>，系统会更新最新的 DDNS 解析记录，并确认状态是否显示为正常。如下图所示：<br>
+<img src="https://blog.rakuyoo.top/post-images/1706592024046.png" alt="" loading="lazy"></p>
+<p>返回 <a href="https://console.dnspod.cn/dns/list">我的域名</a> 页面，单击域名，即可查看记录值是否已变更为公网 IP 地址。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Package.swift 降级问题排查]]></title>
+        <id>https://blog.rakuyoo.top/troubleshooting-package_swift-downgrade-issues/</id>
+        <link href="https://blog.rakuyoo.top/troubleshooting-package_swift-downgrade-issues/">
+        </link>
+        <updated>2024-01-24T07:19:11.000Z</updated>
+        <summary type="html"><![CDATA[<p>过去 Package.swift 没有好好写，toolchain 版本跟着 Xcode 走，没有兼容不同的版本。最近研究用 SPM 代替 CocoaPods，所以认真的研究折腾了一下。</p>
+<p>本文总结把 Package.swift 从 5.9 降至 5.1 过程中遇到的一些问题。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>过去 Package.swift 没有好好写，toolchain 版本跟着 Xcode 走，没有兼容不同的版本。最近研究用 SPM 代替 CocoaPods，所以认真的研究折腾了一下。</p>
+<p>本文总结把 Package.swift 从 5.9 降至 5.1 过程中遇到的一些问题。</p>
+<!-- more -->
+<blockquote>
+<p>本文不讲解基础语法。</p>
+</blockquote>
+<h1 id="版本号前的空格">版本号前的空格</h1>
+<p>之前 5.9 的时候是这么写的：</p>
+<pre><code class="language-swift">// swift-tools-version: 5.9
+</code></pre>
+<p>直接将 5.9 改成 5.1 之后报错了：</p>
+<pre><code>horizontal whitespace sequence [U+0020] immediately preceding the version specifier is supported by only Swift ≥ 5.4; consider removing the sequence for Swift 5.1
+</code></pre>
+<p>原因是 <code>version:</code> 和 <code>5.1</code> 之间有一个空格。而这个空格是 Swift 5.4 时才支持的特性... 所以改成下面这样就可以了：</p>
+<pre><code class="language-swift">// swift-tools-version:5.1
+//                    ⬆️注意这里没有空格
+</code></pre>
+<blockquote>
+<p>参考自：<a href="https://lvv.me/posts/2022/09/30_swift_package_tools_version/">Swift Package Tools Version 的写法</a></p>
+</blockquote>
+<h1 id="资源的引用">资源的引用</h1>
+<p>像我一样没有持续关注 SPM 发展的开发者可能不知道，在 SPM 中引用资源是 5.3 开始才支持的特性。</p>
+<p>所以如果你的包使用了 <a href="https://developer.apple.com/videos/play/wwdc2020/10169/">Resource bundle</a> 或者 <a href="https://developer.apple.com/videos/play/wwdc2020/10147/">Binary Framework</a>，那么你就不能降至 5.1 了，最低也要 5.3 版本才行。</p>
+<h1 id="省略-targetpath">省略 target.path</h1>
+<blockquote>
+<p>我没能找到这个的提案，可能是 <a href="https://github.com/apple/swift-package-manager/pull/6294">Allow sources anywhere in ./Sources when only one target is present</a> 这个。如果哪位明确知道麻烦在评论区告知。</p>
+</blockquote>
+<p>在 5.9 版本上，如果我们的代码都在 Sources 目录下，且只有一个 Target，那么我们可以不显式指定 target.path 属性。</p>
+<p>但是在 5.1 版本上不行，所以我们还是需要显式地指定 path 路径。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[解决重置SPM缓存失败的问题]]></title>
+        <id>https://blog.rakuyoo.top/fix-spm-cache/</id>
+        <link href="https://blog.rakuyoo.top/fix-spm-cache/">
+        </link>
+        <updated>2024-01-23T06:09:14.000Z</updated>
+        <summary type="html"><![CDATA[<p>相信经常使用 SPM 的小伙伴，应该都遇到过使用 Reset Package Caches 时报错：<code>An unknown error occurred. reference 'refs/remotes/origin/main' not found (-1)</code>，或者其他分支。</p>
+<p>关于这个问题在 stackoverflow 上有比较多的讨论，例如这个 <a href="https://stackoverflow.com/questions/72631756/spm-unknown-error-reference-not-found-when-changing-branch">SPM unknown error reference not found when changing branch</a>。</p>
+<p>思来想去决定根据上面的回答，记录一下解决方案。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>相信经常使用 SPM 的小伙伴，应该都遇到过使用 Reset Package Caches 时报错：<code>An unknown error occurred. reference 'refs/remotes/origin/main' not found (-1)</code>，或者其他分支。</p>
+<p>关于这个问题在 stackoverflow 上有比较多的讨论，例如这个 <a href="https://stackoverflow.com/questions/72631756/spm-unknown-error-reference-not-found-when-changing-branch">SPM unknown error reference not found when changing branch</a>。</p>
+<p>思来想去决定根据上面的回答，记录一下解决方案。</p>
+<!-- more -->
+<blockquote>
+<p>在我的场景下（Xcode 15），仅仅删除 <code>~/Library/Caches/org.swift.swiftpm/repositories</code> 下对应的目录即可解决问题，之后重新 Rest 即可。</p>
+</blockquote>
+<h2 id="问题的发生">问题的发生</h2>
+<p>链接中提到了两种观点。一开始 <a href="https://stackoverflow.com/a/72905516/9166124">@mrwest09</a> 提到，如果使用 ssh（git@）引入依赖，则有可能会产生该问题。实际上这也符合我的使用场景（不过我没有试 https）。</p>
+<p>但是后来 <a href="https://stackoverflow.com/a/76674818/9166124">@Ivan Vavilov</a> 也提到，他使用的 https，但是也依然出现了该问题。</p>
+<p>所以怎么说好呢，这个问题的发生未必可以都归结到 ssh，至于真正的原因仅从上述回答中可能暂时无从得知...</p>
+<h2 id="问题的解决">问题的解决</h2>
+<h3 id="直接方式">直接方式</h3>
+<p>删除 <code>~/Library/Caches/org.swift.swiftpm/repositories</code> 下的内容即可。</p>
+<blockquote>
+<p>除此之外，回答中还提到了一个 “Swift package caches both in the derived data directory of your project”。该缓存的实际目录在 <code>~/Library/Developer/Xcode/DerivedData/$project/SourcePackages/repositories</code>。<br>
+我的场景下仅删除 <code>org.swift.swiftpm</code> 中的内容即可。如果你仅删除它无效，可以看再试试 一并 <code>SourcePackages</code> 下的内容。</p>
+</blockquote>
+<h3 id="自动化处理">自动化处理</h3>
+<p>回答中还有好心的大佬写了2个自动删除缓存的脚本，一个是：</p>
+<pre><code class="language-shell">#!/bin/bash
+
+if [[ $# -eq 0 ]] ; then
+    echo 'Please call the script with the name of your project as it appears in the derived data directory. Case-insensitive.'
+    echo 'For example: ./fix-spm-cache.sh myproject'
+    exit 0
+fi
+
+# Delete all directories named &quot;remotes&quot; from the global Swift Package Manager cache.
+cd ~/Library/Caches/org.swift.swiftpm/repositories
+
+for i in $(find . -name &quot;remotes&quot; -type d); do
+    echo &quot;Deleting $i&quot;
+    rm -rf $i
+done
+
+# Find derived data directories for all projects matching the script argument, and
+# delete all directories named &quot;remotes&quot; from source package repositories cache for those projects. 
+
+cd ~/Library/Developer/Xcode/DerivedData/
+
+for project in $(find . -iname &quot;$1*&quot; -type d -maxdepth 1); do
+    for i in $(find &quot;$project/SourcePackages/repositories&quot; -name &quot;remotes&quot; -type d); do
+        echo &quot;Deleting $i&quot;
+        rm -rf $i
+    done
+done
+</code></pre>
+<p>这个脚本删除了上面提到的两个路径下的缓存，使用时需要 <code>sh ./fix-spm-cache.sh myproject</code>。</p>
+<p>另外一个大佬使用了另外一个思路，编写了一个 python 脚本：</p>
+<pre><code class="language-python"># Sometimes Xcode cannot resolve SPM(File -&gt; Packages -&gt; Resolve Package versions) if the dependency url is ssh
+# This script is a workaround to resolve package versions.
+# Usage:
+#     python spmResolve.py
+# or
+#     python3 spmResolve.py
+import os.path
+import subprocess
+import glob
+import json
+
+
+def main():
+    package_file = &quot;xcshareddata/swiftpm/Package.resolved&quot;
+    xcodeproj = glob.glob('*.xcodeproj')
+    xcworkspace = glob.glob('*.xcworkspace')
+    spmproj = glob.glob('Package.resolved')
+    package_resolved = &quot;&quot;
+    if xcodeproj:
+        package_resolved = xcodeproj[0] + f&quot;/project.xcworkspace/{package_file}&quot;
+    elif xcworkspace:
+        package_resolved = xcworkspace[0] + f&quot;/{package_file}&quot;
+    elif spmproj:
+        package_resolved = spmproj[0]
+    else:
+        print(f&quot;😱 Cannot find *.xcodeproj, *.xcworkspace or Package.resolved file&quot;)
+        exit(-1)
+
+    update_package_resolved(package_resolved)
+
+
+def update_package_resolved(package_resolved):
+    if not os.path.exists(package_resolved):
+        print(f&quot;😱 Package.resolved file doesn't exit: {package_resolved}&quot;)
+        exit(-1)
+
+    print(f&quot;Found: {package_resolved}&quot;)
+    f = open(package_resolved)
+    content = json.load(f)
+    f.close()
+    for pin in content[&quot;pins&quot;]:
+        url = pin[&quot;location&quot;]
+        if &quot;branch&quot; in pin[&quot;state&quot;]:
+            branch = pin[&quot;state&quot;][&quot;branch&quot;]
+            commit_hash = get_git_revision_hash(url, branch)
+            print(f&quot;{url}, {branch}, {commit_hash}&quot;)
+            pin[&quot;state&quot;][&quot;revision&quot;] = commit_hash
+        elif &quot;version&quot; in pin[&quot;state&quot;]:
+            version = pin[&quot;state&quot;][&quot;version&quot;]
+            commit_hash = get_git_revision_by_tag(url, version)
+            print(f&quot;{url}, {version}, {commit_hash}&quot;)
+            pin[&quot;state&quot;][&quot;revision&quot;] = commit_hash
+
+    with open(package_resolved, &quot;w&quot;) as output:
+        json.dump(content,  output, indent=4)
+
+    # resolve SPM
+    subprocess.run(['xcodebuild', '-resolvePackageDependencies'])
+    print('🎉 Well done')
+
+
+def get_git_revision_hash(url, branch) -&gt; str:
+    command = f'git ls-remote {url} refs/heads/{branch} | cut -f 1'
+    return get_git_command_output(command)
+
+
+def get_git_revision_by_tag(url, version) -&gt; str:
+    command = f'git ls-remote {url} -t {version} | cut -f 1'
+    return get_git_command_output(command)
+
+
+def get_git_command_output(command) -&gt; str:
+    return subprocess.check_output(command, stderr=subprocess.STDOUT, shell=True).decode('ascii').rstrip()
+
+
+if __name__ == '__main__':
+    main()
+</code></pre>
+<p>使用方式为在包含 <code>*.xcodeproj</code> 或 <code>*.xcworkspace</code> 文件的路径下，调用 <code>python spmResolve.py</code>。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[移除字符串中的�]]></title>
+        <id>https://blog.rakuyoo.top/remove-illegal-characters-from-string/</id>
+        <link href="https://blog.rakuyoo.top/remove-illegal-characters-from-string/">
+        </link>
+        <updated>2023-07-24T08:36:01.000Z</updated>
+        <content type="html"><![CDATA[<p>一个非常非常非常常见的需求，一个限制输入长度的输入框，同时不限制用户输入字符的类型。</p>
+<p>这里我们先假定一个需求：</p>
+<blockquote>
+<p>一个最多输入6个字符的输入框，不限制用户输入的字符类型，即可以输入空格、中文英文、标点符号、数字以及 Emoji。</p>
+</blockquote>
+<p>在这个需求下考虑下面这个场景：</p>
+<blockquote>
+<p>输入框上已经有了文字：&quot; g,5就&quot;，用户即将输入一个 🉑️。</p>
+</blockquote>
+<p>这时，你的程序很可能就会出问题了。</p>
+<h1 id="字符长度">字符长度</h1>
+<p>我们大家应该都知道 Swift.String 的 <code>count</code> 属性和 ObjC 的 <code>length</code> 属性获取的结果不同。</p>
+<p>比如下面的代码，实际输出结果如注释所述。</p>
+<pre><code class="language-swift">let string = &quot; g,5就🉑️&quot;
+
+print(string.count) // 6
+print((string as NSString).length) // 8
+</code></pre>
+<p>回到需求和场景上，我相信你早就知道，在做这种截取的时候，不能直接用 <code>string.count</code> 判断长度。</p>
+<p>这种时候我们一般会用 utf16 编码来获取长度：</p>
+<pre><code class="language-swift">let string = &quot; g,5就🉑️&quot;
+
+print(string.count) // 6
+print(string.utf16.count) // 8
+print((string as NSString).length) // 8
+</code></pre>
+<h1 id="直接截取">直接截取</h1>
+<p>搞定了长度，剩下的就是截取了：</p>
+<pre><code class="language-swift">extension String {
+    func prefixed(_ maxLength: Int) -&gt; String {
+        let sequence = utf16
+        
+        guard sequence.count &gt; maxLength else { return self }
+        
+        let startIndex = sequence.startIndex
+        let endIndex = sequence.index(startIndex, offsetBy: maxLength)
+        
+        let result = String(sequence[startIndex ..&lt; endIndex])
+        
+        // 以防万一，借助 Objective-C 的能力进行截取
+        return result ?? (self as NSString).substring(to: maxLength)
+    }
+}
+</code></pre>
+<p>因为 String 的 <code>init?(_ codeUnits: Substring.UTF16View)</code> 构造器返回可能为空，保险起见最后还是借用了一下 ObjC 的方法来做截取。</p>
+<p>好了，到目前为止是我写这篇博客之前的理解和做法。后面开始说<strong>问题</strong>。</p>
+<h1 id="半个-emoji">半个 emoji</h1>
+<p>对上述的场景应用该方法后，我们得到的截取结果其实是有问题的：</p>
+<pre><code class="language-swift">&quot; g,5就🉑️&quot;.prefixed(6) //  g,5就�
+</code></pre>
+<p>6的长度限制正好卡在 🉑️ 的编码上，导致最后遗留下来半个 emoji。</p>
+<p>如果仅仅是展示还好，但是如果拿这个字符串在 iOS 13 上，使用 <code>JSONEncoder</code> 去编码，就会<strong>造成闪退</strong>，而且不论是通过 try catch 也好，try? 也好，都无法捕获到该异常（<code>EXC_BAD_ACCESS</code>）。</p>
+<h1 id="解决问题">解决问题</h1>
+<p>通过断点可知，原本方法的 <code>result</code> 属性是 <code>nil</code>，最终是通过 ObjC 的 <code>substring</code> 方法得到了目标字符串。</p>
+<p>很明显这个问题是 emoji 截取不全导致的，这种情况下我们应该删除整个 emoji，而不是残留半个。</p>
+<p>进一步搜索，我找到了这篇文章：<a href="https://www.jianshu.com/p/a7af09322e02">Swift 字符串 截取 半个表情emoji \u0000fffd 的处理</a></p>
+<p>原文解决方法如下所示，通过实践，该方法确实可以解决问题。</p>
+<pre><code class="language-swift">// text:Optional(&quot;123456789😒&quot;)
+var newText = (text as NSString).substring(to: 10)
+newText = (text as NSString).substring(to: maxLength)
+
+// 有可能会截取到半个表情，所以这里剔除掉半个表情的情况
+if let data = newText.data(using: .utf8),
+    let temp = NSString(data: data, encoding: String.Encoding.utf8.rawValue),
+   temp.contains(&quot;\u{0000fffd}&quot;) {
+    newText = temp.replacingOccurrences(of: &quot;\u{0000fffd}&quot;, with: &quot;&quot;) as String
+}
+</code></pre>
+<h1 id="进一步优化">进一步优化</h1>
+<p>其实上面的方法无需将 <code>data</code> 转为 NSString，直接使用 String 去 <code>contains</code> 也是可以的，这个暂且按下不表。</p>
+<p>但是对于无法预测的用户输入，每一次截取都要先将 text 转为 data，再转回 string，最后才能做判断，我是不太想接受的。</p>
+<p><s>所以我直接将这个答案丢给了 ChatGPT</s>，结果一系列的调教和实践，最终得到了如下版本的方法：</p>
+<pre><code class="language-swift">extension String {
+    func prefixed(_ maxLength: Int) -&gt; String {
+        let sequence = utf16
+        
+        guard sequence.count &gt; maxLength else { return self }
+        
+        let startIndex = sequence.startIndex
+        var endIndex = sequence.index(startIndex, offsetBy: maxLength)
+        
+        while endIndex &gt; startIndex &amp;&amp; UTF16.isTrailSurrogate(sequence[endIndex]) {
+            endIndex = sequence.index(before: endIndex)
+        }
+        
+        let result = String(sequence[..&lt;endIndex])
+        
+        return result ?? (self as NSString).substring(to: maxLength)
+    }
+}
+</code></pre>
+<h1 id="一些-utf-16-的概念">一些 UTF-16 的概念</h1>
+<p>如果你对 “为什么” 不感兴趣，那么现在你已经得到了答案，可以关闭掉这个页面了。</p>
+<p>下面的内容将先介绍一些和 UTF-16 有关的概念。</p>
+<h2 id="utf-16">UTF-16</h2>
+<p>UTF-16编码的字符可以是1个或2个16位码元。<br>
+那些只需要1个16位码元的字符被称为BMP（基本多文本平面）字符，如英文字母，数字，标点符号等。<br>
+而那些需要2个16位码元的字符被称为非BMP字符，如某些emoji。</p>
+<h2 id="surrogate-pairs">Surrogate Pairs</h2>
+<p>在 Unicode标准中，还包含 &quot;Low surrogate&quot; 和 &quot;high surrogate&quot; 两个概念，或者也称为前导代理（lead surrogate）和 尾随代理（trail surrogate）。</p>
+<p>它们共同组成了 &quot;surrogate pairs&quot;，即一个代理对。<br>
+它被用来表示在 UTF-16 编码中，不能用单个16位编码单元所表示的字符，取值范围在 U+10000 至 U+10FFFF 之间。</p>
+<p>&quot;High surrogate&quot; 是一个代理对中的第一个16位编码单元，其范围从 U+D800 到 U+DBFF。<br>
+&quot;Low surrogate&quot; 是一个代理对中的第二个16位编码单元，其范围从 U+DC00 到 U+DFFF。</p>
+<p>例如，emoji &quot;🉑️&quot; 在UTF-16编码下，是由两个16位码元组成的：0xD83D 和 0xDD91。这两个码元就是一个代理对，其中 0xD83D 是前导代理，0xDD91 是尾随代理。</p>
+<h2 id="回到需求和场景">回到需求和场景</h2>
+<p>对于字符串 <code>&quot; g,5就🉑️&quot;</code>，当我们的最大长度为 6 位时，截取的为止恰好在 0xD83D 和 0xDD91 的中间。此时 <code>endIndex</code> 指向的是第7位，即 0xDD91 尾随代理。</p>
+<p>所以我们用 <code>UTF16.isTrailSurrogate</code> 方法判断，如果截取的末尾是一个尾随代理，则向前移动一位，将整个 emoji 舍掉。</p>
+<h1 id="一些其他的想法">一些其他的想法</h1>
+<p>其实其他方法还有很多，比如：</p>
+<ol>
+<li>通过文档可知，<code>init?(_ codeUnits: Substring.UTF16View)</code> 当 <code>codeUnits</code> 非法时返回 <code>nil</code>。所以也可以通过这点来编写递归/循环，递减 <code>endIndex</code>。</li>
+<li>提前判断所要截取的字符是否是 emoji，如果是，则整个 emoji 截掉。</li>
+<li>从 <code>&quot; g,5就�&quot;</code> 中判断是否包含 <code>�</code> 这个字符，如果有就全局替换。</li>
+</ol>
+<p>其中第三个方法我还具体实践了一下。</p>
+<p>首先我们没有办法通过 utf16 直接得到 String 对象，因为 <code>�</code> 这个符号会导致初始化失败。所以只能通过 NSString 来拿到目标字符串。</p>
+<p>其次，当我们拿到了 NSString 对象后，直接调用 <code>.contains(&quot;�&quot;)</code>，返回值居然是 <code>false</code>。</p>
+<pre><code class="language-swift">let string = &quot; g,5就🉑️&quot;
+let original = (string as NSString).substring(to: 6)
+print(original.contains(&quot;�&quot;)) // false
+</code></pre>
+<p>此时，只要向文中提到的第一种方法那样，对 string 转一次 data 即可判断成功。</p>
+<pre><code class="language-swift">let string = &quot; g,5就🉑️&quot;
+
+let original = (string as NSString).substring(to: 6)
+let utf8Data = original.data(using: .utf8)!
+
+if let test = String(data: utf8Data, encoding: .utf8) {
+    print(test.contains(&quot;�&quot;)) // true
+}
+</code></pre>
+<p>但是这一套下来确实有点得不偿失了。</p>
+<h2 id="但是为什么是-false">但是，为什么是 false？</h2>
+<p>经过翻阅资料，怀疑这是因为 NSString 和 String 的底层处理不同导致的。</p>
+<p>对于 NSString，允许存在无效字符，所以 <code>&quot; g,5就�&quot;</code> 中的 <code>�</code> 和我们手写的 <code>�</code> 并非是统一个含义，后者代表一个 “Unicode替换字符”，它用来替换无法识别或无效的Unicode字符。而 NSString 中的 <code>�</code> 就只是一个无效的 Unicode，所以这两个才会不匹配。</p>
+<p>这其实也能回答最开始的那个方案，为什么需要先转 data，再转一次 string，最后才能判断成功。</p>
+]]></content>
+    </entry>
+</feed>
