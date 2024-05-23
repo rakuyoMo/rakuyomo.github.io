@@ -1,0 +1,1299 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://blog.rakuyoo.top</id>
+    <title>Rakuyo&apos;s blog</title>
+    <updated>2024-05-23T04:19:17.198Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://blog.rakuyoo.top"/>
+    <link rel="self" href="https://blog.rakuyoo.top/atom.xml"/>
+    <logo>https://blog.rakuyoo.top/images/avatar.png</logo>
+    <icon>https://blog.rakuyoo.top/favicon.ico</icon>
+    <rights>All rights reserved 2024, Rakuyo&apos;s blog</rights>
+    <entry>
+        <title type="html"><![CDATA[在 Xcode playground 中预览 View 视图]]></title>
+        <id>https://blog.rakuyoo.top/preview-in-xcode-playground/</id>
+        <link href="https://blog.rakuyoo.top/preview-in-xcode-playground/">
+        </link>
+        <updated>2024-05-23T03:45:25.000Z</updated>
+        <content type="html"><![CDATA[<p>记录一下一个总忘记的操作：</p>
+<pre><code class="language-swift">import UIKit
+import PlaygroundSupport
+
+let image = UIImage(named: &quot;winnie.png&quot;)
+let imageView = UIImageView(image: image)
+
+PlaygroundPage.current.liveView = imageView
+</code></pre>
+<p>在 Xcode playground 中，如果引入 <code>PlaygroundSupport</code> 库，赋值 <code>PlaygroundPage.current.liveView</code>，可以将视图显示在右侧的预览框，也就是 Live View 中。</p>
+<p>另外不只是 UIView，UIViewController 及其子类也是可以的，<code>PlaygroundPage.current.liveView = controller</code> 即可。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[epoxy源码笔记2：在扩展中定义存储属性]]></title>
+        <id>https://blog.rakuyoo.top/epoxy-source-code-notes-2/</id>
+        <link href="https://blog.rakuyoo.top/epoxy-source-code-notes-2/">
+        </link>
+        <updated>2024-05-23T02:12:33.000Z</updated>
+        <summary type="html"><![CDATA[<p>常规的在扩展中定义存储属性的方法是借助 Objective-C 的 runtime 进行属性关联。但是这个方法仅限于 ObjC 类，那么纯 Swift 类，比如结构体该怎么办呢？</p>
+<p>在 <a href="https://github.com/airbnb/epoxy-ios">epoxy</a> 这个库中发现了解决办法。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>常规的在扩展中定义存储属性的方法是借助 Objective-C 的 runtime 进行属性关联。但是这个方法仅限于 ObjC 类，那么纯 Swift 类，比如结构体该怎么办呢？</p>
+<p>在 <a href="https://github.com/airbnb/epoxy-ios">epoxy</a> 这个库中发现了解决办法。</p>
+<!-- more -->
+<h2 id="objective-c-runtime">Objective-C runtime</h2>
+<p>先说一下用 Objective-C runtime 的实现方式，比如下面的代码：</p>
+<pre><code class="language-swift">private var loadingViewKey: Void?
+
+extension HUDProtocol {
+    public var loadingView: LoadingView {
+        get {
+            if let view = objc_getAssociatedObject(self, &amp;loadingViewKey) as? LoadingView {
+                return view
+            }
+            
+            loadingView = LoadingView()
+            return loadingView
+        }
+        set {
+            objc_setAssociatedObject(self, &amp;loadingViewKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        }
+    }
+}
+</code></pre>
+<p>使用 <code>loadingViewKey</code> 关联  <code>loadingView</code> 属性，同时 get 方法内还做了一次懒加载。对于 Key 的定义形式多种多样，这里就不做过度赘述。</p>
+<p>值得一提的是，翻看 epoxy 代码中发现，在使用关联属性给 ObjC 类增加存储属性时，还是用到了 <code>@nonobjc</code>。因为它是一个纯 Swift 库，所以使用 <code>@nonobjc</code> 来避免生成 objc 接口也是很合理的优化。</p>
+<h2 id="epoxy-中的做法">Epoxy 中的做法</h2>
+<p>让我们先看一下源码，比如 <a href="https://github.com/airbnb/epoxy-ios/blob/master/Sources/EpoxyCollectionView/Models/Providers/DidChangeStateProviding.swift">DidChangeStateProviding.swift</a> 这个文件，其中内容如下：</p>
+<blockquote>
+<p>我会省略掉一些和本文无关的注释和内容，完整的内容请点击上方链接查看原始代码。</p>
+</blockquote>
+<pre><code class="language-swift">extension CallbackContextEpoxyModeled {
+    public typealias DidChangeState = (CallbackContext) -&gt; Void
+
+    public var didChangeState: DidChangeState? {
+        get { self[didChangeStateProperty] }
+        set { self[didChangeStateProperty] = newValue }
+    }
+
+    private var didChangeStateProperty: EpoxyModelProperty&lt;DidChangeState?&gt; {
+        .init(keyPath: \Self.didChangeState, defaultValue: nil, updateStrategy: .chain())
+    }
+}
+</code></pre>
+<p>可以看到上述代码扩展了 <code>CallbackContextEpoxyModeled</code>，并在其中定义了存储属性 <code>didChangeState</code>。</p>
+<p>细看 <code>didChangeState</code>，发现用到了 <code>subscript</code> 语法。接着查看 <code>CallbackContextEpoxyModeled</code> 的声明：</p>
+<pre><code class="language-swift">public protocol CallbackContextEpoxyModeled: EpoxyModeled {
+    associatedtype CallbackContext
+}
+</code></pre>
+<p>发现仅仅是一个协议。接着往下看，它所遵循的 <code>EpoxyModeled</code> 在<a href="https://github.com/airbnb/epoxy-ios/blob/master/Sources/EpoxyCore/Model/EpoxyModeled.swift#L11">这里</a>进行定义。</p>
+<p>关键代码如下：</p>
+<pre><code class="language-swift">public protocol EpoxyModeled {
+    /// The underlying storage of this model that stores the current property values.
+    var storage: EpoxyModelStorage { get set }
+}
+
+extension EpoxyModeled {
+    /// Stores or retrieves a value of the specified property in `storage`.
+    public subscript&lt;Property&gt;(property: EpoxyModelProperty&lt;Property&gt;) -&gt; Property {
+        get { storage[property] }
+        set { storage[property] = newValue }
+    }
+}
+</code></pre>
+<p>从这里感觉<code>EpoxyModeled</code>就是一个壳，用来封装 <code>storage</code> 这个属性。上面提到的 <code>subscript</code> 语法其实也是对 <code>storage</code> 的 <code>subscript</code> 的调用。</p>
+<p>但是这里就复杂了一些，同时出现了 <code>EpoxyModelStorage</code> 和 <code>EpoxyModelProperty</code> 两个类型。让我们先看一下 <code>EpoxyModelStorage</code>。</p>
+<h3 id="epoxymodelstorage"><code>EpoxyModelStorage</code></h3>
+<p>该类型在<a href="https://github.com/airbnb/epoxy-ios/blob/master/Sources/EpoxyCore/Model/EpoxyModelStorage.swift#L11">这里</a>进行定义。</p>
+<p>依然贴出来一些关键代码：</p>
+<pre><code class="language-swift">public struct EpoxyModelStorage {
+  public init() { }
+
+  /// Stores or retrieves the value of the specified property.
+  public subscript&lt;Property&gt;(property: EpoxyModelProperty&lt;Property&gt;) -&gt; Property {
+    get {
+      guard let propertyStorage = storage[property.keyPath] else {
+        return property.defaultValue()
+      }
+
+      // This cast will never fail as the storage is only settable via this subscript and the `KeyPath` key is unique for any provider and value type pair.
+      // swiftlint:disable:next force_cast
+      return propertyStorage.value as! Property
+    }
+    set {
+      // We first update the value without using the `updateStrategy` since the likely scenario
+      // is that there won't be a collision that requires the `updateStrategy`, and we'll be able to
+      // return without incurring the cost of another write.
+      let propertyStorage = PropertyStorage(value: newValue, property: property)
+
+      guard var replaced = storage.updateValue(propertyStorage, forKey: property.keyPath) else {
+        return
+      }
+
+      // This cast will never fail as the storage is only settable via this subscript and the
+      // `KeyPath` key is unique for any provider and value type pair.
+      // swiftlint:disable:next force_cast
+      replaced.value = property.updateStrategy.update(replaced.value as! Property, newValue)
+
+      storage[property.keyPath] = replaced
+    }
+  }
+
+  // MARK: Private
+
+  /// The underlying storage for the properties, with a key of the `EpoxyModelProperty.keyPath` and
+  /// a value of the property's `PropertyStorage`.
+  ///
+  /// Does not include default values.
+  private var storage = [AnyKeyPath: PropertyStorage]()
+}
+
+// MARK: - PropertyStorage
+
+/// A value stored within an `EpoxyModelStorage`.
+private struct PropertyStorage {
+  /// The type-erased value of the `EpoxyModelProperty`.
+  var value: Any
+
+  /// The property's corresponding `EpoxyModelProperty`, erased to an `AnyEpoxyModelProperty`.
+  var property: AnyEpoxyModelProperty
+}
+</code></pre>
+<p>可以看到在 <code>EpoxyModelStorage</code> 中定义了一个关键的存储属性 <code>storage</code>，该属性是字典类型，使用 KeyPath 做 Key，Value 是一个自定义属性。但是这里其实 <code>PropertyStorage</code> 不是重点，因为用到 <code>PropertyStorage.property</code> 的代码并不在本文的范围之内，所以我们可以将 <code>storage</code> 进行简化，就当作 <code>[AnyKeyPath: Any]</code> 类型来对待。</p>
+<p>再回看 <code>EpoxyModelStorage</code> 的 <code>subscript</code> 实现，至此其实我们已经能明白 Epoxy 在 extension 中定义存储属性的原理：其实就是<strong>用 KeyPath 做 key，将存储属性对应的值存储到内部的一个字典属性中</strong>。</p>
+<p>看到这里会不会有点失望？有的人还会说这是脱裤子放屁，理由如下：</p>
+<ol>
+<li>在需要 extension 定义存储属性的类型里手动定义一个 <code>[String: Any]</code>，然后在 extension 里操作这个字典不也能达到一样的效果吗？还至于费这么大劲写这么多封装？</li>
+<li>而且一点也不灵活，不像是ObjC一样随写随用，无需更改原类型的定义。</li>
+<li>还有，因为 protocol 是 public 的，那么 <code>storage</code> 必然会被暴露给外界，造成一定程度的隐患。</li>
+</ol>
+<p>疑问暂且按下不表，再来看看 <code>EpoxyModelProperty</code> 这个类型。</p>
+<h3 id="epoxymodelproperty"><code>EpoxyModelProperty</code></h3>
+<p>先看<a href="https://github.com/airbnb/epoxy-ios/blob/master/Sources/EpoxyCore/Model/EpoxyModelProperty.swift#L33">定义</a>：</p>
+<pre><code class="language-swift">public struct EpoxyModelProperty&lt;Value&gt; {
+  /// Creates a property identified by a `KeyPath` to its provided `value` and with its default value if not customized in content by consumers.
+  ///
+  /// The `updateStrategy` is used to update the value when updating from an old value to a new value.
+  public init&lt;Model&gt;(
+    keyPath: KeyPath&lt;Model, Value&gt;,
+    defaultValue: @escaping @autoclosure () -&gt; Value,
+    updateStrategy: UpdateStrategy)
+  {
+    self.keyPath = keyPath
+    self.defaultValue = defaultValue
+    self.updateStrategy = updateStrategy
+  }
+
+  /// The `KeyPath` that uniquely identifies this property.
+  public let keyPath: AnyKeyPath
+
+  /// A closure that produces the default property value when called.
+  public let defaultValue: () -&gt; Value
+
+  /// A closure used to update an `EpoxyModelProperty` from an old value to a new value.
+  public let updateStrategy: UpdateStrategy
+}
+
+// MARK: EpoxyModelProperty.UpdateStrategy
+
+extension EpoxyModelProperty {
+  /// A closure used to update an `EpoxyModelProperty` from an old value to a new value.
+  public struct UpdateStrategy {
+    public init(update: @escaping (Value, Value) -&gt; Value) {
+      self.update = update
+    }
+
+    /// A closure used to update an `EpoxyModelProperty` from an old value to a new value.
+    public var update: (_ old: Value, _ new: Value) -&gt; Value
+  }
+}
+
+// MARK: Defaults
+
+extension EpoxyModelProperty.UpdateStrategy {
+  /// Replaces the old value with the new value when an update occurs.
+  public static var replace: Self {
+    .init { _, new in new }
+  }
+
+  /// Chains the new closure value onto the old closure value, returning a new closure that first calls the old closure and then subsequently calls the new closure.
+  public static func chain() -&gt; EpoxyModelProperty&lt;(() -&gt; Void)?&gt;.UpdateStrategy {
+    .init { old, new in
+      guard let new = new else { return old }
+      guard let old = old else { return new }
+      return {
+        old()
+        new()
+      }
+    }
+  }
+
+  /// Chains the new closure value onto the old closure value, returning a new closure that first calls the old closure and then subsequently calls the new closure.
+  public static func chain&lt;A&gt;() -&gt; EpoxyModelProperty&lt;((A) -&gt; Void)?&gt;.UpdateStrategy {
+    .init { old, new in
+      guard let new = new else { return old }
+      guard let old = old else { return new }
+      return { a in
+        old(a)
+        new(a)
+      }
+    }
+  }
+
+  // Add more arities as needed
+}
+</code></pre>
+<p><code>EpoxyModelProperty</code> 有三个属性：<code>keyPath</code>、<code>defaultValue</code> 和 <code>updateStrategy</code>。</p>
+<p><code>keyPath</code> 和 <code>defaultValue</code> 配合范型可以很好的解决 <code>objc_getAssociatedObject</code> 中类型转换的问题，我们可以回看上面提到过的这个代码片段：</p>
+<pre><code class="language-swift">// This cast will never fail as the storage is only settable via this subscript and the `KeyPath` key is unique for any provider and value type pair.
+// swiftlint:disable:next force_cast
+return propertyStorage.value as! Property
+</code></pre>
+<p>这也就解答了上面提到的第一个问题：如果仅仅定义一个 <code>[String: Any]</code>，那么 <code>String</code> 类型的 Key 和 <code>Any</code> 类型的 Value 明显无法保证对齐。</p>
+<p>那么你可能想说改成 <code>[KeyPath: Any]</code> 呢？答案也是不行的。因为在调用 <code>subscript</code> 时，如果直接使用 KeyPath，则会触发系统默认的通过 KeyPath 取值的方法，不会走自定义的 <code>subscript</code>，所以 Map 的 Key 无论如何都需要自定义类型来包一层，既然要包一层，何不直接连 <code>defaultValue</code> 也封装一下呢？</p>
+<p>至于 <code>updateStrategy</code> 定义了属性赋值时的方法，是替换原值？还是两个值都执行？虽然它和本文内容无关，但是这个实用的属性确实也是 <code>EpoxyModelProperty</code> 的必要性之一。</p>
+<h3 id="解决疑问">解决疑问</h3>
+<p>针对上述三个问题：</p>
+<ol>
+<li>为何不手动定义 <code>[String: Any]</code>？epoxy 属于过度封装</li>
+<li>缺乏灵活性，而且需要更改原类型的定义。对于无法更改定义的类型，则无法使用这个方法。</li>
+<li>因为 protocol 是 public 的，导致 <code>storage</code> 会被暴露给外界，造成一定程度的隐患。</li>
+</ol>
+<p>针对第一个问题，用 protocol 规范属性定义在 Swift 中绝对不算是过度封装，而是很常见的方法；因为无法直接使用 <code>KeyPath</code> 类型作为 Map 的Key，为了保持类型安全，在上层调用中也无法直接使用 <code>AnyKeyPath</code>，所以必然需要自定义一个类型来做调用链中的 “索引”。</p>
+<p>而且其他两个问题确实是实际存在的。特别是第二个问题，除非使用 <code>objc_getAssociatedObject</code> 来实现相关协议，否则则无法使用这套方法。</p>
+<p>至于第三个问题，考虑到外部对该类型的扩展性，暴露 <code>storage</code> 属性给外界是必然的，否则外部如何给这个类型增加新的存储属性呢？除非你明确不允许外部给这个类型增加存储属性，那么你可以使用一个 <code>internal type</code> 包一层 Map。</p>
+<h3 id="简化代码">简化代码</h3>
+<p>现在让我们学以致用，考虑一下如何简化代码。</p>
+<p>关键类型是三个协议：<code>EpoxyModeled</code>、<code>EpoxyModelStorage</code> 和 <code>EpoxyModelProperty</code>，简化肯定也是针对这三个类型进行简化。</p>
+<p>但是其实可以删减的空间并不多，仅仅在你不需要 <code>updateStrategy</code> 时，可以将实现简化为下面的这样：</p>
+<pre><code class="language-swift">public struct ModelProperty&lt;Value&gt; {
+    public init&lt;Model&gt;(
+        keyPath: KeyPath&lt;Model, Value&gt;,
+        defaultValue: @escaping @autoclosure () -&gt; Value
+    ) {
+        self.keyPath = keyPath
+        self.defaultValue = defaultValue
+    }
+
+    public let keyPath: AnyKeyPath
+
+    public let defaultValue: () -&gt; Value
+}
+
+public struct ModelStorage {
+    private var storage = [AnyKeyPath: Any]()
+
+    public init() { }
+
+    public subscript&lt;Property&gt;(property: ModelProperty&lt;Property&gt;) -&gt; Property {
+        get {
+            guard let propertyStorage = storage[property.keyPath] else {
+                return property.defaultValue()
+            }
+            return propertyStorage as! Property
+        }
+        set {
+            storage[property.keyPath] = newValue
+        }
+    }
+}
+
+public protocol Modeled {
+    var storage: ModelStorage { get set }
+}
+
+extension Modeled {
+    public subscript&lt;Property&gt;(property: ModelProperty&lt;Property&gt;) -&gt; Property {
+        get { storage[property] }
+        set { storage[property] = newValue }
+    }
+}
+</code></pre>
+<p>其实上述代码也就相当于 <code>updateStrategy = .replace</code> 的情况。不过，查看这份简化的代码是不是感觉整个逻辑都更清晰了呢😏</p>
+<p>在调用上和原本实现也没有区别：</p>
+<pre><code class="language-swift">struct Action: Modeled {
+    var storage = ModelStorage()
+}
+
+extension Action {
+    var testString: String {
+        get { self[testStringProperty] }
+        set { self[testStringProperty] = newValue }
+    }
+
+    private var testStringProperty: ModelProperty&lt;String&gt; {
+        .init(keyPath: \Self.testString, defaultValue: &quot;default&quot;)
+    }
+}
+
+var testAction = Action()
+print(testAction.testString) // &quot;default&quot;
+testAction.testString = &quot;123&quot;
+print(testAction.testString) // &quot;123&quot;
+</code></pre>
+<p>对了，<code>Modeled</code> 中的 <code>subscript</code> 其实属于简化代码的操作，如果去掉这部分代码，那么在 <code>testString</code> 的 get 和 set 中，使用 <code>self.storage[testStringProperty]</code> 也是可以的，不影响主要逻辑。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Github Action：在步骤之间共享数据]]></title>
+        <id>https://blog.rakuyoo.top/share-env-between-steps-in-github-action/</id>
+        <link href="https://blog.rakuyoo.top/share-env-between-steps-in-github-action/">
+        </link>
+        <updated>2024-05-11T06:02:09.000Z</updated>
+        <summary type="html"><![CDATA[<p>Github Action 各个 Setp 之间是互相独立的，所以假如我们在 A Step 中定义了一个环境变量，在接下来的 Step 中是无法使用的。</p>
+<p>那么怎么共享呢？在最新的 Github Action 中，可以通过 <a href="https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#environment-files">Environment files</a> 来实现。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>Github Action 各个 Setp 之间是互相独立的，所以假如我们在 A Step 中定义了一个环境变量，在接下来的 Step 中是无法使用的。</p>
+<p>那么怎么共享呢？在最新的 Github Action 中，可以通过 <a href="https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#environment-files">Environment files</a> 来实现。</p>
+<!-- more -->
+<h1 id="environment-files">Environment files</h1>
+<p>它的做法是通过一个环境变量配置文件，在各个Step之间共享自定义环境变量。</p>
+<p>官方的例子如下所示：</p>
+<pre><code class="language-yaml">steps:
+  - name: Set the value
+    id: step_one
+    run: |
+      echo &quot;action_state=yellow&quot; &gt;&gt; &quot;$GITHUB_ENV&quot;
+  - name: Use the value
+    id: step_two
+    run: |
+      printf '%s\n' &quot;$action_state&quot; # This will output 'yellow'
+</code></pre>
+<p><code>echo &quot;action_state=yellow&quot; &gt;&gt; &quot;$GITHUB_ENV&quot;</code> 这段就是关键代码了。</p>
+<h1 id="被抛弃的-set-env">被抛弃的 <code>set-env</code></h1>
+<p>如果你在 Google 上搜索过这个问题的话，你可能会搜到这篇文章：<a href="https://qiwihui.com/qiwihui-blog-98/">GitHub Actions 第15天：在步骤之间共享数据</a>。</p>
+<p>这篇文章中提到的 <code>set-env</code> 方法，在后续的 Github Action 中被禁止使用了，详见官方博文：<a href="https://github.blog/changelog/2020-10-01-github-actions-deprecating-set-env-and-add-path-commands/">GitHub Actions: Deprecating set-env and add-path commands</a></p>
+<p>在本文撰写时，如果在 Github Action 中没有经过任何配置地去使用 <code>set-env</code> 的话，会直接报错，Step 执行失败。</p>
+<p>“Environment files” 的做法也并不麻烦，反而觉得比 <code>set-env</code> 简单很多，所以就使用上面的方法吧。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[UIImage.size And CGImage.size]]></title>
+        <id>https://blog.rakuyoo.top/uiimage-size-and-cgimage-size/</id>
+        <link href="https://blog.rakuyoo.top/uiimage-size-and-cgimage-size/">
+        </link>
+        <updated>2024-05-09T09:40:17.000Z</updated>
+        <summary type="html"><![CDATA[<p>记录一个最近发现的小细节：<code>UIImage.size</code> 和 <code>CGImage.size</code> 在一些情况下是不相等的。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>记录一个最近发现的小细节：<code>UIImage.size</code> 和 <code>CGImage.size</code> 在一些情况下是不相等的。</p>
+<!-- more -->
+<p>如果你的图片是添加到 <code>Assets.xcassets</code> 并设置了 1x、2x 等不同规格，那么 <code>UIImage.size</code> 的大小将始终等于 1x 时候的尺寸，不论当前机型实际使用了哪种规格的图片。</p>
+<p>而 <code>CGImage.size</code> 返回的则是 <code>UIImage.size * ImageScale</code> 之后的结果。也就是说如果该图片是 2x 图，那么 <code>CGImage.size</code> 就会是 <code>UIImage.size</code> 的二倍。</p>
+<p>这一问题在使用 <code>CGImage</code> 画图会暴露出来，很多时候会使用 <code>UIImage.size</code> 或者 <code>UIImageView.size</code> 设置画布，然而因为忽略了 <code>CGImage.size</code>，就会导致画出来的图片尺寸偏大，出现显示的图片被剪裁的问题。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[加速 git submodule]]></title>
+        <id>https://blog.rakuyoo.top/speed-up-git-submodule/</id>
+        <link href="https://blog.rakuyoo.top/speed-up-git-submodule/">
+        </link>
+        <updated>2024-05-07T03:41:59.000Z</updated>
+        <content type="html"><![CDATA[<p>iOS 中有一个第三方数据库封装：<a href="https://github.com/groue/GRDB.swift">GRDB</a>。该组件使用了 <a href="https://github.com/groue/GRDB.swift/blob/master/.gitmodules">git submodule</a> 来依赖 SQLiteLib。</p>
+<p>这个时候如果我们只使用之前介绍过的 <a href="https://blog.rakuyoo.top/accelerated-swift-package-manager/#%E8%AE%BE%E7%BD%AE-spm-mirror">设置 SPM Mirror</a>，那么这个子模块就会是一个漏网之鱼。</p>
+<p>那么怎么为这个子模块设置镜像呢？我们可以使用 <code>git config --global url.[New].insteadOf [Old]</code> 命令来替换 url 中的某个部分。可以参考：<a href="https://www.oliverdavies.uk/blog/easier-git-repository-cloning-insteadof">Easier Git Repository Cloning with insteadOf</a></p>
+<p><code>New</code> 是镜像 url，而 <code>Old</code> 是 github url，设置后我们可以通过 <code>git config --global -l</code> 或者 <code>git config --global -e</code> 命令来查看是否设置成功。</p>
+<p>设置成功后不论是执行 <code>git clone</code> 或者 <code>git submodule update --init</code>，都会通过镜像 url 去执行了。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[提取ipa文件]]></title>
+        <id>https://blog.rakuyoo.top/extract-ipa-file/</id>
+        <link href="https://blog.rakuyoo.top/extract-ipa-file/">
+        </link>
+        <updated>2024-04-21T04:59:42.000Z</updated>
+        <summary type="html"><![CDATA[<p>有的时候我们想要看看某个 App 的资源文件，或者单纯看看它引用了哪些三方库等。这些内容只要有一个 ipa 文件就可以看，也无需砸壳。</p>
+<p>本文就记录一下如何简单的提取手机中 App 的 ipa 文件。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>有的时候我们想要看看某个 App 的资源文件，或者单纯看看它引用了哪些三方库等。这些内容只要有一个 ipa 文件就可以看，也无需砸壳。</p>
+<p>本文就记录一下如何简单的提取手机中 App 的 ipa 文件。</p>
+<!-- more -->
+<hr>
+<p>首先确保手机上<strong>已经安装</strong>了该 app。</p>
+<p>随后在 mac 上下载 Apple 的官方软件 <a href="https://apps.apple.com/us/app/apple-configurator-2/id1037126344?mt=12">Apple Configurator</a></p>
+<p>安装后打开，手机连接Mac后会在软件上显示当前设备，如下所示：</p>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyoo.top/post-images/1713676520008.png" alt="" loading="lazy"></figure>
+<p>选中设备，随后点击右上角的 “添加” 按钮，选择 App：</p>
+<figure data-type="image" tabindex="2"><img src="https://blog.rakuyoo.top/post-images/1713676810468.png" alt="" loading="lazy"></figure>
+<p>在弹出的列表中选择要提取 ipa 的 App，随后点击 “添加” 按钮：</p>
+<blockquote>
+<p>这一步有可能会提示你要登陆 Apple ID。出现这种情况要么是你的 Mac 没有登录，要么是你的手机和 Mac 登录的不是同一个 ID。按照提示登录即可。</p>
+</blockquote>
+<figure data-type="image" tabindex="3"><img src="https://blog.rakuyoo.top/post-images/1713676862518.png" alt="" loading="lazy"></figure>
+<p>因为我们的手机上已经安装了该 app，所以 Apple Configurator 肯定是装不上的，会弹出下面的弹窗：</p>
+<figure data-type="image" tabindex="4"><img src="https://blog.rakuyoo.top/post-images/1713677068059.png" alt="" loading="lazy"></figure>
+<p>此时<strong>不要</strong>操作 Apple Configurator！打开 Finder 访达 App，使用快捷键 <code>Command + Shift + G</code> 打开跳转弹窗，在弹窗中输入下面的路径：</p>
+<pre><code>~/Library/Group Containers/K36BKF7T3D.group.com.apple.configurator/Library/Caches/Assets/TemporaryItems/MobileApps/
+</code></pre>
+<p>进到路径下，一层层点到最里面，就可以找到我们需要的 ipa 包了：</p>
+<figure data-type="image" tabindex="5"><img src="https://blog.rakuyoo.top/post-images/1713677153402.png" alt="" loading="lazy"></figure>
+<blockquote>
+<p>Apple Configurator 弹窗关闭后，该 ipa 就会自动删除。所以请在关闭软件之前将 ipa 拷贝出来。</p>
+</blockquote>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Tuist 注意事项]]></title>
+        <id>https://blog.rakuyoo.top/tuist-notes/</id>
+        <link href="https://blog.rakuyoo.top/tuist-notes/">
+        </link>
+        <updated>2024-04-15T03:51:53.000Z</updated>
+        <summary type="html"><![CDATA[<p>最近在学习使用 <a href="https://github.com/tuist/tuist">Tuist</a> 生成项目，摆脱烦人的 <code>.xcodeproj</code>。但是 Tuist 好用虽然好用，但是因为最近文档正在迁移，加之一些东西只能从<a href="https://github.com/tuist/tuist/tree/main/fixtures">示例</a>中发掘，整个学习过程有点费劲。所以开一篇文章记录一下。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>最近在学习使用 <a href="https://github.com/tuist/tuist">Tuist</a> 生成项目，摆脱烦人的 <code>.xcodeproj</code>。但是 Tuist 好用虽然好用，但是因为最近文档正在迁移，加之一些东西只能从<a href="https://github.com/tuist/tuist/tree/main/fixtures">示例</a>中发掘，整个学习过程有点费劲。所以开一篇文章记录一下。</p>
+<!-- more -->
+<h2 id="uikit-模版">UIKit 模版</h2>
+<p>在有的地方你可以看到 “通过 <code>tuist init --template swiftui</code> 创建 SwiftUI 项目”。也就是说默认是创建 UIKit 项目。</p>
+<p><strong>但是</strong>！UIKit 的模板已经在这个 <a href="https://github.com/tuist/tuist/pull/5853">PR</a> 中被<s>删除</s>精简掉，并跟随 4.0.0 版本一起发布了。所以如果你使用的是 4.0+ 版本的 Tuist，那么执行 <code>init</code> 操作后默认生成的就是 SwiftUI 项目了。</p>
+<blockquote>
+<p>官方<a href="https://github.com/tuist/tuist/issues/5763#issuecomment-2049069383">认为</a>大多数人已经迁移到SwiftUI了...</p>
+</blockquote>
+<p>所以如果你想创建 UIKit 项目，那么你有两种（或者更多）选择：</p>
+<ul>
+<li>手动把 UIKit 模板从该 PR 中找回来。</li>
+<li>每创建一个项目都手动修改一下 <code>Info.plist</code> 以及添加 <code>AppDelegate</code> 等文件。</li>
+</ul>
+<p>因为我是第一次使用，所以是手动添加的相关文件。</p>
+<p>如果采用这种方法，那么有可能会遇到这个问题：<a href="https://blog.rakuyoo.top/jie-jue-cong-swiftui-qian-hui-uikit-shi-scenedelegate-bu-zhi-xing-de-wen-ti/">解决从SwiftUI迁回UIKit时，SceneDelegate不执行的问题</a>。之前已经为这个问题单独发过一片文章了，这里再重复提一下。</p>
+<h2 id="资源生成">资源生成</h2>
+<p>Tuist 集成了 SwiftGen 来实现资源生成，所以 SwiftGen 的模板可以直接拿到 Tuist 里使用。</p>
+<p>Tuist 的默认模块在这里：<a href="https://github.com/tuist/tuist/tree/main/Sources/TuistGenerator/Templates">Templates</a>。</p>
+<p>以文件资源的生成为例，这个<a href="https://github.com/tuist/tuist/blob/main/Sources/TuistGenerator/Templates/FilesTemplate.swift">默认模板</a> 和 SwiftGen 的 <a href="https://github.com/SwiftGen/SwiftGen/blob/6.6.3/Sources/SwiftGenCLI/templates/files/structured-swift5.stencil">structured-swift5.stencil</a> 模板几乎一样，只是多了一些 SwiftFormat 和 SwiftLint 的内容。</p>
+<h3 id="不包含目录层级">不包含目录层级</h3>
+<p>SwiftGen 对于一种资源有多个默认模版，比如文件资源还有 <a href="https://github.com/SwiftGen/SwiftGen/blob/6.6.3/Sources/SwiftGenCLI/templates/files/flat-swift5.stencil">flat-swift5.stencil</a> 这个不包含文件夹层级的模版。单独使用 SwiftGen 的话我们可以通过 <code>--templateName</code> 参数来使用该模板，但是 Tuist 里每种类型的资源只有一种模板。</p>
+<p>所以如果我们想生成的资源不包含文件夹目录层级，只能参考<a href="https://docs.tuist.io/guide/project/synthesized-files.html#custom-templates">Tuist官方文档</a>的内容自定义模板：</p>
+<blockquote>
+<p>If you want to provide your own templates to synthesize accessors to other resource types, which must be supported by SwiftGen, you can create them at Tuist/ResourceSynthesizers/{name}.stencil, where the name is the camel-case version of the resource.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">Resource</th>
+<th style="text-align:center">Template name</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">strings</td>
+<td style="text-align:center"><code>Strings.stencil</code></td>
+</tr>
+<tr>
+<td style="text-align:center">assets</td>
+<td style="text-align:center"><code>Assets.stencil</code></td>
+</tr>
+<tr>
+<td style="text-align:center">plists</td>
+<td style="text-align:center"><code>Plists.stencil</code></td>
+</tr>
+<tr>
+<td style="text-align:center">fonts</td>
+<td style="text-align:center"><code>Fonts.stencil</code></td>
+</tr>
+<tr>
+<td style="text-align:center">coreData</td>
+<td style="text-align:center"><code>CoreData.stencil</code></td>
+</tr>
+<tr>
+<td style="text-align:center">interfaceBuilder</td>
+<td style="text-align:center"><code>InterfaceBuilder.stencil</code></td>
+</tr>
+<tr>
+<td style="text-align:center">json</td>
+<td style="text-align:center"><code>JSON.stencil</code></td>
+</tr>
+<tr>
+<td style="text-align:center">yaml</td>
+<td style="text-align:center"><code>YAML.stencil</code></td>
+</tr>
+<tr>
+<td style="text-align:center">files</td>
+<td style="text-align:center"><code>Files.stencil</code></td>
+</tr>
+</tbody>
+</table>
+</blockquote>
+<p>注意，官方的这个方法其实是替换了默认实现，相关代码应该是<a href="https://github.com/tuist/tuist/blob/main/Sources/TuistPlugin/PluginService.swift#L177-L183">这里</a>。</p>
+<p>如果你不想覆盖默认实现，想要自定义一个模板，可以参考<a href="https://github.com/tuist/tuist/tree/40138c57c813bcf683d280f656174ed495069550/fixtures/app_with_plugins">app_with_plugins</a>这个示例。</p>
+<h3 id="自定义解析类型">自定义解析类型</h3>
+<p><a href="https://docs.tuist.io/guide/project/synthesized-files.html#custom-templates">文档</a>最后的部分有提到，可以通过 <code>Project.resourceSynthesizers</code> 属性来设置本项目自动为哪些类型的资源生成相应的代码。</p>
+<p>这个属性是有默认值的，其默认值定义在<a href="https://github.com/tuist/tuist/blob/40138c57c813bcf683d280f656174ed495069550/Sources/ProjectDescription/ResourceSynthesizer.swift#L403">这里</a>：</p>
+<pre><code class="language-swift">extension [ResourceSynthesizer] {
+    public static var `default`: Self {
+        [
+            .strings(),
+            .assets(),
+            .plists(),
+            .fonts(),
+        ]
+    }
+}
+</code></pre>
+<p>可见使用的是默认模板，而且不包含 <code>.files</code>。如果有需要的话则需要手动添加。</p>
+<h3 id="禁用资源生成">禁用资源生成</h3>
+<p>虽然你大概率不需要，不过还是提一嘴。文档中也有说明，那就是可以通过设置 <code>Project.Options.disableSynthesizedResourceAccessors</code> 属性，来禁用资源的自动生成。</p>
+<h2 id="组件化">组件化</h2>
+<p>Tuist 应该是实施组件化的好手。</p>
+<h3 id="目录结构">目录结构</h3>
+<p>首先让我们来讨论一下目录结构，这关系到我们如何组织主项目和各个组件。</p>
+<p>在<a href="https://docs.tuist.io/guide/project/directory-structure#standard-tuist-projects">官方文档</a>里我们能看到如下目录结构：</p>
+<pre><code>Tuist/
+  Config.swift
+  Package.swift
+  ProjectDescriptionHelpers/
+Projects/
+  App/
+    Project.swift
+  Feature/
+    Project.swift
+Workspace.swift
+</code></pre>
+<p><code>Tuist</code> 文件夹是 Tuist 的一些配置，<code>Workspace.swift</code> 用来包含各个 Projects。</p>
+<p>但是如果你仔细翻看过他们的示例的话，比如 <a href="https://github.com/tuist/tuist/tree/main/fixtures/ios_app_with_static_frameworks">ios_app_with_static_frameworks</a> 和 <a href="https://github.com/tuist/tuist/tree/main/fixtures/ios_app_with_framework_and_resources">ios_app_with_framework_and_resources</a>，就会发现其实根目录下的内容是多变的。</p>
+<p>如果你跟我一样好奇 “什么是最佳实践”，可以看这个<a href="https://github.com/tuist/tuist/discussions/6194">讨论</a>。然后结论就是：<strong>没有什么最佳实践</strong>，完全取决于你的个人用法和习惯。</p>
+<blockquote>
+<p>Tuist 真的非常灵活，提供了很多便捷的写法，不同人用 Tuist 会写出不同的配置文件，也会有不同的用法。</p>
+</blockquote>
+<h3 id="tuist-vs-spm">Tuist vs SPM</h3>
+<p>对目录结构有了一些概念之后，就该考虑如何组织各个组件了。</p>
+<p>官方文档里有一篇文章：<a href="https://docs.tuist.io/guide/introduction/adopting-tuist/migrate-local-swift-packages.html">Migrate local Swift Packages</a> 讲的是如何将本地的 SPM 组件迁移到 Tuist，改为使用 Tuist 管理。</p>
+<blockquote>
+<p>国外应该是已经没有什么人用 CocoaPods 做组件化管理了？...</p>
+</blockquote>
+<p>这里我也推荐使用 Tuist + Multiple Projects 来做子组件。首先 SPM 要比 CocoaPods 更现代更官方，但是 SPM 本身有性能问题，再加上国内访问问题，所以真要实际用起来很麻烦。另外使用 Tuist 来管理项目，可以使用自带的 SwiftGen，不用再在 SPM 里进行相关配置。最后不得不提的是，用 Tuist 加载依赖是真的快...</p>
+<h3 id="单独运行组件">单独运行组件</h3>
+<p>我个人对组件化的标准是每个子组件应该都能独立编译，进一步能独立运行。基于这个标准的话，会有一些问题。</p>
+<h4 id="善用软链接">善用软链接</h4>
+<p>项目根目录下的 <code>Tuist/ProjectDescriptionHelpers</code> 是不能被子项目读取的，比如前文提到的目录结构中：</p>
+<pre><code>Tuist/
+  Config.swift
+  Package.swift
+  ProjectDescriptionHelpers/
+Projects/
+  App/
+    Project.swift
+  Feature/
+    Project.swift
+    Tuist/
+        Config.swift
+        Package.swift
+Workspace.swift
+</code></pre>
+<p>在 <code>Projects/Feature</code> 中执行 <code>tuist generate</code> 命令时，是读取不到根目录中 <code>Tuist/ProjectDescriptionHelpers</code> 里的公共方法的。</p>
+<p>一个可行的方法是使用软链接，将 <code>ProjectDescriptionHelpers</code> 文件夹软链到 <code>Projects/Feature/Tuist</code> 里。</p>
+<blockquote>
+<p>同理 <code>Tuist/.swiftpm/configuration/mirrors.json</code> 文件也可以这么做。</p>
+</blockquote>
+<h4 id="是否需要多个-configswift">是否需要多个 <code>Config.swift</code></h4>
+<p>经过进一步实践，以及相关 <a href="https://github.com/tuist/tuist/discussions/6226">讨论</a>，发现其实<strong>不建议</strong> 有多个 <code>Config.swift</code> 文件。所以 <code>Feature/Tuist/Config.swift</code> 文件应该是没有必要的。</p>
+<p>我现在使用的目录结构如下所示：</p>
+<pre><code>Tuist/
+  Config.swift
+  Package.swift
+  ProjectDescriptionHelpers/
+Projects/
+  App/
+    Project.swift
+  Components/
+    FeatureA/  
+        Project.swift
+    FeatureB/  
+        Project.swift
+Workspace.swift
+</code></pre>
+<p>也就是说各个组件内完全没有 Tuist 文件夹（依赖部分在 <code>Tuist/ProjectDescriptionHelpers</code> 进行了封装）</p>
+<p>这时假如我们在 <code>Projects/Components/FeatureA</code> 目录下执行 <code>tuist generate</code>，其实读取的是根目录中 <code>Tuist</code> 的配置，生成的是 App 项目而不是组件项目。</p>
+<p>这个时候肯定是不能满足 “组件独立运行” 的，因为现在这个组件算是一个 lib，没有前端 <code>AppDelegate</code> 等相应入口去运行 App。</p>
+<p>那么为什么还要改成这种方式呢？一是基于官方推荐的不要使用多个 <code>Config.swift</code> 的建议；二是和群友讨论后，发现一般测试一个 lib 时会单独建一个测试项目，比如 <code>FeatureATest</code>，该测试项目不在 <code>FeatureA</code> 下；三是理想很丰满现实很骨干，话是这么说，但是实际上几乎不会单独运行某个 lib。</p>
+<p>所以基于以上三个理由，如果未来需要单独测试某个 lib，那么最佳实践应该是新建一个相关的 Test 项目。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[解决从SwiftUI迁回UIKit时，SceneDelegate不执行的问题]]></title>
+        <id>https://blog.rakuyoo.top/jie-jue-cong-swiftui-qian-hui-uikit-shi-scenedelegate-bu-zhi-xing-de-wen-ti/</id>
+        <link href="https://blog.rakuyoo.top/jie-jue-cong-swiftui-qian-hui-uikit-shi-scenedelegate-bu-zhi-xing-de-wen-ti/">
+        </link>
+        <updated>2024-04-08T09:12:13.000Z</updated>
+        <summary type="html"><![CDATA[<p>最近在研究 <a href="https://github.com/tuist/tuist">Tuist</a>，一个用来管理 Xcode 项目的工具。这个工具好像从 <a href="https://github.com/tuist/tuist/pull/5853">4.0 版本</a>开始，创建新项目默认就是 SwiftUI 模版了，所以需要手动再从 SwiftUI 改回 UIKit。</p>
+<p>在改动过程中发现 <code>SceneDelegate</code> 不执行，搜索了一番后找到了解决方案，在此记录一下。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>最近在研究 <a href="https://github.com/tuist/tuist">Tuist</a>，一个用来管理 Xcode 项目的工具。这个工具好像从 <a href="https://github.com/tuist/tuist/pull/5853">4.0 版本</a>开始，创建新项目默认就是 SwiftUI 模版了，所以需要手动再从 SwiftUI 改回 UIKit。</p>
+<p>在改动过程中发现 <code>SceneDelegate</code> 不执行，搜索了一番后找到了解决方案，在此记录一下。</p>
+<!-- more -->
+<blockquote>
+<p>具体的改动方法和流程可以参考：<a href="https://mokacoding.com/blog/how-to-migrate-from-swiftui-to-uikit-life-cycle/">How to migrate from SwiftUI to UIKit App Delegate Life Cycle in Xcode</a></p>
+</blockquote>
+<p>解决方案出自这里：<a href="https://stackoverflow.com/questions/72786622/app-migrated-to-uikit-lifecycle-doesnt-call-scenedelegate">App migrated to UIKit lifecycle doesn't call SceneDelegate</a></p>
+<blockquote>
+<p>插一嘴，真没想到还会有其他人也遇到了这个问题...</p>
+</blockquote>
+<p>如上述问题里所讲的那样，这个 bug 的根本问题可能是：</p>
+<blockquote>
+<p>do not turn off support multiple windows. It seems that disabling multiple windows prevents UIKit from launching a new scene when the previous scene is no longer available.</p>
+</blockquote>
+<p>也就是说 SwiftUI 的 <code>@main</code> 入口没了，同时因为不支持多窗口，所以导致在当前场景不可用时，无法创建 <code>SceneDelegate</code> 的新场景。</p>
+<p>解决方案除了把设备上的 app 删除重新安装之外，还可以把 Info.plist 中的 scene configurations manifest 删除，然后手动创建它：</p>
+<pre><code class="language-swift">class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession, options: UIScene.ConnectionOptions) -&gt; UISceneConfiguration {
+        let configuration = UISceneConfiguration(name: nil, sessionRole: connectingSceneSession.role)
+        if connectingSceneSession.role == .windowApplication {
+            configuration.delegateClass = SceneDelegate.self
+        }
+        return configuration
+    }
+}
+</code></pre>
+<p>注意，如果不删那么这个方法也是不会调用的，所以需要删除然后手动创建。</p>
+<p>最后吐槽一下，真的没想到 iOS 就连这个也会有类似 “缓存” 的问题... 想到了 LaunchScreen ...</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[CSS选择器]]></title>
+        <id>https://blog.rakuyoo.top/css-selector/</id>
+        <link href="https://blog.rakuyoo.top/css-selector/">
+        </link>
+        <updated>2024-03-12T02:35:01.000Z</updated>
+        <summary type="html"><![CDATA[<p>CSS 有多种选择器，可以帮助我们针对不同的 HTML 标签设置样式。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>CSS 有多种选择器，可以帮助我们针对不同的 HTML 标签设置样式。</p>
+<!-- more -->
+<h1 id="选择器">选择器</h1>
+</br>
+<h2 id="通配符选择器">通配符选择器</h2>
+<p>通配符选择器（*）可以选择任何元素，通常用于设置默认样式。</p>
+<pre><code class="language-css">* {
+  margin: 0;
+  padding: 0;
+}
+</code></pre>
+<h2 id="类型选择器">类型选择器</h2>
+<p>类型选择器（Type Selectors）直接使用 HTML 标签来选择选择元素：</p>
+<pre><code class="language-css">p { color: blue; }
+</code></pre>
+<p>上面的代码将所有的 <code>&lt;p&gt;</code> 标签文本渲染为蓝色。</p>
+<h2 id="class-选择器">class 选择器</h2>
+<p>个人理解 class 选择器代表着 “一类有着相同样式的标签”，所以该选择器可以用于多个 HTML 标签。</p>
+<p>类选择器使用 <code>.</code> 开头，后接类名：</p>
+<pre><code class="language-html">&lt;style&gt;
+    .first {
+        font-weight: bold;
+        text-decoration: line-through;
+    }
+&lt;/style&gt;
+
+&lt;p class=&quot;first&quot;&gt;超越技术&lt;/p&gt;
+&lt;div&gt;哈哈.&lt;/div&gt;
+&lt;p&gt;一起学前端!&lt;/p&gt;
+</code></pre>
+<p>一个标签也可以包含多个 class，多个 class 之间使用空格分隔：</p>
+<pre><code class="language-html">&lt;!-- 包含两个 class：info 和 highlight --&gt;
+&lt;p class=&quot;info highlight&quot;&gt;...&lt;/p&gt;
+</code></pre>
+<p>此外，当你在不同的 HTML 标签中使用了相同的 class，然后还想选择某个具体的标签时，你可以像下面这样组合使用两个选择器：</p>
+<pre><code class="language-html">&lt;style&gt;
+    p.first { color: red; }
+&lt;/style&gt;
+
+&lt;p class=&quot;first&quot;&gt;该颜色会是红色&lt;/p&gt;
+&lt;span class=&quot;first&quot;&gt;该颜色不会是红色&lt;/span&gt;
+</code></pre>
+<h2 id="id-选择器">id 选择器</h2>
+<p>个人理解这里的 id 在使用场景上就和数据库中的主键一样，可以用来定位某个唯一的 HTML 标签，所以该选择器或者说 id 属性的值，在 HTML 文档中需要是<strong>唯一</strong>的，不能出现在多个元素上。</p>
+<p>id 选择器使用 <code>#</code> 号来定义：</p>
+<pre><code class="language-html">&lt;style&gt;
+    #my-id {
+    background-color: yellow;
+    }
+&lt;/style&gt;
+
+&lt;p id=&quot;my-id&quot;&gt;超越技术&lt;/p&gt;
+&lt;div&gt;哈哈.&lt;/div&gt;
+&lt;p&gt;一起学前端!&lt;/p&gt;
+</code></pre>
+<blockquote>
+<p>因为 id 选择器的唯一性，所以就没必要像上面提到的 class 选择器一样，通过标签再进一步缩小选择范围了。</p>
+</blockquote>
+<h2 id="属性选择器">属性选择器</h2>
+<p>我们都知道可以在 html 标签上自定义任意的属性，比如下面的例子：</p>
+<pre><code class="language-html">&lt;!-- 
+    `data-rakuyo` 不是很好，因为它不明所以；
+    但是它又很好，可以一眼让你看出它是一个自定义属性。 
+--&gt;
+&lt;div data-rakuyo&gt;...&lt;/div&gt;
+</code></pre>
+<p>属性选择器使用 <code>[]</code> 中括号包裹属性名称。针对上面的代码，我们可以通过属性选择器来选择该 <code>div</code> 标签：</p>
+<pre><code class="language-css">/* 选择所有带有 `data-rakuyo` 属性的元素，不论其所属哪个 html 标签 */
+[data-rakuyo] { font-weight: bold; }
+</code></pre>
+<p>再进一步缩小范围，属性选择器可以通过指定标签来筛选 “具有某些属性的标签”：</p>
+<pre><code class="language-css">/* 仅限带有 `data-style` 属性的 &lt;button&gt; 标签 */
+button[data-style] { font-weight: bold; }
+</code></pre>
+<p>可以通过具体的属性值来做条件筛选：</p>
+<pre><code class="language-html">&lt;style&gt;
+  [data-style=&quot;cancel&quot;] { color: gray; }
+  [data-style=&quot;done&quot;] { color: black; }
+&lt;/style&gt;
+
+&lt;button data-style=&quot;cancel&quot;&gt;取消&lt;/button&gt;
+&lt;button data-style=&quot;done&quot;&gt;下单&lt;/button&gt;
+</code></pre>
+<p>属性选择器还可以借助一些匹配操作符，比如 <code>$=</code> 和 <code>*=</code> 来实现特定的功能：</p>
+<pre><code class="language-css">/* 选择 `src` 属性以 `https` 开头的所有图片 */
+img[src^=&quot;https&quot;] { color: red; }
+
+/* 选择 `src` 属性以 `.jpg` 结尾的所有图片 */
+img[src$=&quot;.jpg&quot;] { border: 3px solid black; }
+
+/* 选择 `href` 属性包含 `external` *字符串* 的所有链接 */
+a[href*=&quot;external&quot;] { color: green; }
+
+/* 选择 `href` 属性包含 `external` *单词* 的所有链接 */
+a[href~=&quot;external&quot;] { color: green; }
+</code></pre>
+<blockquote>
+<p>注意 <code>*=</code> 和 <code>~=</code> 的区别。前者匹配字符串，而后者匹配的是一个完整的单词。</p>
+</blockquote>
+<h2 id="伪选择器">伪选择器</h2>
+<p>伪选择器包含 “<a href="%E4%BC%AA%E7%B1%BB%E9%80%89%E6%8B%A9%E5%99%A8">伪类选择器</a>” 和 “<a href="#%E4%BC%AA%E5%85%83%E7%B4%A0%E9%80%89%E6%8B%A9%E5%99%A8">伪元素选择器</a>” 两种。</p>
+<h3 id="伪类选择器">伪类选择器</h3>
+<p>伪类选择器用于定义元素在特定状态下的样式，比如鼠标悬停时的样式。或者用于选择第n个子元素。</p>
+<style>
+  /* 设置表格中某一列的文字不换行 */
+  .nowrap-column {
+    white-space: nowrap;
+  }
+</style>
+<p>对于特定状态，有以下几种：</p>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>说明</th>
+            <th>示例</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>:hover</code></td>
+            <td>用于在用户将鼠标悬停在元素上时应用样式</td>
+            <td><pre><code class="language-css">
+a:hover { 
+    color: red; 
+}
+            </code></pre></td>
+        </tr>
+        <tr>
+            <td><code>:active</code></td>
+            <td>用于选取被用户激活（例如鼠标点击）的元素</td>
+            <td><pre><code class="language-css">
+button:active {
+    background-color: gray;
+}
+        </tr>
+        <tr>
+            <td><code>:visited</code></td>
+            <td>用于选取用户已访问过的链接</td>
+            <td><pre><code class="language-css">
+a:visited {
+    color: purple;
+}
+        </tr>
+        <tr>
+            <td><code>:focus</code></td>
+            <td>用于选取当前获取了焦点的元素</br>通常在用户通过键盘或者鼠标进行交互时出现</td>
+            <td><pre><code class="language-css">
+input:focus {
+    border-color: blue;
+}         
+        </tr>
+    </tbody>
+</table>
+<p>对于选择子元素，有以下几种用法：</p>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>说明</th>
+            <th>示例</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td class="nowrap-column"><code>:nth-of-type(n)</code></td>
+            <td>该选择器允许你选择相同类型的且特定位置的子元素</br></br>请注意，<strong><code>n</code>从1开始，且不能是负数</strong></td>
+            <td><pre><code class="language-css">
+/* 这会使每隔两个段落文字变为红色 */
+p:nth-of-type(2n) {
+    color: red;
+}
+            </code></pre></td>
+        </tr>
+        <tr>
+            <td class="nowrap-column"><code>:nth-child(n)</code></td>
+            <td>该选择器允许你选择特定位置的子元素</td>
+            <td><pre><code class="language-css">
+/* 列表中的奇数项背景色变为浅灰色 */
+li:nth-child(odd) {
+    background-color: lightgray;
+}
+            </code></pre></td>
+        </tr>
+        <tr>
+            <td class="nowrap-column"><code>:nth-last-child(n)</code></td>
+            <td>该选择器与<code>:nth-child(n)</code>类似，但是它从元素的<strong>末尾<strong>开始计数。</td>
+            <td><pre><code class="language-css">
+/* 
+ * 这会使每个无序列表（ul）的
+ * 倒数第二个列表项（li）的文字颜色变为蓝色 
+ */
+ul li:nth-last-child(2) {
+    color: blue;
+}
+            </code></pre></td>
+        </tr>
+        <tr>
+            <td class="nowrap-column"><code>:first-child</code></br></br>“nth-child(1)”</td>
+            <td>该选择器选取某个元素的<strong>第一个</strong>子元素</td>
+            <td><pre><code class="language-css">
+/* 
+ * 这会使每个无序列表（ul）的第一个列表项（li）的文字加粗 
+ */
+ul li:first-child {
+    font-weight: bold;
+}
+            </code></pre></td>
+        </tr>
+        <tr>
+            <td class="nowrap-column"><code>:last-child</code></br></br>“nth-last-child(1)”</td>
+            <td>该选择器选取某个元素的<strong>最后一个</strong>子元素</td>
+            <td><pre><code class="language-css">
+/* 
+ * 这会使每个无序列表（ul）
+ * 的最后一个列表项（li）的文字变为斜体 
+ */
+ul li:last-child {
+    font-style: italic;
+}
+            </code></pre></td>
+        </tr>
+    </tbody>
+</table>
+<p>我觉得 <code>:nth-of-type</code> 和 <code>:nth-child</code> 的概念比较接近，同时容易混淆，所以在这里特意将他们两个单独拿出来，用一个例子来看看这两个选择器之间的区别。</p>
+<pre><code class="language-html">&lt;div class=&quot;container&quot;&gt;
+    &lt;p&gt;Paragraph 1&lt;/p&gt;
+    &lt;div&gt;Div 1&lt;/div&gt;
+    &lt;p&gt;Paragraph 2&lt;/p&gt;
+    &lt;p&gt;Paragraph 3&lt;/p&gt;
+    &lt;div&gt;Div 2&lt;/div&gt;
+&lt;/div&gt;
+</code></pre>
+<p>针对上面这段 html，两个选择器的结果为：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">选择器</th>
+<th style="text-align:center">结果</th>
+<th style="text-align:center">说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"><code>.container p:nth-of-type(2)</code></td>
+<td style="text-align:center">选择到 <code>&lt;p&gt;Paragraph 2&lt;/p&gt;</code></td>
+<td style="text-align:center">这个选择器将选择容器 <code>.container</code> 内的第二个 <code>&lt;p&gt;</code> 元素。在给定的 HTML 结构中，第二个 <code>&lt;p&gt;</code> 元素是 &quot;Paragraph 2&quot;，因此该选择器会影响到这个段落元素。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>.container p:nth-child(2)</code></td>
+<td style="text-align:center">不会选择任何元素</td>
+<td style="text-align:center">这个选择器将选择容器 <code>.container</code> 内所有的 <code>&lt;p&gt;</code> 元素中的第二个子元素。在给定的 HTML 结构中，第二个子元素是 &quot;Div 1&quot;，而不是 <code>&lt;p&gt;</code> 元素。因此，这个选择器不会选择任何元素，因为在该结构中，第二个子元素不是 <code>&lt;p&gt;</code> 元素。</td>
+</tr>
+</tbody>
+</table>
+<p>简而言之，<code>nth-child(n)</code> 会先按照顺序选择父视图的子元素，再看该子元素是否符合限制条件，如果符合则样式生效，否则不会生效；而 <code>nth-of-type(n)</code> 则相反，会先选择符合要求的元素，再按照顺序进行选择。</p>
+<blockquote>
+<p>同理可得，因为 <code>:first-child</code>、<code>:last-child</code> 和 <code>:nth-child(1)</code>、<code>:nth-last-child(1)</code> 相同，所以假如使用 <code>p:fist-child</code>，但是第一个标签不是 <code>&lt;p&gt;</code>，那么该样式也不会生效。</p>
+</blockquote>
+<h3 id="伪元素选择器">伪元素选择器</h3>
+<p>伪元素选择器用于选择元素的<strong>特定部分</strong>而不是元素本身。伪元素选择器以双冒号 <code>::</code> 开头。</p>
+<p>下面是一些常见的伪元素选择器：</p>
+<pre><code class="language-css">/* 选择元素的第一行文本 */
+p::first-line {
+    font-weight: bold;
+}
+
+/* 选择元素的第一个字母 */
+p::first-letter {
+    font-size: 150%;
+}
+
+/* 在元素内容之前插入内容 */
+p::before {
+    content: &quot;前置内容 &quot;;
+}
+
+/* 在元素内容之后插入内容 */
+p::after {
+    content: &quot; 后置内容&quot;;
+}
+
+/* 选择用户选中的文本部分 */
+::selection {
+    background-color: yellow;
+    color: black;
+}
+
+/* 选择输入框的占位符文本 */
+input::placeholder {
+    color: gray;
+}
+</code></pre>
+<p>除此之外还有一些不太常见的伪元素选择器：</p>
+<pre><code class="language-css">/* 选择列表项的标记部分（通常是列表项前面的符号，如圆点或数字） */
+li::marker {
+    color: red;
+}
+
+/* 选择元素的背景层，用于处理全屏元素的背景样式 */
+dialog::backdrop {
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+/* 选择拼写错误的文本部分 */
+::spelling-error {
+    text-decoration: underline wavy red;
+}
+
+/* 选择语法错误的文本部分 */
+::grammar-error {
+    text-decoration: underline dashed blue;
+}
+</code></pre>
+<h2 id="组合选择器">组合选择器</h2>
+<p>组合选择器是 CSS 中的一种选择器，允许你针对同时满足多个条件的元素应用样式。</p>
+<h3 id="后代选择器">后代选择器</h3>
+<p>后代选择器（Descendant Selector）允许你选择某个元素内部的所有后代元素。</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;UTF-8&quot;&gt;
+  &lt;title&gt;Descendant Selector Example&lt;/title&gt;
+  &lt;style&gt;
+    /* 选择 .container 内部的所有 p 元素 */
+    .container p {
+      color: blue;
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div class=&quot;container&quot;&gt;
+    &lt;p&gt;This is a paragraph.&lt;/p&gt;
+    &lt;div&gt;
+      &lt;p&gt;This is another paragraph.&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>在这个例子中，<code>.container p</code> 选择器会选择所有嵌套在 <code>.container</code> 内部的 <code>&lt;p&gt;</code> 元素，并将它们的颜色设为蓝色。即<strong>两个</strong> <code>&lt;p&gt;</code> 标签都会变成蓝色。</p>
+<h3 id="子选择器">子选择器</h3>
+<p>子选择器（Child Selector）用于选择某个元素的直接子元素。</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;UTF-8&quot;&gt;
+  &lt;title&gt;Child Selector Example&lt;/title&gt;
+  &lt;style&gt;
+    /* 选择 .container 下的直接子元素 p */
+    .container &gt; p {
+      font-weight: bold;
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div class=&quot;container&quot;&gt;
+    &lt;p&gt;This is a paragraph.&lt;/p&gt;
+    &lt;div&gt;
+      &lt;p&gt;This is another paragraph.&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>这个例子中，<code>.container &gt; p</code> 选择器只会选择 <code>.container</code> 直接子元素中的 <code>&lt;p&gt;</code> 元素，并将它们的字体加粗。而里层的 <code>This is another paragraph.</code> 并不会被加粗。</p>
+<p>对比 <a href="#%E5%90%8E%E4%BB%A3%E9%80%89%E6%8B%A9%E5%99%A8">后代选择器</a> 来看，后代选择器会一直查询到该叶子节点的最末端，渲染所有满足条件的标签，不管中间是否还有其他标签；而 <a href="#%E5%AD%90%E9%80%89%E6%8B%A9%E5%99%A8">子选择器</a> 只会渲染下一个层级（直接）的子节点，并不会进一步深入。</p>
+<h3 id="相邻兄弟选择器">相邻兄弟选择器</h3>
+<p>相邻兄弟选择器（Adjacent Sibling Selector）选择紧接在指定元素后的兄弟元素。</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;UTF-8&quot;&gt;
+  &lt;title&gt;Adjacent Sibling Selector Example&lt;/title&gt;
+  &lt;style&gt;
+    /* 选择 .container 后面紧邻的 p 兄弟元素 */
+    .container + p {
+      color: green;
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div class=&quot;container&quot;&gt;
+    &lt;p&gt;This is a paragraph.&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;p&gt;This is another paragraph.&lt;/p&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>在这个例子中，<code>.container + p</code> 选择器会选择紧接在 <code>.container</code> 元素后面的 <code>&lt;p&gt;</code> 元素，并将它们的颜色设为绿色。即 <code>This is another paragraph.</code> 会被渲染为绿色。</p>
+<p>有以下几点需要注意：</p>
+<ol>
+<li>“相邻兄弟选择器” 强调 <strong>相邻</strong>。如果我们将代码进行修改：</li>
+</ol>
+<pre><code class="language-html">&lt;div class=&quot;container&quot;&gt;
+    &lt;p&gt;This is a paragraph.&lt;/p&gt;
+&lt;/div&gt;
+&lt;span&gt;123&lt;/span&gt;
+&lt;p&gt;This is another paragraph.&lt;/p&gt;
+</code></pre>
+<p>此时 <code>.container</code> 不再有任何相邻的 <code>&lt;p&gt;</code> 节点，所以 <code>.container + p</code> 不会选择任何的标签进行渲染。</p>
+<ol>
+<li>“相邻兄弟选择器” 只会渲染相邻的 <strong>一个</strong> 节点。如果我们将代码进行修改：</li>
+</ol>
+<pre><code class="language-html">&lt;div class=&quot;container&quot;&gt;
+    &lt;p&gt;This is a paragraph.&lt;/p&gt;
+&lt;/div&gt;
+&lt;p&gt;This is another paragraph. 1&lt;/p&gt;
+&lt;p&gt;This is another paragraph. 2&lt;/p&gt;
+</code></pre>
+<p>那么只有相邻的第一个 <code>&lt;p&gt;</code> 标签，即 <code>This is another paragraph. 1</code> 会被渲染为绿色，另外一个 <code>&lt;p&gt;</code> 标签仍为黑色。</p>
+<h3 id="通用兄弟选择器">通用兄弟选择器</h3>
+<p>通用兄弟选择器（General Sibling Selector）选择与指定元素相邻的所有兄弟元素。</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;UTF-8&quot;&gt;
+  &lt;title&gt;General Sibling Selector Example&lt;/title&gt;
+  &lt;style&gt;
+    /* 选择 .container 后的所有 p 兄弟元素 */
+    .container ~ p {
+      font-style: italic;
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div class=&quot;container&quot;&gt;
+    &lt;p&gt;This is a paragraph.&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;p&gt;This is another paragraph.&lt;/p&gt;
+  &lt;p&gt;This is yet another paragraph.&lt;/p&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>在这个例子中，<code>.container ~ p</code> 选择器会选择紧跟在 <code>.container</code> 元素后的所有 <code>&lt;p&gt;</code> 元素，并将它们的字体样式设为斜体。很容易看出来，该选择器和 <a href="#%E7%9B%B8%E9%82%BB%E5%85%84%E5%BC%9F%E9%80%89%E6%8B%A9%E5%99%A8">相邻兄弟选择器</a> 互为一对。</p>
+<h3 id="组合选择器总结">组合选择器总结</h3>
+<p><a href="%E5%90%8E%E4%BB%A3%E9%80%89%E6%8B%A9%E5%99%A8">后代选择器（<code> </code>）</a> 和 <a href="%E5%AD%90%E9%80%89%E6%8B%A9%E5%99%A8">子选择器（<code>&gt;</code>）</a> 互为一对：同样是选择子元素，前者会深入到层级的最末端，而后者只会选择下一个层级，点到为止。</p>
+<p><a href="#%E7%9B%B8%E9%82%BB%E5%85%84%E5%BC%9F%E9%80%89%E6%8B%A9%E5%99%A8">相邻兄弟选择器（<code>+</code>）</a> 和 <a href="#%E9%80%9A%E7%94%A8%E5%85%84%E5%BC%9F%E9%80%89%E6%8B%A9%E5%99%A8">通用兄弟选择器（<code>~</code>）</a> 互为一对：同样是选择相邻元素，前者只选择同层级内相邻的节点，而后者会选择同层级内所有符合条件的节点。</p>
+<h1 id="课后思考">课后思考</h1>
+<p>现在我们提出来这么一个需求：从接口处获取商品的价格（忽略接口请求步骤），得到一个价格字符串，比如 <code>&quot;¥35.66&quot;</code>。针对该字符串进行渲染，要求如下：</p>
+<ol>
+<li>文字颜色均为红色。</li>
+<li><code>¥</code> 和 <code>.66</code> 部分样式一致：15号字。但是需要注意 <code>¥</code> 符号并不一定存在。</li>
+<li><code>35</code> 部分加粗，18号字。</li>
+</ol>
+<p>使用 js+html+css，留几秒钟思考给出答案。</p>
+</br>
+...
+</br>
+...
+</br>
+...
+</br>
+...
+</br>
+...
+</br>
+</br>
+</br>
+<p>参考答案如下：</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+    &lt;meta charset=&quot;UTF-8&quot;&gt;
+    &lt;style&gt;
+        /* 样式1：¥符号 15 号字，红色 */
+        .currency-sign,
+        .after-dot {
+            font-size: 15px;
+        }
+
+        /* 样式2：¥ 和 . 之间的内容，18号字，加粗，红色 */
+        .between {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .currency-sign,
+        .after-dot,
+        .between {
+            color: red;
+        }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;span class=&quot;currency-value&quot;&gt;&lt;/span&gt;
+
+    &lt;!-- 使用 JavaScript 定义变量 --&gt;
+    &lt;script&gt;
+        // 定义变量，代替接口请求的步骤
+        const currencyValue = &quot;¥35.66&quot;;
+
+        // 获取 span 标签
+        const spanElement = document.querySelector('.currency-value');
+
+        // 检查 span 标签是否存在
+        if (spanElement) {
+            // 检查 currencyValue 是否包含 &quot;¥&quot; 符号
+            if (currencyValue.includes('¥')) {
+                // 渲染 ¥ 符号
+                const currencySignSpan = document.createElement('span');
+                currencySignSpan.innerText = '¥';
+                currencySignSpan.classList.add('currency-sign');
+                spanElement.appendChild(currencySignSpan);
+            }
+
+            // 删去 &quot;¥&quot; 符号后的值
+            let valueWithoutSign = currencyValue.replace('¥', '');
+
+            // 按 &quot;.&quot; 分隔值
+            const [beforeDot, afterDot] = valueWithoutSign.split('.');
+
+            // 渲染 &quot;.&quot; 之前的内容
+            const beforeDotSpan = document.createElement('span');
+            beforeDotSpan.innerText = beforeDot;
+            beforeDotSpan.classList.add('between');
+            spanElement.appendChild(beforeDotSpan);
+
+            // 渲染 &quot;.&quot; 符号 和 &quot;.&quot; 之后的内容
+            const afterDotSpan = document.createElement('span');
+            afterDotSpan.innerText = '.' + afterDot;
+            afterDotSpan.classList.add('after-dot');
+            spanElement.appendChild(afterDotSpan);
+        }
+    &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>然后我们可以再进一步，如果改成 vue3 + TypeScript 呢？</p>
+<pre><code class="language-html">&lt;template&gt;
+  &lt;span class=&quot;currency-value&quot;&gt;
+    &lt;span v-if=&quot;hasCurrencySign&quot; class=&quot;currency-sign&quot;&gt;¥&lt;/span&gt;
+    &lt;span class=&quot;between&quot;&gt;{{ beforeDot }}&lt;/span&gt;
+    &lt;span class=&quot;after-dot&quot;&gt;.{{ finalAfterDot }}&lt;/span&gt;
+  &lt;/span&gt;
+&lt;/template&gt;
+
+&lt;script setup lang=&quot;ts&quot;&gt;
+import { ref } from 'vue';
+
+const currencyValue = ref&lt;string&gt;(&quot;¥35.66&quot;);
+
+const hasCurrencySign = currencyValue.value.includes('¥');
+const [beforeDot, afterDot] = currencyValue.value.replace('¥', '').split('.');
+const finalAfterDot = afterDot || '00';
+&lt;/script&gt;
+
+&lt;style scoped&gt;
+/* 样式1：¥符号 15 号字，红色 */
+.currency-sign,
+.after-dot {
+    font-size: 15px;
+}
+
+/* 样式2：¥ 和 . 之间的内容，18号字，加粗，红色 */
+.between {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.currency-sign,
+.after-dot,
+.between {
+    color: red;
+}
+&lt;/style&gt;
+</code></pre>
+<p>可见因为 vue 中的模版可以直接引用变量，为我们减少了大量的 DOM 操作，代码量得以减少了不少。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[HTML 元素显示模式]]></title>
+        <id>https://blog.rakuyoo.top/html-element-display-mode/</id>
+        <link href="https://blog.rakuyoo.top/html-element-display-mode/">
+        </link>
+        <updated>2024-03-06T08:47:54.000Z</updated>
+        <summary type="html"><![CDATA[<p>记录前端的学习过程。<br>
+本篇文章是最基础的 HTML 部分。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>记录前端的学习过程。<br>
+本篇文章是最基础的 HTML 部分。</p>
+<!-- more -->
+<h1 id="元素显示模式">元素显示模式</h1>
+<p>HTML 元素一般分为 “块元素” 和 “行内元素”。</p>
+<h2 id="块元素">块元素</h2>
+<p><code>&lt;div&gt;</code> 是最典型的块元素。其余的还有 <code>&lt;h1&gt;</code> ~ <code>&lt;h6&gt;</code>、<code>&lt;p&gt;</code>、<code>&lt;ul&gt;</code>、<code>&lt;ol&gt;</code>、<code>&lt;li&gt;</code> 等。</p>
+<p>特性：</p>
+<ol>
+<li>独占一行</li>
+<li>高度、宽度、外边距和内边距都可以控制</li>
+<li>宽度默认是容器（父级宽度）的 100%</li>
+<li>是一个容器及盒子，里面可以放行内或者块级元素</li>
+</ol>
+<p>注意：</p>
+<ul>
+<li>文字类元素内部不能使用块级元素
+<ul>
+<li><code>&lt;p&gt;</code> 标签主要用于存放文字，因此 <code>&lt;p&gt;</code> 里面不能放块级元素，特别是不能放 <code>&lt;div&gt;</code></li>
+<li>同理，<code>&lt;h1&gt;</code> ~ <code>&lt;h6&gt;</code> 等都是文字类块级标签，里面也不能放其他块级元素</li>
+</ul>
+</li>
+</ul>
+<h2 id="行内元素">行内元素</h2>
+<p><span> 是最典型的行内元素。其余的还有 <code>&lt;a&gt;</code>、<code>&lt;strong&gt;</code>、<code>&lt;b&gt;</code>、<code>&lt;em&gt;</code>、<code>&lt;i&gt;</code>、<code>&lt;del&gt;</code>、<code>&lt;s&gt;</code>、<code>&lt;ins&gt;</code>、<code>&lt;u&gt;</code>等。<br>
+有的地方也将行内元素成为<em>内联元素</em>。</p>
+<p>特性：</p>
+<ol>
+<li>相邻行内元素在一行上，一行可以显示多个</li>
+<li>宽、高直接设置是无效的</li>
+<li>默认宽度就是它本身内容的宽度</li>
+<li>行内元素只能容纳<strong>文本</strong>或其他行内元素。</li>
+</ol>
+<p>注意：</p>
+<ul>
+<li>链接里不能再放链接</li>
+<li>特殊情况链接 <code>&lt;a&gt;</code> 里面可以放块级元素，但是给 <code>&lt;a&gt;</code> 转换成块级模式最安全</li>
+</ul>
+<h2 id="示例">示例</h2>
+<p>下面这段代码可以作为一个简单的示例。</p>
+<pre><code class="language-html">&lt;body&gt;
+    &lt;h1&gt;《前端小课》&lt;/h1&gt;
+    &lt;h2&gt;
+        一本帮你入门与进阶的前端书
+        &lt;!-- h2 和 p 都是块级元素，内部可以直接包含其他元素，比如 &lt;hr&gt; --&gt;
+        &lt;!-- html 标签之间，默认好像是会有一些间距的。所以这个 &lt;hr&gt; 如果写在 &lt;p&gt; 外层，会有不一样的 ui 效果 --&gt;
+        &lt;hr&gt;
+    &lt;/h2&gt;
+
+    &lt;!--   
+        用 div 这个块级元素包一下，可以保证代码占整行 
+        不用 div 包裹，那么这个元素的大小就是 code 的大小
+    --&gt;
+    &lt;div class=&quot;code-bg&quot;&gt;
+        &lt;code&gt;
+            const p = document.querySelector('p');
+            p.onclick = function() {
+                alert('噢，噢，噢，别点我了。');
+            }
+        &lt;/code&gt;
+    &lt;/div&gt;
+&lt;/body&gt;
+</code></pre>
+]]></content>
+    </entry>
+</feed>
