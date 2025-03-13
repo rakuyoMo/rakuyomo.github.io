@@ -1,0 +1,1664 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://blog.rakuyoo.top</id>
+    <title>Rakuyo&apos;s blog</title>
+    <updated>2025-03-13T04:19:42.700Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://blog.rakuyoo.top"/>
+    <link rel="self" href="https://blog.rakuyoo.top/atom.xml"/>
+    <logo>https://blog.rakuyoo.top/images/avatar.png</logo>
+    <icon>https://blog.rakuyoo.top/favicon.ico</icon>
+    <rights>All rights reserved 2025, Rakuyo&apos;s blog</rights>
+    <entry>
+        <title type="html"><![CDATA[通过覆写方法看 Swift 方法派发]]></title>
+        <id>https://blog.rakuyoo.top/swift-method-dispatch-via-overriding/</id>
+        <link href="https://blog.rakuyoo.top/swift-method-dispatch-via-overriding/">
+        </link>
+        <updated>2025-02-27T02:05:24.000Z</updated>
+        <summary type="html"><![CDATA[<p>在 Swift 开发中，我们常常利用 <code>extension</code> 和 <code>// MARK:</code> 来划分代码逻辑，比如划分出 “Config”、“Life cycle” 等模块。然而，在使用扩展时却常常会遇到方法覆写的问题，尤其是在定义基类的“框架方法”后，子类无法正确覆写的问题。</p>
+<p>本文将通过覆写方法，深入探讨 Swift 中的方法派发机制，并讨论如何在代码设计时规避常见坑点。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>在 Swift 开发中，我们常常利用 <code>extension</code> 和 <code>// MARK:</code> 来划分代码逻辑，比如划分出 “Config”、“Life cycle” 等模块。然而，在使用扩展时却常常会遇到方法覆写的问题，尤其是在定义基类的“框架方法”后，子类无法正确覆写的问题。</p>
+<p>本文将通过覆写方法，深入探讨 Swift 中的方法派发机制，并讨论如何在代码设计时规避常见坑点。</p>
+<!-- more -->
+<blockquote>
+<p>本文基于 Swift 5 与 Xcode 16.2 编写。</p>
+</blockquote>
+<h2 id="何为-swift-方法派发">何为 Swift 方法派发</h2>
+<p>首先，为不了解 “方法派发” 的读者做个简短的概念解释：</p>
+<p>方法派发简单地讲，指的是在调用一个方法时，如何执行该方法的机制。也可以理解为 “去哪里找到该方法的实现” 的机制。</p>
+<p>广义上说 Swift 的方法派发分以下两种：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">派发类型</th>
+<th style="text-align:center">定义</th>
+<th style="text-align:center">底层机制</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">静态派发</td>
+<td style="text-align:center">在编译期就确定调用目标</td>
+<td style="text-align:center">直接内联调用，不参与虚函数表</td>
+</tr>
+<tr>
+<td style="text-align:center">动态派发</td>
+<td style="text-align:center">在运行时根据对象的实际类型确定调用目标</td>
+<td style="text-align:center">依赖虚函数表（vtable）或 Objective‑C 消息发送机制</td>
+</tr>
+</tbody>
+</table>
+<h2 id="方法覆写与方法派发">方法覆写与方法派发</h2>
+<p>在很多项目中，我们会在基类中定义一些“框架方法”，由子类覆写这些方法来实现统一的代码结构。比如下面的类型：</p>
+<pre><code class="language-swift">open class BaseCollectionViewCell: UICollectionViewCell {
+    override public init(frame: CGRect) {
+        super.init(frame: frame)
+        
+        config()
+    }
+    
+    public required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        
+        config()
+    }
+}
+
+extension BaseCollectionViewCell {
+    open func config() { // ⚠️ Non-'@objc' instance method in extensions cannot be overridden; use 'public' instead
+        addSubviews()
+        addInitialLayout()
+    }
+    
+    open func addSubviews() { } // ⚠️ Non-'@objc' instance method in extensions cannot be overridden; use 'public' instead
+    
+    open func addInitialLayout() { } // ⚠️ Non-'@objc' instance method in extensions cannot be overridden; use 'public' instead
+}
+</code></pre>
+<p><code>config()</code>、<code>addSubviews()</code> 和 <code>addInitialLayout()</code> 被我称为 “框架方法”，用来约束子类，统一管理某一类的代码。</p>
+<p>写完方法后，Xcode 给了我们三个警告：<code>Non-'@objc' instance method in extensions cannot be overridden; use 'public' instead</code>。提示我们在 <code>extension</code> 中定义的非 <code>@objc</code> 方法不能被覆写的，所以我们使用的 <code>open</code> 是没有意义的，建议我们换成 <code>public</code>。</p>
+<p>这是为什么呢？</p>
+<h3 id="swift-中的方法覆写">Swift 中的方法覆写</h3>
+<p>我们先来了解一下 Swift 方法覆写的实现原理：在 Swift 中，方法覆写本质上是依赖 “动态派发机制” 来实现的。</p>
+<p>对于一个纯 Swift 类而言，在类的主要声明部分定义的方法会被加入到虚函数表（vtable table）中。这意味着在运行时，根据对象的实际类型可以找到正确的实现，从而支持子类覆写。</p>
+<blockquote>
+<p>在 Swift 中，虚函数表被称为 “witness table”，下文将会使用 ““witness” 这个单词代表 “虚函数表”。</p>
+</blockquote>
+<p>而在 <code>extension</code> 中定义的方法，默认采用的是 “<strong>静态派发</strong>”，静态派发会在编译时直接绑定调用目标，不会被加入到 witness table 里，也不暴露在 Objective‑C 运行时中。</p>
+<p>上一节中提到，子类覆写方法需要依靠虚函数表或 Objective‑C 运行时，所以定义在 <code>extension</code> 中的方法无法被子类继承。</p>
+<h3 id="改写">改写</h3>
+<p>知道错误原因的你可能想到了两种解决方案：</p>
+<ol>
+<li>可以将方法移动到主要声明部分，也就是通过虚函数表实现方法覆写。</li>
+<li>或者按照警告的提示，添加 <code>@objc</code>，借助 Objective-C 运行时实现方法覆写。</li>
+</ol>
+<p>我们先采用第一种方案，看看如何实现：</p>
+<pre><code class="language-swift">open class BaseCollectionViewCell: UICollectionViewCell {
+    ...
+
+    open func config() { ... }
+    
+    ...
+}
+
+class SubCollectionViewCell: BaseCollectionViewCell { }
+
+extension SubCollectionViewCell {
+    override func config() { } // ❌ Non-@objc instance method 'config()' declared in 'BaseCollectionViewCell' cannot be overridden from extension
+}
+</code></pre>
+<p>当我们尝试继承 <code>BaseCollectionViewCell</code> 去定义 <code>SubCollectionViewCell</code> 时，问题更严重了，Xcode 报了个错误：<br>
+<code>Non-@objc instance method 'config()' declared in 'BaseCollectionViewCell' cannot be overridden from extension</code></p>
+<p>这其实也很好理解，根据虚函数表的原理，如果父类函数被覆写，那么表中只会保存被覆写之后的函数。所以尽管父类的 <code>config()</code> 方法在虚函数表中，但是子类的方法不在，这样在运行时就无法使用子类的实现替代父类的实现。</p>
+<p>既然第一条路走不通，那么第二条路呢？比如下面这样：</p>
+<pre><code class="language-swift">open class BaseCollectionViewCell: UICollectionViewCell {
+    ...
+
+    @objc
+    open func config() { ... }
+    
+    ...
+}
+
+class SubCollectionViewCell: BaseCollectionViewCell { }
+
+extension SubCollectionViewCell {
+    override func config() { } // ❌ Cannot override a non-dynamic class declaration from an extension
+}
+</code></pre>
+<p>很好，报错变了，证明有效，但不完全有效。在这个例子中，我们已经使用 <code>@objc</code> 将父类方法暴露给 Objective-C，但是这实际上并不意味着方法派发方式改为了 “Objective-C 消息派发”。</p>
+<p>在 Swift 3 时代存在 <code>@objc</code> 的隐式推断，而在发布 Swift 4 时候，这个隐式推断被取消了。开发者在类的<strong>主要声明</strong>（请先留意这一点，后文中还会提及）中，需要手动添加 <code>dynamic</code> 关键字，才能告诉编译器，将这个方法改为使用 “Objective-C 消息派发”。如果只添加 <code>@objc</code>，那么方法仅仅是被暴露给 Objective-C 而已，实际上还是被添加到虚函数表中，最终使用函数表派发。</p>
+<p>所以正确的做法是为父类的方法定义添加 <code>dynamic</code> 关键字，就像下面这样：</p>
+<pre><code class="language-swift">open class BaseCollectionViewCell: UICollectionViewCell {
+    ...
+
+    @objc dynamic
+    open func config() { ... }
+    
+    ...
+}
+
+class SubCollectionViewCell: BaseCollectionViewCell { }
+
+extension SubCollectionViewCell {
+    override func config() { } // ✅
+}
+</code></pre>
+<p>好奇的你可能会注意到一个小细节：为什么子类方法光秃秃的，既不用添加 <code>@objc</code>，又不用添加 <code>dynamic</code>？</p>
+<p>这是因为尽管 Swift 4 已经取消了 <code>@objc</code> 隐式推断，但是在继承时这一推断被保留了下来，参考：<a href="https://github.com/swiftlang/swift-evolution/blob/main/proposals/0160-objc-inference.md#constructs-that-still-infer-objc">Constructs that (still) infer @objc</a>。所以在这个例子中，为了保持一致性，子类自动继承了父类方法的修饰。</p>
+<h3 id="extension-狂人"><code>extension</code> 狂人</h3>
+<p>好了，现在你跟我说你是 <code>extension</code> 的狂热粉丝，你想将父类的框架方法也移到 <code>extension</code> 去定义，于是你将代码改成了这样：</p>
+<pre><code class="language-swift">open class BaseCollectionViewCell: UICollectionViewCell { }
+
+extension BaseCollectionViewCell {
+    @objc // ⚠️ 因为你的粗心，你遗漏了 `dynamic` 关键字。
+    open func config() {  }
+}
+
+class SubCollectionViewCell: BaseCollectionViewCell { }
+
+extension SubCollectionViewCell {
+    override func config() { } // ✅
+}
+</code></pre>
+<p>让我们假设你是一个粗心的人（<em>对不起</em>），你在移动代码时丢失了 <code>config()</code> 方法上的 <code>dynamic</code> 关键字。此时你会发现子类的 <code>config()</code> 没有报错！等等，先别着急欢呼 “<code>extension</code> 万岁！”，让我们来看看为什么不需要 <code>dynamic</code>？</p>
+<p>答案是因为：在 <code>extension</code> 中定义方法并使用 <code>@objc</code> 修饰时，将自动转换为 Objective-C 消息派发。所以就不需要显式添加 <code>dynamic</code> 了。</p>
+<p>再深入思考一下，“在 <code>extension</code> 中定义方法并使用 <code>@objc</code> 修饰时，将自动转换为 Objective-C 消息派发” 这么设计的原因是什么呢？</p>
+<p>我觉得是因为 “<code>extension</code> 中的方法无法被加入虚函数表”。使用 <code>@objc</code> 修饰后肯定无法使用静态派发，所以最终只能使用 Objective-C 消息派发了。</p>
+<blockquote>
+<p>再再刨根问底一下，为什么 “<code>extension</code> 中的方法无法被加入虚函数表”？根据我目前的知识，这是 Swift 编译器做的硬性规定，并且与 Swift 的设计理念有关。本文就不展开讨论了。</p>
+</blockquote>
+<h3 id="纯-swift-类">纯 Swift 类</h3>
+<p>上面的示例代码中，所有的类都是继承自 <code>NSObject</code>，那么如果是一个纯 Swift 类呢？比如说下面这个类型：</p>
+<pre><code class="language-swift">class Foo {
+    func config() {}
+}
+
+class SubFoo: Foo { }
+
+extension SubFoo {
+    override func config() {} // 🩺 这里会报错吗？报什么错？
+}
+</code></pre>
+<p>结论和上面一样。不论是纯 Swift 类，还是一个继承自 <code>NSObject</code> 的类，在本文所讨论的场景中行为是一致的。</p>
+<blockquote>
+<p>有朋友会提到 Swift 代码跨平台时的表现：添加了 <code>@objc</code> 和 <code>dynamic</code> 的纯 Swift 类在 Windows 或 Linus 平台上可以正常编译吗？答案肯定是否定的，Objective-C 运行时只存在于 Apple 平台，在上面两个平台中是没有的，所以代码无法通过编译。</p>
+</blockquote>
+<h2 id="总结">总结</h2>
+<p>通过本文的讨论，相信你已经掌握了如何利用 <code>extension</code> 正确覆写父类的方法。</p>
+<p>在实际开发中，虽然 Swift 的方法派发常被视作面试“八股文”般的基础知识，但是理解这些细微差别不仅能帮助你在设计类结构和方法定义时做出更明智的选择，还能在保证高效运行的同时，为后续的灵活扩展打下坚实的基础。</p>
+<p>那么留一个课后思考题：</p>
+<pre><code class="language-swift">class Foo {
+    func config() {}
+}
+
+class SubFoo: Foo { }
+
+extension SubFoo {
+    @objc override func config() {} // ❌ Non-@objc instance method 'config()' declared in 'Foo' cannot be overridden from extension
+}
+</code></pre>
+<p>上面这个代码中，父类和子类中的 <code>config()</code> 方法分别是哪种派发方式呢？欢迎在评论区留下你的答案。</p>
+<h2 id="写在最后">写在最后</h2>
+<p>其实本篇文章的场景 “<code>extension</code> 的设计初衷是为类添加新的功能，而非修改已有方法” 是不符合 Swift 语言的设计初衷的。<a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/extensions/">官方文档</a>中是这么说的：</p>
+<blockquote>
+<p>Extensions can add new functionality to a type, but they can’t override existing functionality.</p>
+</blockquote>
+<p>所以你可能会在看到文章开头时就说：“根本就不应该在 <code>extension</code> 中覆写方法！”。这也确实，Apple 并不推荐我们借助 ObjC 的方式在 <code>extension</code> 中覆写方法。</p>
+<p>但是既然 Apple 允许开发者借助 ObjC 运行时的特性来实现这一功能，那么我们就姑且允许它存在吧，相信你有能力把握一个度，什么时候可以用这个功能，什么时候应尽量避免。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[List files by size]]></title>
+        <id>https://blog.rakuyoo.top/list_files_by_size/</id>
+        <link href="https://blog.rakuyoo.top/list_files_by_size/">
+        </link>
+        <updated>2025-01-14T02:59:57.000Z</updated>
+        <summary type="html"><![CDATA[<p>问 ChatGPT 写了一个 shell 脚本，可以在命令行中按照从大到小，递归地输出除了 <code>.json</code> 文件外的文件，包含文件大小和文件名。可用于辅助筛查项目中哪些图片过大。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>问 ChatGPT 写了一个 shell 脚本，可以在命令行中按照从大到小，递归地输出除了 <code>.json</code> 文件外的文件，包含文件大小和文件名。可用于辅助筛查项目中哪些图片过大。</p>
+<!-- more -->
+<p>单独脚本文件就不存到 GitHub 上了，在这里记录一下吧。</p>
+<pre><code class="language-bash">#!/bin/bash
+
+# 定义一个函数将字节大小转为人类可读格式
+human_readable_size() {
+  num=$1
+  # echo &quot;Converting size: $num bytes&quot;  # Log: 转换字节大小
+  if [ &quot;$num&quot; -lt 1024 ]; then
+    echo &quot;${num}B&quot;
+  elif [ &quot;$num&quot; -lt 1048576 ]; then
+    echo &quot;$((num / 1024))K&quot;
+  elif [ &quot;$num&quot; -lt 1073741824 ]; then
+    echo &quot;$((num / 1048576))M&quot;
+  else
+    echo &quot;$((num / 1073741824))G&quot;
+  fi
+}
+
+# 临时文件存储所有文件信息
+temp_file=$(mktemp)
+# echo &quot;Temporary file created: $temp_file&quot;  # Log: 临时文件创建
+
+# 使用 find 查找所有文件，排除 .json 文件
+find . -type f ! -name &quot;*.json&quot; -print0 | while IFS= read -r -d '' file; do
+  # 获取文件大小（以字节为单位，macOS 使用 stat -f%z）
+  size=$(stat -f%z &quot;$file&quot;)
+  # echo &quot;File: $file, Size: $size bytes&quot;  # Log: 文件和大小
+
+  # 输出字节大小和文件路径到临时文件
+  echo &quot;$size $file&quot; &gt;&gt; &quot;$temp_file&quot;
+done
+
+# Log: 排序之前的临时文件内容
+# echo &quot;Contents of temp file before sorting:&quot;
+# cat &quot;$temp_file&quot;
+
+# 按字节数降序排序，并输出格式化结果
+sort -k1,1nr &quot;$temp_file&quot; | while read -r size file; do
+  # echo &quot;Processing sorted file: $file, Size: $size bytes&quot;  # Log: 处理排序后的文件
+
+  # 获取人类可读格式
+  readable_size=$(human_readable_size &quot;$size&quot;)
+  # 使用 printf 来确保输出格式对齐
+  printf &quot;%-10s %-10s %s\n&quot; &quot;$readable_size&quot; &quot;$size&quot; &quot;$file&quot;
+done
+
+# 删除临时文件
+# echo &quot;Deleting temporary file: $temp_file&quot;  # Log: 删除临时文件
+rm &quot;$temp_file&quot;
+</code></pre>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[String Catalog 实践]]></title>
+        <id>https://blog.rakuyoo.top/string-catalog/</id>
+        <link href="https://blog.rakuyoo.top/string-catalog/">
+        </link>
+        <updated>2024-12-30T07:02:52.000Z</updated>
+        <summary type="html"><![CDATA[<p>最近项目有了国际化（i18n）的需求，正好 WWDC23 上 Apple 推出了 String Catalog 功能。趁此机会尝试一下，并将一些经验记录下来。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>最近项目有了国际化（i18n）的需求，正好 WWDC23 上 Apple 推出了 String Catalog 功能。趁此机会尝试一下，并将一些经验记录下来。</p>
+<!-- more -->
+<p>如果你对 String Catalog 不太熟悉，可以先参考 <a href="https://xiaozhuanlan.com/topic/4731268095#sectionstringcatalog">老司机技术 WWDC 23 内参</a>，或者直接观看 WWDC 的 <a href="https://developer.apple.com/cn/videos/play/wwdc2023/10155/">官方视频</a> 和 <a href="https://developer.apple.com/documentation/xcode/localizing-and-varying-text-with-a-string-catalog">文档</a> 来了解更多。</p>
+<p>好了废话不多说，开始今天的内容。</p>
+<h2 id="开发环境">开发环境</h2>
+<ul>
+<li><strong>Xcode</strong>：16.2</li>
+<li><strong>Swift</strong>：5.9</li>
+<li><strong>框架</strong>：UIKit</li>
+<li><strong>最低支持版本</strong>：iOS 13</li>
+<li><strong>组件化工具</strong>：CocoaPods</li>
+</ul>
+<p>Xcode 15 及以上版本支持 String Catalog，版本对功能无特别限制。<br>
+但由于项目最低支持版本为 iOS 13，而 <code>String(localized:)</code> 是 iOS 15 引入的 API，因此需要额外处理低版本兼容的问题。</p>
+<p>此外，关于 String Catalog 在 CocoaPods 组件化项目中的使用，相关资料较少，因此这部分内容需要实际摸索一下。</p>
+<h2 id="项目准备工作">项目准备工作</h2>
+<p>首先，在项目的 <strong>PROJECT</strong> 设置中添加需要支持的语言：</p>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyoo.top/post-images/1735550287876.png" alt="添加多语言" loading="lazy"></figure>
+<p>接着可以（可选）调整 Scheme 的模拟器设置，将语言和地区设置为待测试的环境：</p>
+<figure data-type="image" tabindex="2"><img src="https://blog.rakuyoo.top/post-images/1735550299822.png" alt="修改模拟器语言" loading="lazy"></figure>
+<p>例如将语言设置为英语、地区为美国。此操作便于验证翻译效果，但地区设置通常不会影响文案展示。</p>
+<h2 id="string-catalog-cocoapods">String Catalog + CocoaPods</h2>
+<p>在主项目中使用 String Catalog 可以算作在 CocoaPods 中使用的一个子集，所以我们直接讲解如何在 CocoaPods 中使用 String Catalog。</p>
+<h3 id="新建文件">新建文件</h3>
+<p>通过 <strong>Command+N</strong> 新建 String Catalog 文件，效果如下：</p>
+<figure data-type="image" tabindex="3"><img src="https://blog.rakuyoo.top/post-images/1735550314476.png" alt="新建 String Catalog 文件" loading="lazy"></figure>
+<blockquote>
+<p><strong>提示</strong>：<br>
+文件里显示的语言，是根据所属 <code>.xcodeproj</code> 设置里添加的语言自动生成的。<br>
+Pods.xcodeproj 默认包含多种语言，所以 Pods 中的 <code>.xcstrings</code> 文件才会显示这么多的语种。<br>
+但这不会影响最终的 App。鉴于我们平时在使用时，不会将 Pods.xcodeproj 提交到 git，同时 App 的多语言设置不受 Pods 的影响，所以作为开发者你完全可以无视这一点，只从 String Catalog 挑选你关注的语种即可。</p>
+</blockquote>
+<p>这里我新建了一个文件，叫 <code>HomeLocalizable.xcstrings</code>，并加了两个文案。</p>
+<h3 id="修改-podspec-文件">修改 Podspec 文件</h3>
+<p>接着，我们需要修改 podspec，把 <code>.xcstrings</code> 文件加到资源文件中。</p>
+<p>说到这里，聪明的你肯定可以直接猜到，是不是可以仿照 <code>.xcassets</code> 类型的文件，直接将 <code>.xcstrings</code> 文件放到 <code>resource_bundle</code> 的自定义 Bundle 中。没错，确实是这样：</p>
+<pre><code class="language-ruby">s.resource_bundle = {
+  'HomeBundle' =&gt; [
+    'Sources/Resource/**/*.xcstrings',
+    'Sources/Resource/**/*.xcassets',
+  ]
+}
+</code></pre>
+<blockquote>
+<p>注意：<br>
+如果只将 <code>.xcstrings</code> 放入 Bundle 中的话会有一个问题，详见 <a href="#pod-%E4%B8%8E-string-catalog-%E8%87%AA%E5%8A%A8%E5%8C%96">Pod 与 String Catalog 自动化</a> 这一小节。</p>
+</blockquote>
+<p>然后执行 <code>pod install</code>，这样 <code>.xcstrings</code> 文件就会被包含到 <code>HomeBundle</code> 里了。</p>
+<h2 id="添加新的文言">添加新的文言</h2>
+<p>选择我们的默认语种，点击加号即可添加新的文言。此后同样的操作在需要翻译的语种中，设置对应文言的翻译内容即可。</p>
+<p>需要注意的是，默认语种中文言的状态（State）默认是不展示，即 <code>Reviewed</code> 已审核过的，和其他语种中的绿色对勾是一样的。而当我们新建一个文言后，其他语种中文言的状态则是<strong>NEW</strong>。</p>
+<figure data-type="image" tabindex="4"><img src="https://blog.rakuyoo.top/post-images/1735550344436.png" alt="" loading="lazy"></figure>
+<p>我实际测试了一下，当我们向 <strong>NEW</strong> 状态的文言添加对应的翻译，或者修改了 <strong>NEEDS REVIEW</strong> 状态的文言所对应的翻译后，该条文言的状态将自动变为 <code>Reviewed</code>。</p>
+<p>另外，就算文言处于 <strong>NEEDS REVIEW</strong> 状态，只要包含了对应的翻译，那么该翻译也是可以正常显示的。不过从字面上来看这一行为有些<a href="https://stackoverflow.com/questions/77701293/string-catalog-has-no-effect#comment137598271_77701293">危险</a>，稳妥起见建议开发者确保所有文言无误后，将其标记为 <code>Reviewed</code> 后再使用。</p>
+<h2 id="展示国际化文本">展示国际化文本</h2>
+<p>这一节我们就要提到 <code>String(localized:)</code> 的问题了。网上大部分介绍 String Catalog 的文章都会使用 <code>String(localized: )</code> 这一个新的 api，然而当我实际使时才发现，它仅限于 iOS 15 + 的版本。那么该怎么办呢？</p>
+<p>其实我们还可以使用老的 <code>NSLocalizedString</code> 方法。</p>
+<pre><code class="language-swift">let text = NSLocalizedString(
+    &quot;扫码或长按小程序码&quot;, 
+    tableName: &quot;HomeLocalizable&quot;, 
+    bundle: BundleToken.bundle, 
+    comment: &quot;&quot;
+)
+
+private final class BundleToken {
+  static let bundle: Bundle = {
+    #if SWIFT_PACKAGE
+    return Bundle.module
+    #else
+    guard
+      let resourcePath = Bundle(for: BundleToken.self).resourcePath,
+      let bundle = Bundle(path: resourcePath + &quot;/HomeBundle.bundle&quot;) // ⬅️ Watch this.
+    else {
+        fatalError(&quot;Bundle not found, please make sure the Bundle name is correct!&quot;)
+    }
+    return bundle
+    #endif
+  }()
+}
+</code></pre>
+<p><code>tableName</code> 是 <code>.xcstrings</code> 文件名，<code>bundle</code> 是在 podspec 里定义的 <code>HomeBundle</code>。</p>
+<p>这里的 <code>BundleToken</code> 参考了 <a href="https://github.com/SwiftGen/SwiftGen/blob/f7c23b63053e5a8aab4a4dbb633b24920bbb9436/Sources/SwiftGenCLI/templates/json/runtime-swift5.stencil#L98">SwiftGen 的实现</a>，做了一些适配 CocoaPods 的改动：增加 <code>HomeBundle</code>。</p>
+<p>如果你好奇为什么使用老的 <code>NSLocalizedString</code> api 也可以，那么我们可以先 build 编译一下项目，然后在 Products 目录找到编译好了之后的应用，最后找到 <code>HomeBundle.bundle</code>。<br>
+<img src="https://blog.rakuyoo.top/post-images/1735550356345.png" alt="" loading="lazy"></p>
+<p>此时你就会发现，<code>.xcstrings</code> 虽然不像是 <code>.bundle</code> 一样是一个 “包”，但是在编译时，它会被编译为和 <code>.xcstrings</code> 同名的 <code>.strings</code> 文件，所以我们依然可以使用 <code>NSLocalizedString</code> api 来读取相关设置，这点在 WWDC 的视频中也有相关说明：<br>
+<img src="https://blog.rakuyoo.top/post-images/1735550361801.png" alt="" loading="lazy"></p>
+<h2 id="swiftgen">SwiftGen</h2>
+<p>截止文章更新（2025.1.14），SwiftGen 最新版为 <a href="https://github.com/SwiftGen/SwiftGen/releases/tag/6.6.3">6.6.3</a>，尚未正式支持 String Catalog。（SwiftGen 目前好像进入<strong>停更</strong>的状态）</p>
+<p>不过有一个相关的 pr：<a href="https://github.com/SwiftGen/SwiftGen/pull/1124">Xcode 15 String catalog support #1124</a>。</p>
+<p>这个 pr 对 <code>.xcstring</code> 文件进行解析，解析后生成的内容和老版本 <code>.string</code> 解析后生成的内容类似。</p>
+<blockquote>
+<p>顺带一提，这似乎也影响到了 <a href="https://github.com/tuist/tuist/pull/6296">Tuist</a> 对于 String Catalog 的支持。</p>
+</blockquote>
+<p>你可以考虑使用我 fork 的这个版本：<a href="https://github.com/rakuyoMo/SwiftGen/releases/tag/6.6.4-alpha.0">6.6.4-alpha.0</a>。通过 mise 安装时，可以按照下面的格式修改 <code>mise.toml</code> 文件：</p>
+<pre><code class="language-toml">[tools]
+&quot;ubi:rakuyoMo/SwiftGen&quot; = { version = &quot;6.6.4-alpha.0&quot;, matching = &quot;swiftgen-6.6.4-alpha.0-macos.zip&quot;, exe = &quot;swiftgen&quot; }
+</code></pre>
+<p>如果你不想分叉自编译 SwiftGen 可以考虑尝试一个名为 <a href="https://github.com/liamnichols/xcstrings-tool">xcstrings-tool</a> 的新工具，Swift 开发，不支持 brew，但是支持通过 mise 安装 cli 单独使用，详见<a href="https://github.com/liamnichols/xcstrings-tool/blob/9f76a024ac59324bdd71dfa9b39c6abc4ba21c40/Sources/Documentation/XCStringsToolPlugin.docc/Using%20the%20Command%20Line%20Interface.md?plain=1#L27">文档</a></p>
+<h2 id="一些注意">一些注意</h2>
+<p>因为这是我第一次总结 i18n 相关的内容，所以也顺带记录一些问题或者注意事项。可能比较常见，比较基础。</p>
+<h3 id="换行符">换行符</h3>
+<p>如果在 <code>.xcstrings</code> 文件中直接输入 <code>\n</code> 代表换行，在实际展示时是起不到换行的效果，而是会将 <code>\n</code> 展示出来。从 json 文件或Git 中查看会发现，实际内容是 <code>\\n</code>，即转义过后的内容。</p>
+<p>正确的方式是使用 <strong>option + return</strong> 组合键在 <code>.xcstrings</code> 文件中输入换行。或者不嫌麻烦的话可以手动修改 json 文件，效果是一样的（手动狗头）。</p>
+<h3 id="nslocalizedstring_key"><code>nslocalizedstring_key</code></h3>
+<p>SwiftLint 中包含着一条名为 <code>nslocalizedstring_key</code> 的规则，<a href="https://realm.github.io/SwiftLint/nslocalizedstring_key.html">文档</a>在这里。</p>
+<p>它建议不要动态传入 key，比如这样是不推荐的：</p>
+<pre><code class="language-swift">// 不推荐
+let key = &quot;example_key&quot;
+let text = NSLocalizedString(key, comment: &quot;&quot;)
+</code></pre>
+<h3 id="pod-与-string-catalog-自动化">Pod 与 String Catalog 自动化</h3>
+<p>在 Xcode 15 中，如果设置了 <code>Use Compiler to Extract Swift Strings</code> 为 <code>YES</code>，那么 String Catalog 文件就可以自动追踪国际化文本，比如下面这个字符串：</p>
+<pre><code class="language-swift">let test = NSLocalizedString(&quot;Test&quot;, tableName: &quot;TestLocalizable&quot;, comment: &quot;Test&quot;)
+</code></pre>
+<p>编译后会有一个 “Syncing Localizations” 的阶段，在该阶段这个字符串会被自动记录到 <code>TestLocalizable.xcstrings</code> 文件中。</p>
+<figure data-type="image" tabindex="5"><img src="https://blog.rakuyoo.top/post-images/1735616778742.png" alt="" loading="lazy"></figure>
+<p>但是在 pod 组件化项目中，如果该字符串在某个 pod 内，则自动追踪不会生效。原因有以下几点：</p>
+<ol>
+<li>“Syncing Localizations” 阶段仅会扫描当前 Scheme 所包含的 target。一般我们编译时都会选择主项目，此时是不包含 pod target 的，所以不会扫描相应的代码。</li>
+<li>Pod 的 <code>Use Compiler to Extract Swift Strings</code> 设置项默认为 <code>NO</code>，需要在 Podfile 中使用钩子手动开启（Key 为 <a href="https://developer.apple.com/documentation/xcode/build-settings-reference#Use-Compiler-to-Extract-Swift-Strings"><code>SWIFT_EMIT_LOC_STRINGS</code></a>）。</li>
+<li>前文中，<code>.xcstrings</code> 被添加到 Bundle 中，这意味着它会被归入 Bundle 这个 target，比如 Pod 名为 <code>Home</code>，那么 <code>.xcstrings</code> 文件就在 <code>Home-HomeBundle</code> 这个 target 中。而项目代码则在 <code>Home</code> 这个 target 里。此时编译 <code>Home</code>，因为该 target 实际不包含 <code>.xcstrings</code>，所以字符串也不会同步到 <code>.xcstrings</code> 文件中。</li>
+</ol>
+<p>综上，考虑到 CocoaPods 已经停止增加新功能，建议还是尽快迁移到 SPM。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[HarmonyOS 与 ArkTS 开发注意事项]]></title>
+        <id>https://blog.rakuyoo.top/notes-on-harmonyos-and-arkts-development/</id>
+        <link href="https://blog.rakuyoo.top/notes-on-harmonyos-and-arkts-development/">
+        </link>
+        <updated>2024-09-25T02:56:12.000Z</updated>
+        <summary type="html"><![CDATA[<p>本文<strong>持续</strong>记录一些使用 ArkTS 进行 HarmonyOS 开发时遇到的一些问题以及解决方案。以及一些可能称不上是问题，但是在我看来有必要记录一下的点。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>本文<strong>持续</strong>记录一些使用 ArkTS 进行 HarmonyOS 开发时遇到的一些问题以及解决方案。以及一些可能称不上是问题，但是在我看来有必要记录一下的点。</p>
+<!-- more -->
+<p>本文的主要结构将分为 <a href="#arkts">ArkTS</a> 和 <a href="#harmonyos">HarmonyOS</a> 两部分。同时内容多与 iOS 开发以及 Swift 语言进行对比。</p>
+<blockquote>
+<p>因为代码高亮限制，本文中涉及到 ArkTS 的代码，都将使用 TypeScript 的语法高亮设置</p>
+</blockquote>
+<h2 id="arkts">ArkTS</h2>
+<p>ArkTS 是 TS 的超集，同时也阉割了一些 TS 的用法。</p>
+<p>本节所记录的内容是从一个 TS 零基础小白的视角出发所遇到的问题。所以某些内容未必属于 ArkTS 引入，也有可能是 TS 就存在。某些小节可能会指出该小节的内容是属于 ArkTS 独有，还是 TS 就有。但是大多数小节可能并不会做此区分。</p>
+<h3 id="async-与-await">async 与 await</h3>
+<p>ArkTS 的异步协程不像是 Swift 那样，需要在方法声明上显式增加 <code>async</code> 关键字。</p>
+<p>只要方法返回 <code>Promise</code> 类型，那么在调用时候就可以通过添加 <code>await</code> 关键字，来获取 <code>Promise</code> 里所包含的数据。</p>
+<p>比如下面的方法：</p>
+<pre><code class="language-typescript">function getData(): Promise&lt;string&gt; {
+    return new Promise((resolve, reject) =&gt; {
+        setTimeout(() =&gt; {
+            resolve(&quot;Data fetched!&quot;);
+        }, 1000);
+    });
+}
+
+function main() {
+    const result = await getData(); // 可以使用 await
+    console.log(result); // 输出: &quot;Data fetched!&quot;
+}
+</code></pre>
+</br>
+<p>这其实是 TS 的语法。当你在 TypeScript 中声明一个函数为 <code>async</code> 时，该函数会自动返回一个 <code>Promise</code> 对象，而不是直接返回结果。即使函数内部没有显式地返回 <code>Promise</code>，<code>async</code> 函数会将其结果封装在一个 <code>Promise</code> 中。比如下面这样：</p>
+<pre><code class="language-typescript">async function myAsyncFunction() {
+    return &quot;Hello, Async!&quot;;
+}
+
+// 调用方式
+myAsyncFunction().then(result =&gt; console.log(result)); // 输出: &quot;Hello, Async!&quot;
+</code></pre>
+<p><code>myAsyncFunction</code> 因为被 <code>async</code> 修饰，所以自动返回了一个 <code>Promise&lt;string&gt;</code> 而不是单纯的 <code>string</code>。</p>
+<p>所以如果方法没有标记 <code>async</code>，但是返回了 <code>Promise</code>，其实和标记了但是省略返回类型是一样的，自然也可以在调时直接使用 <code>await</code> 同步获取内容了。</p>
+<h2 id="harmonyos">HarmonyOS</h2>
+<h3 id="环境变量配置">环境变量配置</h3>
+<p>这里说的环境变量是 “正式环境”、“预上线环境” 以及 “测试环境”。包含接口环境配置以及一些 debug 入口等等。</p>
+<p>在 iOS 开发中我们有预编译宏，但是 HarmonyOS 这块儿没有这个。HarmonyOS 的方法是在各个子模块中建立 target 的 <code>sourceRoots</code> 字段，将不同环境的代码添加到不同的 target 中，然后 entry 再引用不同的 target，以此来达到不同环境加载不同代码的需求。</p>
+<p>本节不详细展开具体的详细内容，详细内容见<a href="https://developer.huawei.com/consumer/cn/doc/harmonyos-guides-V5/ide-customized-multi-targets-and-products-guides-V5#section13344184411593">官方文档</a>。</p>
+<p>在做这一项配置的过程中，有一个概念很容易搞错，或者说官方文档的讲解流程和实际上配置的流程有一定的出入。（当然也有可能是我个人能力不足导致理解错误）。</p>
+<p>我们来看下面几个 <code>build-profile.json5</code> 文件。首先是一个 feature module 的：</p>
+<pre><code class="language-json">// feature/build-profile.json5
+{
+  &quot;apiType&quot;: &quot;stageMode&quot;,
+  &quot;buildOption&quot;: {},
+  &quot;targets&quot;: [ 
+    { 
+      &quot;name&quot;: &quot;default&quot;, 
+      &quot;source&quot;: { 
+        &quot;sourceRoots&quot;: [&quot;./src/default&quot;] // 配置target为default的差异化代码空间
+      } 
+    }, 
+    { 
+      &quot;name&quot;: &quot;custom&quot;, 
+      &quot;source&quot;: { 
+        &quot;sourceRoots&quot;: [&quot;./src/custom&quot;] // 配置target为custom的差异化代码空间
+      } 
+    } 
+  ]
+}
+</code></pre>
+<p>其包含两个 target，使用 <code>sourceRoots</code> 引用了不同的代码。</p>
+<p>然后再看 entry 的：</p>
+<pre><code class="language-json">{
+  &quot;apiType&quot;: &quot;stageMode&quot;,
+  &quot;buildOption&quot;: {},
+  &quot;targets&quot;: [ 
+    { 
+      &quot;name&quot;: &quot;default&quot;, 
+    }, 
+  ]
+}
+</code></pre>
+<p>entry 只包含一个 <code>default</code> target。</p>
+<p>最后看工程的：</p>
+<pre><code class="language-json">{
+  &quot;app&quot;: {
+    &quot;signingConfigs&quot;: [],
+    &quot;products&quot;: [
+      {
+        &quot;name&quot;: &quot;default&quot;,
+        &quot;signingConfig&quot;: &quot;default&quot;,
+        &quot;compatibleSdkVersion&quot;: &quot;5.0.0(12)&quot;,
+        &quot;runtimeOS&quot;: &quot;HarmonyOS&quot;,
+      },
+      {
+        &quot;name&quot;: &quot;custom&quot;,
+        &quot;signingConfig&quot;: &quot;default&quot;,
+        &quot;compatibleSdkVersion&quot;: &quot;5.0.0(12)&quot;,
+        &quot;runtimeOS&quot;: &quot;HarmonyOS&quot;,
+      }
+    ],
+    &quot;buildModeSet&quot;: [
+      {
+        &quot;name&quot;: &quot;debug&quot;,
+      },
+      {
+        &quot;name&quot;: &quot;release&quot;
+      }
+    ]
+  },
+  &quot;modules&quot;: [
+    {
+      &quot;name&quot;: &quot;entry&quot;,
+      &quot;srcPath&quot;: &quot;./entry&quot;,
+      &quot;targets&quot;: [
+        {
+          &quot;name&quot;: &quot;default&quot;,
+          &quot;applyToProducts&quot;: [
+            &quot;default&quot;,
+            &quot;custom&quot;,
+          ]
+        },
+      ]
+    },
+    {
+      &quot;name&quot;: &quot;feature&quot;,
+      &quot;srcPath&quot;: &quot;./feature&quot;,
+      &quot;targets&quot;: [
+        {
+          &quot;name&quot;: &quot;default&quot;,
+          &quot;applyToProducts&quot;: [
+            &quot;default&quot;
+          ]
+        },
+        {
+          &quot;name&quot;: &quot;custom&quot;,
+          &quot;applyToProducts&quot;: [
+            &quot;custom&quot;
+          ]
+        },
+      ]
+    },
+  ]
+}
+</code></pre>
+<p>在阅读官方文档后，我首先的想法就是上面这三个配置文件。定义 <code>default</code> 和 <code>custom</code> 两个 product，然后 <code>entry</code> 作为入口，添加到两个 product 中。<code>feature/default</code> 添加到 <code>default</code>；<code>feature/custom</code> 添加到 <code>custom</code>。这样 <code>default</code> product 包含 <code>entry</code> 和 <code>feature/default</code>，<code>custom</code> product 包含 <code>entry</code> 和 <code>feature/custom</code>。思路看着没问题对吧，然而实际运行起来会发现<strong>配置不生效</strong>：<code>custom</code> product 使用的是 <code>feature/default</code>。</p>
+<p>问题在于思路不对，正确的思路应该是：将 <code>entry</code> 中定义的 target，下放给各个 module 使用。也就是说要先在 <code>entry</code> 中定义各个 target，然后再在各个 module 中使用 <code>entry</code> 定义的 target，自定向下使用。</p>
+<p>比如有5个子 module，各自都有不同的 target 需求，分别是 1-5，那么 <code>entry</code> 中就应该定义这 1-5个 target，然后5个子 module 从中选取自己需要的那一个。</p>
+<p>所以上述例子中的配置文件应该改成下面这样，先看 entry 的 <code>build-profile.json5</code>：</p>
+<pre><code class="language-json">{
+  &quot;apiType&quot;: &quot;stageMode&quot;,
+  &quot;buildOption&quot;: {},
+  &quot;targets&quot;: [ 
+    { 
+      &quot;name&quot;: &quot;default&quot;, 
+    }, 
+    { 
+      &quot;name&quot;: &quot;custom&quot;,  // 增加 custom target
+    }, 
+  ]
+}
+</code></pre>
+<p>然后修改工程级 <code>build-profile.json5</code>：</p>
+<pre><code class="language-json">{
+  &quot;app&quot;: {
+    &quot;signingConfigs&quot;: [],
+    &quot;products&quot;: [
+      {
+        &quot;name&quot;: &quot;default&quot;,
+        &quot;signingConfig&quot;: &quot;default&quot;,
+        &quot;compatibleSdkVersion&quot;: &quot;5.0.0(12)&quot;,
+        &quot;runtimeOS&quot;: &quot;HarmonyOS&quot;,
+      },
+      {
+        &quot;name&quot;: &quot;custom&quot;,
+        &quot;signingConfig&quot;: &quot;default&quot;,
+        &quot;compatibleSdkVersion&quot;: &quot;5.0.0(12)&quot;,
+        &quot;runtimeOS&quot;: &quot;HarmonyOS&quot;,
+      }
+    ],
+    &quot;buildModeSet&quot;: [
+      {
+        &quot;name&quot;: &quot;debug&quot;,
+      },
+      {
+        &quot;name&quot;: &quot;release&quot;
+      }
+    ]
+  },
+  &quot;modules&quot;: [
+    {
+      &quot;name&quot;: &quot;entry&quot;,
+      &quot;srcPath&quot;: &quot;./entry&quot;,
+      &quot;targets&quot;: [
+        {
+          &quot;name&quot;: &quot;default&quot;,
+          &quot;applyToProducts&quot;: [
+            &quot;default&quot;,
+          ]
+        },
+        {
+          &quot;name&quot;: &quot;custom&quot;,
+          &quot;applyToProducts&quot;: [
+            &quot;custom&quot;,
+          ]
+        },
+      ]
+    },
+    {
+      &quot;name&quot;: &quot;feature&quot;,
+      &quot;srcPath&quot;: &quot;./feature&quot;,
+      &quot;targets&quot;: [
+        {
+          &quot;name&quot;: &quot;default&quot;,
+          &quot;applyToProducts&quot;: [
+            &quot;default&quot;
+          ]
+        },
+        {
+          &quot;name&quot;: &quot;custom&quot;,
+          &quot;applyToProducts&quot;: [
+            &quot;custom&quot;
+          ]
+        },
+      ]
+    },
+  ]
+}
+</code></pre>
+<p>这么修改后再运行，<code>custom</code> product 就可以正确地读取到 <code>feature/custom</code> 了。</p>
+<p>最后再来说一说官方中的例子。官方上的示例使用 <code>entry</code> 演示 <code>sourceRoots</code> 的用法，其实暗藏了 “<code>entry</code> 也需要定义对应的 target” 这一点，只不过没有明说，让读者忽略了这一关键内容。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Gitlab-CI 与 Shell 会话模式]]></title>
+        <id>https://blog.rakuyoo.top/gitlab-ci-and-shell-session-mode/</id>
+        <link href="https://blog.rakuyoo.top/gitlab-ci-and-shell-session-mode/">
+        </link>
+        <updated>2024-08-13T09:36:36.000Z</updated>
+        <summary type="html"><![CDATA[<p>之前的文章中介绍过，iOS 常用的 Gitlab-CI 执行器是 <a href="https://docs.gitlab.com/runner/executors/shell.html">shell</a>，因为打包时只能使用这个。</p>
+<p>今天将包管理工具迁到 <a href="https://github.com/jdx/mise">mise</a> 时遇到了一些和 shell 有关的问题，涉及到一些之前的知识盲区，遂记录一下。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>之前的文章中介绍过，iOS 常用的 Gitlab-CI 执行器是 <a href="https://docs.gitlab.com/runner/executors/shell.html">shell</a>，因为打包时只能使用这个。</p>
+<p>今天将包管理工具迁到 <a href="https://github.com/jdx/mise">mise</a> 时遇到了一些和 shell 有关的问题，涉及到一些之前的知识盲区，遂记录一下。</p>
+<!-- more -->
+<blockquote>
+<p>本文的内容和 mise 无关，只是工具迁移时引出了本文涉及到的问题和知识盲区。对工具感兴趣的朋友可以点击上面的链接查看相关内容。</p>
+</blockquote>
+<h2 id="shell-会话模式">Shell 会话模式</h2>
+<p>先介绍一下 Shell 的几种会话模式。</p>
+<p>我们都知道 macOS 的 默认终端环境是 zsh，zsh 有多个配套的文件，包含 <code>~/.zshrc</code>、<code>.zprofile</code> 等。另一个比较常见的是 bash，可使用的配置文件有 <code>~/.bash_profile</code> 、<code>~/.bashrc</code> 等。</p>
+<p>之前我只模糊的知道有这些文件，可以在其中写入一些内容，然后启动终端后就会自动加载这些文件，却从来没有关注过 <strong>什么时候会加载哪个文件</strong>。这就涉及到 “Shell 会话模式” 这个概念。</p>
+<blockquote>
+<p>“Shell 会话模式”是指用户启动会话时 shell（例如 bash、zsh 或其他命令行解释器）可以运行的不同方式。每种模式都规定了 shell 的行为方式、加载的初始化文件以及处理命令的方式。</p>
+</blockquote>
+<p>此会话模式主要围绕两个概念：“<strong>是否是交互式</strong>” 以及 “<strong>是否登录</strong>”。这两种概念两两组合，诞生四种会话模式。</p>
+<ul>
+<li>是否是交互式：指定用户是否可以通过键入命令直接与 shell 交互。shell 会等待用户输入并根据输入的命令提供输出。</li>
+<li>是否登录：指开启会话时用户是否登录。</li>
+</ul>
+<p>举几个例子：</p>
+<ul>
+<li>交互式：打开 macOS 中的终端，此时我们可以在里面输入命令，与 shell 交互。</li>
+<li>非交互式：Gitlab-CI 执行 script 时，就是非交互式。我们知道执行过程中我们没有办法做任何事，包括输入设备密码，say yes 等。</li>
+<li>登录：通过 ssh 连接服务器，此时需要我们输入用户名密码。又或者执行命令时携带了 <code>| /bin/bash --login</code> 参数。</li>
+<li>非登录：打开 macOS 的终端，默认是非登录的。又或者从一个已经登录了的终端中，使用 <code>bash</code> 或其他命令开启了新的终端窗口，这些也是非登录式的。</li>
+</ul>
+<p>那么在不同的登录模式下，shell 会加载的配置文件其实是不同的：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">会话类型</th>
+<th style="text-align:center"><code>.bash_profile</code></th>
+<th style="text-align:center"><code>.bashrc</code></th>
+<th style="text-align:center"><code>.zprofile</code></th>
+<th style="text-align:center"><code>.zshrc</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">交互式登录</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">❌</td>
+</tr>
+<tr>
+<td style="text-align:center">交互式非登录</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">✅</td>
+</tr>
+<tr>
+<td style="text-align:center">非交互式登录</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+</tr>
+<tr>
+<td style="text-align:center">非交互式非登录</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>如果使用 bash，那么还有一个可能会使用的配置文件：<code>~/.profile</code>。它的作用和 <code>~/.bash_profile</code> 类似，仅当 <code>.bash_profile</code> 不存在时，会尝试加载 <code>.profile</code>。另外，有的时候 <code>.bash_profile</code> 中会有命令，同时加载 <code>.profile</code>。<br>
+而 zsh 默认是不会尝试加载 <code>.profile</code> 的。</p>
+</blockquote>
+<h2 id="gitlab-ci-的-script">Gitlab-CI 的 <code>script</code></h2>
+<p>Gitlab-CI 的<a href="https://docs.gitlab.com/runner/shells/index.html">文档</a>有列举出它所支持的 shell 种类，这里我们看默认的 <strong>bash</strong>。</p>
+<blockquote>
+<p>贴一下文档中关于如何执行 <code>script</code> 的示例</p>
+<pre><code class="language-shell"># This command is used if the build should be executed in context of another user (the shell executor)
+cat generated-bash-script | su --shell /bin/bash --login user
+
+# This command is used if the build should be executed using the current user, but in a login environment
+cat generated-bash-script | /bin/bash --login
+
+# This command is used if the build should be executed in a Docker environment
+cat generated-bash-script | /bin/bash
+</code></pre>
+</blockquote>
+<p>从文档中可以看到，不论哪种方式，Gitlab-CI 都是使用 <code>/bin/bash</code> 环境执行的 <code>script</code> 中定义的脚本，并且在非 Docker 环境下，会携带 <code>--login</code> 参数，也就是说此时使用的是 “<strong>非交互式登录 Shell</strong>”，回看上面的表格，<code>.bash_profile</code> 文件会被加载。</p>
+<p>此时就需要注意了，因为 macOS 默认的终端是 zsh，所以我们在编写脚本的时候，很可能会习惯性地将配置写入到 <code>.zprofile</code> 或者 <code>.zshrc</code> 文件中，但是回到 Gitlab-CI 中就会发现不生效，原因就是脚本的执行环境不同。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[从源码看如何刷新 Epoxy 列表]]></title>
+        <id>https://blog.rakuyoo.top/refresh-epoxy-list/</id>
+        <link href="https://blog.rakuyoo.top/refresh-epoxy-list/">
+        </link>
+        <updated>2024-08-05T01:36:50.000Z</updated>
+        <summary type="html"><![CDATA[<p>如何正确的刷新 <a href="https://github.com/airbnb/epoxy-ios">Epoxy</a> 列表可以说是熟练使用这个框架的关键，初上手时总会有 “为什么列表刷新后数据没变” 和 “为什么它刷新后数据就变了” 的疑惑。</p>
+<p>本文从源码分析的角度，带大家来梳理 Epoxy 列表刷新的原理，并学会如何正确刷新 Epoxy 列表。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>如何正确的刷新 <a href="https://github.com/airbnb/epoxy-ios">Epoxy</a> 列表可以说是熟练使用这个框架的关键，初上手时总会有 “为什么列表刷新后数据没变” 和 “为什么它刷新后数据就变了” 的疑惑。</p>
+<p>本文从源码分析的角度，带大家来梳理 Epoxy 列表刷新的原理，并学会如何正确刷新 Epoxy 列表。</p>
+<!-- more -->
+<p>Epoxy 列表本质上还是 <code>UICollectionView</code>，只不过实现了 diff 算法，封装了 reuse id 的创建。</p>
+<p>对于一个常见的 <code>UICollectionViewCell</code> 或 <code>UITableViewCell</code>，我的习惯是：</p>
+<ul>
+<li>Cell 初始化时创建 <code>subviews</code>，添加到 <code>contentView</code> 上，并设置布局。</li>
+<li>对外暴露 <code>config()</code> 方法，或直接暴露 <code>subviews</code>
+<ul>
+<li>在 <code>collectionView(_: cellForItemAt:)</code> 方法中将数据设置到 <code>subviews</code> 上。</li>
+</ul>
+</li>
+</ul>
+<p>如果想要列表上 Cell 中的数据发生变化，无外乎以下几种方法：</p>
+<ul>
+<li>创建不同的 Cell。不同的数据对应不同的 Cell，抛弃或部分抛弃重用机制。</li>
+<li>在 Cell 创建或复用后，重新设置 <code>subviews</code> 上的数据。这包括两种方法：
+<ul>
+<li><code>collectionView(_: cellForItemAt:)</code> 方法中调用 <code>config()</code>，或直接使用 <code>subviews</code>。</li>
+<li>使用响应式框架，比如 <code>Combine</code>，将数据绑定到 Cell 的 <code>subviews</code> 上。</li>
+</ul>
+</li>
+</ul>
+<p>那么接下来，我们就从这几种方法上入手，看看如何正确刷新 Epoxy 列表。</p>
+<h2 id="cell-创建流程">Cell 创建流程</h2>
+<p>首先我们需要知道 Epoxy 是如何创建一个 Cell。在使用框架时，我们没有显式创建过 reuse id，Epoxy 框架是如何创建它的？</p>
+<h3 id="源码分析">源码分析</h3>
+<p>在 <code>CollectionView/Internal/CollectionViewDataSource.swift</code> 中，关于 Cell 的创建如下所示：</p>
+<pre><code class="language-swift">  func collectionView(
+    _ collectionView: UICollectionView,
+    cellForItemAt indexPath: IndexPath)
+    -&gt; UICollectionViewCell
+  {
+    guard
+      let item = data?.item(at: indexPath),
+      let section = data?.section(at: indexPath.section),
+      let reuseID = reuseIDStore.registeredReuseID(for: item.viewDifferentiator)
+    else {
+      // The `item(…)` or `registeredReuseID(…)` methods will assert in this scenario.
+      return UICollectionViewCell()
+    }
+
+    let cell = collectionView.dequeueReusableCell(withReuseIdentifier: reuseID, for: indexPath)
+
+    if let cell = cell as? CollectionViewCell {
+      self.collectionView?.configure(
+        cell: cell,
+        with: item,
+        at: .init(itemDataID: item.dataID, section: .dataID(section.dataID)),
+        animated: false)
+    } else {
+      EpoxyLogger.shared.assertionFailure(
+        &quot;Only CollectionViewCell and subclasses are allowed in a CollectionView.&quot;)
+    }
+    return cell
+  }
+</code></pre>
+<p>首先关注创建 Cell 时使用的标识符，即 <code>reuseID</code> 这个变量是从何而来的。</p>
+<pre><code class="language-swift">let reuseID = reuseIDStore.registeredReuseID(for: item.viewDifferentiator)
+</code></pre>
+<p>这里包含两个需要明白的内容，分别是 <code>reuseIDStore</code> 和 <code>viewDifferentiator</code>。</p>
+<p>从后往前看，<code>viewDifferentiator</code> 定义在 <code>ViewDifferentiatorProviding</code> 协议里，它的类型 <code>ViewDifferentiator</code> 是一个遵循 <code>Hashable</code> 的结构体：</p>
+<pre><code class="language-swift">// MARK: - ViewDifferentiatorProviding
+
+public protocol ViewDifferentiatorProviding {
+  var viewDifferentiator: ViewDifferentiator { get }
+}
+
+// MARK: - ViewDifferentiator
+
+public struct ViewDifferentiator: Hashable {
+  public init(viewType: AnyClass, styleID: AnyHashable?) {
+    viewTypeDescription = &quot;\(type(of: viewType.self))&quot;
+    self.styleID = styleID
+  }
+
+  public var viewTypeDescription: String
+  public var styleID: AnyHashable?
+}
+</code></pre>
+<p>从源码注释上可以看出来这两个类型就是服务于 reuseID 创建的。<code>ItemModel</code> 是这么实现 <code>ViewDifferentiatorProviding</code> 协议的：</p>
+<pre><code class="language-swift">extension ItemModel {
+  public var viewDifferentiator: ViewDifferentiator {
+    .init(viewType: View.self, styleID: styleID)
+  }
+  ...
+}
+</code></pre>
+<p>这里的 View 是一个范型，可以理解为一个实现了 <code>EpoxyableView</code> 的 UIView 对象。<code>styleID</code> 定义在 <code>StyleIDProviding</code> 协议中，是一个扩展出来的存储属性，其类型是 <code>AnyHashable</code>，这里就省略展示它的定义了。</p>
+<p>那么使用时它的值是哪儿来的呢？</p>
+<pre><code class="language-swift">public struct ItemModel&lt;View: UIView&gt;: ViewEpoxyModeled {
+  ...
+  
+  public init&lt;Params: Hashable, Content: Equatable&gt;(
+    dataID: AnyHashable,
+    params: Params,
+    content: Content,
+    makeView: @escaping (Params) -&gt; View,
+    setContent: @escaping (CallbackContext, Content) -&gt; Void)
+  {
+    self.dataID = dataID
+    styleID = params // ⬅️ 在这里进行赋值
+    erasedContent = content
+    self.makeView = { makeView(params) }
+    self.setContent = { setContent($0, content) }
+    isErasedContentEqual = { otherModel in
+      guard let otherContent = otherModel.erasedContent as? Content else { return false }
+      return otherContent == content
+    }
+  }
+  
+  ...
+}
+</code></pre>
+<p>上面这个是 <code>ItemModel</code> 的初始、基本初始化方法，可以看到在初始化时，是使用 <code>params</code> 这个参数初始化 <code>styleID</code> 属性的。但是基本上我们都很少使用这个初始化方法，而是使用下面这个：</p>
+<pre><code class="language-swift">extension StyledView where Self: BehaviorsConfigurableView &amp; ContentConfigurableView {
+  public static func itemModel(
+    dataID: AnyHashable,
+    content: Content,
+    behaviors: Behaviors? = nil,
+    style: Style)
+    -&gt; ItemModel&lt;Self&gt;
+  {
+    ItemModel&lt;Self&gt;(
+      dataID: dataID,
+      params: style, // ⬅️ 发现 params 的来源
+      content: content,
+      makeView: Self.init(style:),
+      setContent: { context, content in
+        context.view.setContent(content, animated: context.animated)
+      })
+      .setBehaviors { context in
+        context.view.setBehaviors(behaviors)
+      }
+  }
+}
+</code></pre>
+<p>看到这里就明白了：这个 <code>styleID</code> 就是创建 <code>EpoxyableView</code> 时定义的 <code>Style</code>。所以 <code>viewDifferentiator</code> 代表的就是遵循 <code>EpoxyableView</code> 协议的这个类型本身以及它所包含的 <code>Style</code> 对象。<strong>当同一个 View 但是 Style 不同时，<code>viewDifferentiator</code> 也就不同。</strong></p>
+<p>看完了 <code>viewDifferentiator</code>，让我们再回过头来看 <code>reuseIDStore</code>。</p>
+<p>它的类型是一个类 <code>ReuseIDStore</code>，从命名上可以看出这个类是专门用来存储 reuse id 的。通过<a href="">源码</a>可以看到，这个类内部使用两个 Dictionary 来封装 reuse id 的创建、存储以及读取逻辑。</p>
+<p>对外主要提供了两个方法：<code>reuseID(byRegistering:)</code> 和 <code>registeredReuseID(for:)</code>，参数都是 <code>ViewDifferentiator</code>。前者用于存储 reuse id，后者负责查询读取。</p>
+<p>内部包含以下两个 Dictionary:</p>
+<pre><code class="language-swift">private var uniqueViewDifferentiatorCountsForViewTypes = [String: Int]()
+private var reuseIDsForViewDifferentiators = [ViewDifferentiator: String]()
+</code></pre>
+<p><code>uniqueViewDifferentiatorCountsForViewTypes</code> 负责计数，即一个 CollectionView 注册了几次这个 View（Cell）。</p>
+<p>通过追踪调用栈，可以发现每次调用 <code>setSections(_: strategy:)</code> 方法时，如果存在新的 <code>ViewDifferentiator</code>，就会调用 <code>reuseID(byRegistering:)</code> 进行注册。</p>
+<p>这里我们结合注册方法 <code>reuseID(byRegistering:)</code> 的实现来一起看：</p>
+<pre><code class="language-swift">public func reuseID(byRegistering viewDifferentiator: ViewDifferentiator) -&gt; String {
+  if let existingReuseID = reuseIDsForViewDifferentiators[viewDifferentiator] {
+    return existingReuseID
+  }
+
+  let viewType = viewDifferentiator.viewTypeDescription
+  let uniqueViewDifferentiatorCount = uniqueViewDifferentiatorCountsForViewTypes[viewType] ?? 0
+  uniqueViewDifferentiatorCountsForViewTypes[viewType] = uniqueViewDifferentiatorCount + 1
+
+  let reuseID = &quot;\(viewType)_\(uniqueViewDifferentiatorCount)&quot; // ⬅️ 类型加出现次数
+  reuseIDsForViewDifferentiators[viewDifferentiator] = reuseID
+  return reuseID
+}
+</code></pre>
+<p><code>ViewDifferentiator</code> 是遵循 <code>Hashable</code> 的，对于同一个 <code>View</code> 类型而言，不同的 <code>Style</code> 实例意味着不同的 <code>ViewDifferentiator</code>，每一种都会调用 <code>reuseID(byRegistering:)</code> 进行注册。通过累加 count，可以保证不同的 <code>ViewDifferentiator</code> 对应不同的 reuse id。</p>
+<h3 id="小结">小结</h3>
+<p>到这里我们可以用一个例子来总结一下 reuse id 的创建过程和创建结果。</p>
+<p>假设定义如下一个 View：</p>
+<pre><code class="language-swift">final class TextRow: UIView, EpoxyableView {
+  enum Style {
+    case small, large
+  }
+}
+</code></pre>
+<p>使用时如下：</p>
+<pre><code class="language-swift">// ... other row
+
+TextRow.itemModel(dataID: &quot;small&quot;, style: .small)
+
+// ... other row
+
+TextRow.itemModel(dataID: &quot;large&quot;, style: .large)
+
+// ... other row
+</code></pre>
+<p>那么当我们调用 <code>collectionView.setSections(_: strategy:)</code> 时，因为两个 <code>ItemModel</code> 实例对应的 Style 不同，<code>CollectionView</code> 中就会注册两个 Cell，reuse id 分别为 <code>TextRow_0</code> 和 <code>TextRow_1</code>。</p>
+<p>所以如果你希望抛弃或部分抛弃 Cell 的重用机制，那么你就需要保证 reuse id 各不相同，即 <strong>使用不同的 View，或者不同的 View.Style</strong>。</p>
+<p>在实际使用时，我们常通过字面含义，将比如 TextColor 等 UI 样式封装在 Style 中。在遇到 “可用时显示黑色，不可用时展示灰色” 这种需求时，动态修改 TextColor，随后调用 <code>setSections(_: strategy:)</code> 刷新列表。这时列表数据发生变动，其实是 reuse id 不同，系统创建了新的 Cell 来展示不同的文字颜色。很多时候这种现象其实违背了开发者的初衷。</p>
+<h2 id="更新-cell-数据">更新 Cell 数据</h2>
+<p>另外一种方法就是更新 Cell 上子视图的数据，比如 Label 的 <code>text</code> 等。在 Epoxy 中，我们常将数据定义在 Content 里，并在 <code>setContent(_: animated:)</code> 方法内将数据渲染到 UI 上，比如这样：</p>
+<pre><code class="language-swift">extension HeaderRow: ContentConfigurableView {
+    struct Content: Equatable {
+        let title: String
+        let tips: String?
+    }
+    
+    func setContent(_ content: Content, animated: Bool) {
+        titleLabel.text = content.title
+        tipsLabel.text = content.tips
+    }
+}
+</code></pre>
+<p>那么是不是修改了 <code>Content</code> 之后，再调用 <code>setSections(_: strategy:)</code> 刷新列表即可刷新 UI？让我们来看一下源码。</p>
+<h3 id="content-设置流程">Content 设置流程</h3>
+</br>
+<h4 id="源码分析-2">源码分析</h4>
+<p>首先看一下 <code>itemModel(dataID: content: behaviors: style:)</code> 方法的定义，它是 <code>EpoxyableView</code> 创建 <code>ItemModel</code> 的方法。</p>
+<pre><code class="language-swift">extension StyledView where Self: BehaviorsConfigurableView &amp; ContentConfigurableView {
+  public static func itemModel(
+    dataID: AnyHashable,
+    content: Content,
+    behaviors: Behaviors? = nil,
+    style: Style)
+    -&gt; ItemModel&lt;Self&gt;
+  {
+    ItemModel&lt;Self&gt;(
+      dataID: dataID,
+      params: style,
+      content: content, // ⬅️ 传入
+      makeView: Self.init(style:),
+      setContent: { context, content in // ⬅️ 在闭包内又吐了出来，相当于闭包持有了 Content 实例
+        context.view.setContent(content, animated: context.animated)
+      })
+      .setBehaviors { context in
+        context.view.setBehaviors(behaviors)
+      }
+  }
+}
+</code></pre>
+<p>从实现上看，<code>content</code> 实例被包裹进了 <code>setContent</code>  闭包，延迟到合适的时机再进行调用：</p>
+<pre><code class="language-swift">extension ItemModel: InternalItemModeling {
+  ...
+
+  public func configure(cell: ItemWrapperView, with metadata: ItemCellMetadata) {
+    // Even if there's no `setContent` closure, we need to make sure to call `viewForCell` to ensure that the cell is set up.
+    let view = viewForCell(cell)
+    setContent?(.init(view: view, metadata: metadata))
+  }
+
+  ...
+}
+</code></pre>
+<blockquote>
+<p>这里插一句，在寻找 <code>setContent</code> 闭包的 Caller 时，你有可能会注意到下面这个方法：</p>
+<pre><code class="language-swift">extension AnyItemModel: InternalItemModeling {
+  ...
+  public func configure(cell: ItemWrapperView, with metadata: ItemCellMetadata) {
+    model.configure(cell: cell, with: metadata)
+    if let view = cell.view {
+      setContent?(.init(view: view, metadata: metadata))
+    }
+  }
+  ...
+}
+</code></pre>
+<p>这个方法属于 <code>AnyItemModel</code>，这个类型擦除负责包裹不同的 <code>ItemModel</code> 实例，方法第一行的 <code>model</code> 即是它所包装的 <code>ItemModel</code> 实例。</p>
+<p>为什么提到这个方法呢？因为这个方法看上去调用了两次 <code>setContent</code> 闭包。然而实际上，不止 <code>setContent</code>，<code>AnyItemModel</code> 中的其他类似的属性（比如 <code>setBehaviors</code>）都是 <code>nil</code>，所以 <code>setContent</code> 闭包只调用了一次，重点还是关注 <code>ItemModel</code> 的 <code>configure(cell: with:)</code> 方法。</p>
+<p><code>AnyItemModel</code> 的 <code>setContent</code> 是 <code>nil</code> 是设计上决定的，项目中搜索不到对其进行赋值的代码。至于为什么明明没有赋值，却还有调用，猜测是为了架构上的统一？</p>
+</blockquote>
+<p>继续向上寻找调用方，可以发现是在上文中提到的 <code>collectionView(_: cellForItemAt:)</code> 方法内调用的。方法实现内有一行 <code>self.collectionView?.configure( ... )</code>，该方法内无判断地调用了 model 的 <code>configure(cell: with:)</code> 方法。</p>
+<h4 id="小结-2">小结</h4>
+<p>总结一下逻辑和调用链：</p>
+<p>刷新 <code>CollectionView</code> 时，执行 <code>collectionView(_: cellForItemAt:)</code>，通过层层调用，最终 <code>model.setContent</code> 闭包被调用，View 的 <code>setContent(_: animated)</code> 被调用，新的 <code>Content</code> 被设置到 UI 上。</p>
+<p>到这里结束了吗？还不要高兴的太早，不要忘记了 <code>CollectionView</code> 还存在 Diff 的逻辑：更新 <code>Content</code> 实例后调用 <code>setSections(_: strategy:)</code>，<code>CollectionView</code> 一定会被刷新吗？未必。</p>
+<h3 id="collectionview-刷新时机">CollectionView 刷新时机</h3>
+</br>
+<h4 id="源码分析-3">源码分析</h4>
+<p>让我们自顶向下看，先看 <code>setSections(_: strategy:)</code> 的实现：</p>
+<pre><code class="language-swift">open class CollectionView: UICollectionView {
+  ...
+
+  public func setSections(_ sections: [SectionModel], animated: Bool) {
+    let strategy: UpdateStrategy
+    if configuration.usesBatchUpdatesForAllReloads {
+      strategy = animated ? .animatedBatchUpdates : .nonanimatedBatchUpdates
+    } else {
+      strategy = animated ? .animatedBatchUpdates : .reloadData
+    }
+    setSections(sections, strategy: strategy)
+  }
+
+  public func setSections(_ sections: [SectionModel], strategy: UpdateStrategy) {
+    EpoxyLogger.shared.assert(Thread.isMainThread, &quot;This method must be called on the main thread.&quot;)
+    epoxyDataSource.registerSections(sections)
+    apply(.make(sections: sections), strategy: strategy)
+  }
+
+  ...
+}
+</code></pre>
+<p><code>registerSections()</code> 上文有提到，负责注册 Section 以及 Cell。重点关注下面的 <code>apply(_: strategy:)</code> 方法。查看该的实现，可以看到其内部调用了下面这个方法：</p>
+<pre><code class="language-swift">open class CollectionView: UICollectionView {
+  ...
+
+  private func updateView(with data: CollectionViewData, strategy: UpdateStrategy) {
+    updateState = .preparingUpdate
+
+    let performUpdates = {
+      self.performBatchUpdates({
+        self.performUpdates(data: data, animated: strategy.animated)
+      }, completion: { _ in
+        if let nextUpdate = self.queuedUpdate, self.window != nil {
+          self.queuedUpdate = nil
+          self.updateView(with: nextUpdate.newData, strategy: nextUpdate.strategy)
+        } else {
+          self.completeUpdates()
+        }
+      })
+    }
+
+    // There's two cases in which we should always have a strategy of `.reloadData`:
+    // - The first update, since we're going from empty content to non-empty content, and we don't want to animate that update.
+    // - Before the first layout of this collection view when `bounds.size` is still zero, since there's no benefit to doing batch updates in that scenario.
+    let override = (epoxyDataSource.data == nil || bounds.size == .zero) ? .reloadData : strategy
+
+    switch override {
+    case .animatedBatchUpdates:
+      performUpdates()
+    case .nonanimatedBatchUpdates:
+      UIView.performWithoutAnimation {
+        performUpdates()
+      }
+    case .reloadData:
+      let result = epoxyDataSource.applyData(data)
+      updateState = .updating(from: result.oldData)
+      reloadData()
+      completeUpdates()
+    }
+  }
+
+  ...
+}
+</code></pre>
+<p>通过上面的实现我们可以得到第一个<strong>刷新方案</strong>：如果 <code>strategy</code> 是 <code>.reloadData</code>，那么会直接调用 <code>UICollectionView</code> 的 <code>reloadData</code> 方法（即不使用 Epoxy 内置的 Diff 算法），此时 <code>collectionView(_: cellForItemAt:)</code> 方法<strong>必执行</strong>，新的 <code>Content</code> 可以被正确地更新。</p>
+<p>之所以保留注释，是因为这里的注释比较关键。通过注释我们可以得知：初次加载时，或者对一个尚未具有尺寸的 <code>CollectionView</code> 调用刷新时，将<strong>忽略</strong>外部参数，<strong>永远使用</strong> <code>.reloadData</code> 方式进行刷新。</p>
+<p>那如果使用其他的 <code>strategy</code> 呢？就需要关注 <code>performUpdates</code> 闭包里调用的 <code>performUpdates(data: animated:)</code> 方法了。</p>
+<blockquote>
+<p>这里稍微提一下 <code>UICollectionView</code> 的 <code>performBatchUpdates(_: completion:)</code> 方法，它是用来将多个操作（update、insert、delete 等），合并至一个动画内进行展示。<br>
+因为 <code>performUpdates(data: animated:)</code> 里使用了 diff 算法，该算法会同时计算出上述多种操作，所以为了更好的 UI 交互展示，需要将这些操作合并至一个动画内展示。</p>
+</blockquote>
+<p><code>performUpdates(data: animated:)</code> 方法实现比较多，这里挑一些我们关注的贴一下：</p>
+<pre><code class="language-swift">open class CollectionView: UICollectionView {
+  ...
+
+  private func performUpdates(data: CollectionViewData, animated: Bool) {
+    let result = epoxyDataSource.applyData(data)
+    updateState = .updating(from: result.oldData)
+
+    for (fromIndexPath, toIndexPath) in result.changeset.itemChangeset.updates {
+      if
+        let cell = cellForItem(at: fromIndexPath) as? CollectionViewCell,
+        let item = epoxyDataSource.data?.item(at: toIndexPath)
+      {
+        let metadata = ItemCellMetadata(
+          traitCollection: traitCollection,
+          state: cell.state,
+          animated: animated)
+        item.configure(cell: cell, with: metadata) // ⬅️ 熟悉的老朋友
+        item.configureStateChange(in: cell, with: metadata)
+      }
+    }
+
+    ...
+
+    deleteSections(result.changeset.sectionChangeset.deletes)
+    deleteItems(at: result.changeset.itemChangeset.deletes)
+
+    for (fromIndex, toIndex) in result.changeset.sectionChangeset.moves {
+      moveSection(fromIndex, toSection: toIndex)
+    }
+
+    for (fromIndexPath, toIndexPath) in result.changeset.itemChangeset.moves {
+      moveItem(at: fromIndexPath, to: toIndexPath) // ⬅️ moveItem 未必会触发 cell 加载
+    }
+
+    insertSections(result.changeset.sectionChangeset.inserts)
+    insertItems(at: result.changeset.itemChangeset.inserts) // ⬅️ insertItems 也会触发 cell 加载
+  }
+
+  ...
+}
+</code></pre>
+<p>方法实现的第一行，<code>epoxyDataSource.applyData(data)</code> 就是应用 diff 算法。之前写的 Epoxy 源码分析系列文章中，<a href="https://blog.rakuyoo.top/epoxy-source-code-notes-1/">第一篇</a>就是有关 Epoxy 的 Diff 算法的，这里就不再赘述算法原理。</p>
+<p>在这个方法实现中可以说有两个刷新逻辑：</p>
+<ul>
+<li>熟悉的朋友：<code>item.configure(cell: cell, with: metadata)</code>。也就是说如果上面的条件都满足，那么 <code>configure(cell: with:)</code> 方法就会被调用，<code>Content</code> 就会被更新。</li>
+<li>又或者归到 <code>inserts</code> 里，作为一个新的 Cell 插入到列表中。</li>
+</ul>
+<blockquote>
+<p><code>IndexPathChangeset</code> 包含以下几种情况：</p>
+<pre><code class="language-swift">public struct IndexPathChangeset {
+  ...
+
+  /// The inserted `IndexPath`s needed to get from the old collection to the new collection.
+  public var inserts: [IndexPath]
+
+  /// The deleted `IndexPath`s needed to get from the old collection to the new collection.
+  public var deletes: [IndexPath]
+
+  /// The updated `IndexPath`s needed to get from the old collection to the new collection.
+  public var updates: [(old: IndexPath, new: IndexPath)]
+
+  /// The moved `IndexPath`s needed to get from the old collection to the new collection.
+  public var moves: [(old: IndexPath, new: IndexPath)]
+
+  ...
+}
+</code></pre>
+</blockquote>
+<p>这两个方案中，<code>inserts</code> 的逻辑很简单。让我们忽略 diff 算法的逻辑，直接说结论：只要 <code>dataID</code> 发生变化，它就是一个新的 <code>ItemModel</code>，就会执行 delete &amp; insert。所以第二个<strong>刷新方案</strong>就是：修改前后，<code>ItemModel</code> 的 <code>dataID</code> 不同。</p>
+<p>那 <code>configure(cell: with:)</code> 的前置条件都有哪些呢？首先是 for 循环的数组不为空，其次是两个 if。聪明的你应该可以发现，这两个 if 不是逻辑重点，第一个 if 只是为了满足 Swift 语法的类型转换，而第二个 if 是为了判断 Cell 是否展示出来，避免 <code>configure(cell: with:)</code> 多次调用。所以重点就在于 <code>result.changeset.itemChangeset.updates</code> 是否为空。</p>
+<p>所以我们关注的重点就是：如何修改我们的数据源，可以让其归到 <code>updates</code> 集合里。条件有以下几点：</p>
+<ul>
+<li>这个 <code>ItemModel</code> 在刷新前已经存在于列表中，在列表中具有 Index。</li>
+<li><code>ItemModel</code> 的 <code>isDiffableItemEqual(to:)</code> 方法返回 <code>false</code>。</li>
+</ul>
+<p>相关方法的实现如下：</p>
+<pre><code class="language-swift">extension ItemModel: Diffable {
+  ...
+
+  public func isDiffableItemEqual(to otherDiffableItem: Diffable) -&gt; Bool {
+    guard let other = otherDiffableItem as? Self else {
+      return false
+    }
+    return isErasedContentEqual?(other) ?? true
+  }
+}
+</code></pre>
+<p><code>isErasedContentEqual</code> 在 <code>ItemModel</code> 初始化时进行设置：</p>
+<pre><code class="language-swift">public struct ItemModel&lt;View: UIView&gt;: ViewEpoxyModeled {
+  ...
+
+  public init&lt;Content: Equatable&gt;(
+    dataID: AnyHashable,
+    content: Content,
+    setContent: @escaping (CallbackContext, Content) -&gt; Void)
+  {
+    self.dataID = dataID
+    erasedContent = content // ⬅️ erasedContent 就是 content
+    self.setContent = { setContent($0, content) }
+    isErasedContentEqual = { otherModel in
+      guard let otherContent = otherModel.erasedContent as? Content else { return false }
+      return otherContent == content // ⬅️ Content 遵循 Equatable 的目的就在此
+    }
+  }
+
+  ...
+}
+</code></pre>
+<p>从上面两个方法实现中我们可以得到结论：</p>
+<ul>
+<li>如果 <code>EpoxyableView</code> 没有定义 <code>Content</code>，那么也就不存在 <code>updates</code> 的逻辑。</li>
+<li>更新前后，两个 <code>ItemModel</code> 的 <code>Content</code> 不相等，<code>EpoxyableView</code> 的 <code>setContent(_: animated:)</code> 方法才会被调用。</li>
+</ul>
+<p>那么第三种<strong>刷新方案</strong>就是：确保修改前后的 <code>Content</code> 不相等。</p>
+<h4 id="小结-3">小结</h4>
+<p>现在我们知道了，在调用 <code>setSections(_: strategy:)</code> 方法之后，<code>Style</code> 不变的前提下，以下几种情况 <code>EpoxyableView</code> 的 <code>setContent(_: animated)</code> 方法将被调用：</p>
+<ul>
+<li><code>strategy</code> 为 <code>.reloadData</code> 时。
+<ul>
+<li>包括空 <code>CollectionView</code> 初次加载数据，或者 <code>CollectionView</code> 尚没有 Size 时。</li>
+</ul>
+</li>
+<li>修改数据前后，<code>ItemModel</code> 的 <code>dataID</code> 发生了改变。</li>
+<li>修改数据前后，<code>Content</code> 的 <code>==</code> 返回 <code>false</code>，即两个 <code>Content</code> 不相等。</li>
+</ul>
+<p>比如下面的例子就是有效的：</p>
+<pre><code class="language-swift">  private var count = 0 {
+    didSet { setItems(items, animated: true) }
+  }
+
+  @ItemModelBuilder 
+  private var items: [ItemModeling] {
+    TextRow.itemModel(
+      dataID: DataID.row,
+      content: .init(
+        title: &quot;Count \(count)&quot;,
+        body: &quot;Tap to increment&quot;),
+      style: .large)
+      .didSelect { [weak self] _ in
+        self?.count += 1
+      }
+  }
+</code></pre>
+<h2 id="总结-中场总结-">总结 <!-- 中场总结 --></h2>
+<p>到这里让我们总结一下，借助 Epoxy 的机制我们应该如何刷新列表。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">方法</th>
+<th style="text-align:left">描述</th>
+<th style="text-align:center">推荐指数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">使用不同的 <code>dataID</code></td>
+<td style="text-align:left">比如声明一个 <code>enum DataID { case some(value: String) }</code>，每次刷新时修改 value 的值。</br> 或者将 <code>dataID</code> 和数组的下标做对应，这样在移动 Cell 时，相当于同一个 ItemModel 的 Content 发生了变化。</td>
+<td style="text-align:center">🌟</td>
+</tr>
+<tr>
+<td style="text-align:left">使用不同的 <code>Style</code></td>
+<td style="text-align:left">将需要变化的值定义在 <code>Style</code> 里，刷新 <code>Style</code> 后刷新列表</td>
+<td style="text-align:center">🌟🌟</td>
+</tr>
+<tr>
+<td style="text-align:left">利用 <code>Equatable</code>，修改 <code>Content</code></td>
+<td style="text-align:left">确保 <code>Content</code> 的判等逻辑符合您的要求，修改 <code>Content</code> 后刷新列表</td>
+<td style="text-align:center">🌟🌟🌟🌟</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>有一个刷新之外的引申话题，上文也提到过，那就是什么样的数据该放到 <code>Style</code> 中。希望看完这篇文章后，对于这个问题你也能有新的思考和理解。</p>
+</blockquote>
+<p>想必对于聪明的你来说，上述分析过程有点太简单了，只要稍微深入追一下代码，就能梳理清楚这些情况。甚至 Epoxy 的 demo 和<a href="https://github.com/airbnb/epoxy-ios/wiki/EpoxyCollectionView">文档</a>中已经介绍的很清楚了。</p>
+<p>但是有的时候，生活就是这么诡异。不把这些过程写下来的话，对于使用还不熟练的我而说，经常会陷入文章开头的疑问：“为什么列表刷新后数据没变” 和 “为什么它刷新后数据就变了”。也就是说即使我们知道了 “当 <code>Content</code> 不一致时刷新列表，列表数据会发生变化” 并按之付出实践时，依然会有不生效的情况发生。</p>
+<p>这篇文章还不是完全体，日后当我再次发现刷新失效的情况时，我将完善这篇文章，补充对应的解决方案。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Lazy var 的线程安全问题]]></title>
+        <id>https://blog.rakuyoo.top/thread-safety-with-lazy/</id>
+        <link href="https://blog.rakuyoo.top/thread-safety-with-lazy/">
+        </link>
+        <updated>2024-07-23T03:43:11.000Z</updated>
+        <summary type="html"><![CDATA[<p>Swift 的 <code>lazy</code> 关键字一直有一个很容易被忽略的问题，那就是<strong>它不是线程安全的</strong>。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>Swift 的 <code>lazy</code> 关键字一直有一个很容易被忽略的问题，那就是<strong>它不是线程安全的</strong>。</p>
+<!-- more -->
+<p>在<a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/properties/#Lazy-Stored-Properties">官方文档</a>中有这么一段描述：</p>
+<blockquote>
+<p>Note<br>
+If a property marked with the lazy modifier is accessed by multiple threads simultaneously and the property hasn’t yet been initialized, there’s no guarantee that the property will be initialized only once.</p>
+</blockquote>
+<p>官方自己也说了，如果多线程同时访问，可能导致初始化两次。</p>
+<p>一般情况下我们不太会遇到这种问题，都是在 <code>viewDidLoad</code> 中添加、布局子视图，但是少数情况还是有可能会碰到这个问题，所以需要注意。</p>
+<h2 id="lazy-var-void-与-dispatch_once"><code>lazy var void</code> 与 <code>dispatch_once</code></h2>
+</br>
+<h3 id="xcode-16-swift-6-以前">Xcode 16 &amp; Swift 6 以前</h3>
+<p>除了用 <code>lazy</code> 修饰 UI 视图之外，另一个可能比较常见的用法是用 <code>lazy var void</code> 代替 <code>dispatch_once</code>。</p>
+<p>在中文互联网上能搜到很多这种用法，但是读到这里你应该能发现，这种用法其实也是<strong>线程不安全</strong>的，因为它用的是线程不安全的 <code>lazy</code> 关键字修饰。</p>
+<p>在<a href="https://www.swift.org/migration-guide-swift3/">《Migrating to Swift 3》</a>，官方明确提到了代替 <code>dispatch_once</code> 的办法：</p>
+<blockquote>
+<p>The free function dispatch_once is no longer available in Swift. In Swift, you can use lazily initialized globals or static properties and get the same thread-safety and called-once guarantees as dispatch_once provided. Example:</p>
+<pre><code> let myGlobal = { … global contains initialization in a call to a closure … }()
+ _ = myGlobal  // using myGlobal will invoke the initialization code only the first time it is used.
+</code></pre>
+</blockquote>
+<p>请注意，示例中使用的是 <code>let</code>，并且是 <code>lazily initialized globals</code> 或者 <code>static properties</code>。众所周知，<code>static</code> 修饰或者顶层属性的初始化都是延迟初始化，再配合上线程安全的 <code>let</code> 定义，这才可以达到和 <code>dispatch_once</code> 相同的效果。</p>
+<p>所以综上，建议使用 <code>static let void</code> 来代替 <code>lazy var void</code>。</p>
+<!--
+### Xcode 16 & Swift 6
+
+那么在最新的 Xcode 16 中呢？
+
+Xcode 16 会自动添加 `@MainActor`，
+ ->]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[在 Xcode playground 中预览 View 视图]]></title>
+        <id>https://blog.rakuyoo.top/preview-in-xcode-playground/</id>
+        <link href="https://blog.rakuyoo.top/preview-in-xcode-playground/">
+        </link>
+        <updated>2024-05-23T03:45:25.000Z</updated>
+        <content type="html"><![CDATA[<p>记录一个总是忘记的操作：</p>
+<pre><code class="language-swift">import UIKit
+import PlaygroundSupport
+
+let image = UIImage(named: &quot;winnie.png&quot;)
+let imageView = UIImageView(image: image)
+
+PlaygroundPage.current.liveView = imageView
+</code></pre>
+<p>在 Xcode playground 中，如果引入 <code>PlaygroundSupport</code> 库，赋值 <code>PlaygroundPage.current.liveView</code>，可以将视图显示在右侧的预览框，也就是 Live View 中。</p>
+<p>另外不只是 UIView，UIViewController 及其子类也是可以的，<code>PlaygroundPage.current.liveView = controller</code> 即可。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[epoxy源码笔记2：在扩展中定义存储属性]]></title>
+        <id>https://blog.rakuyoo.top/epoxy-source-code-notes-2/</id>
+        <link href="https://blog.rakuyoo.top/epoxy-source-code-notes-2/">
+        </link>
+        <updated>2024-05-23T02:12:33.000Z</updated>
+        <summary type="html"><![CDATA[<p>常规的在扩展中定义存储属性的方法是借助 Objective-C 的 runtime 进行属性关联。但是这个方法仅限于 ObjC 类，那么纯 Swift 类，比如结构体该怎么办呢？</p>
+<p>在 <a href="https://github.com/airbnb/epoxy-ios">epoxy</a> 这个库中发现了解决办法。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>常规的在扩展中定义存储属性的方法是借助 Objective-C 的 runtime 进行属性关联。但是这个方法仅限于 ObjC 类，那么纯 Swift 类，比如结构体该怎么办呢？</p>
+<p>在 <a href="https://github.com/airbnb/epoxy-ios">epoxy</a> 这个库中发现了解决办法。</p>
+<!-- more -->
+<h2 id="objective-c-runtime">Objective-C runtime</h2>
+<p>先说一下用 Objective-C runtime 的实现方式，比如下面的代码：</p>
+<pre><code class="language-swift">private var loadingViewKey: Void?
+
+extension HUDProtocol {
+    public var loadingView: LoadingView {
+        get {
+            if let view = objc_getAssociatedObject(self, &amp;loadingViewKey) as? LoadingView {
+                return view
+            }
+            
+            loadingView = LoadingView()
+            return loadingView
+        }
+        set {
+            objc_setAssociatedObject(self, &amp;loadingViewKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        }
+    }
+}
+</code></pre>
+<p>使用 <code>loadingViewKey</code> 关联  <code>loadingView</code> 属性，同时 get 方法内还做了一次懒加载。对于 Key 的定义形式多种多样，这里就不做过度赘述。</p>
+<p>值得一提的是，翻看 epoxy 代码中发现，在使用关联属性给 ObjC 类增加存储属性时，还是用到了 <code>@nonobjc</code>。因为它是一个纯 Swift 库，所以使用 <code>@nonobjc</code> 来避免生成 objc 接口也是很合理的优化。</p>
+<h2 id="epoxy-中的做法">Epoxy 中的做法</h2>
+<p>让我们先看一下源码，比如 <a href="https://github.com/airbnb/epoxy-ios/blob/master/Sources/EpoxyCollectionView/Models/Providers/DidChangeStateProviding.swift">DidChangeStateProviding.swift</a> 这个文件，其中内容如下：</p>
+<blockquote>
+<p>我会省略掉一些和本文无关的注释和内容，完整的内容请点击上方链接查看原始代码。</p>
+</blockquote>
+<pre><code class="language-swift">extension CallbackContextEpoxyModeled {
+    public typealias DidChangeState = (CallbackContext) -&gt; Void
+
+    public var didChangeState: DidChangeState? {
+        get { self[didChangeStateProperty] }
+        set { self[didChangeStateProperty] = newValue }
+    }
+
+    private var didChangeStateProperty: EpoxyModelProperty&lt;DidChangeState?&gt; {
+        .init(keyPath: \Self.didChangeState, defaultValue: nil, updateStrategy: .chain())
+    }
+}
+</code></pre>
+<p>可以看到上述代码扩展了 <code>CallbackContextEpoxyModeled</code>，并在其中定义了存储属性 <code>didChangeState</code>。</p>
+<p>细看 <code>didChangeState</code>，发现用到了 <code>subscript</code> 语法。接着查看 <code>CallbackContextEpoxyModeled</code> 的声明：</p>
+<pre><code class="language-swift">public protocol CallbackContextEpoxyModeled: EpoxyModeled {
+    associatedtype CallbackContext
+}
+</code></pre>
+<p>发现仅仅是一个协议。接着往下看，它所遵循的 <code>EpoxyModeled</code> 在<a href="https://github.com/airbnb/epoxy-ios/blob/master/Sources/EpoxyCore/Model/EpoxyModeled.swift#L11">这里</a>进行定义。</p>
+<p>关键代码如下：</p>
+<pre><code class="language-swift">public protocol EpoxyModeled {
+    /// The underlying storage of this model that stores the current property values.
+    var storage: EpoxyModelStorage { get set }
+}
+
+extension EpoxyModeled {
+    /// Stores or retrieves a value of the specified property in `storage`.
+    public subscript&lt;Property&gt;(property: EpoxyModelProperty&lt;Property&gt;) -&gt; Property {
+        get { storage[property] }
+        set { storage[property] = newValue }
+    }
+}
+</code></pre>
+<p>从这里感觉<code>EpoxyModeled</code>就是一个壳，用来封装 <code>storage</code> 这个属性。上面提到的 <code>subscript</code> 语法其实也是对 <code>storage</code> 的 <code>subscript</code> 的调用。</p>
+<p>但是这里就复杂了一些，同时出现了 <code>EpoxyModelStorage</code> 和 <code>EpoxyModelProperty</code> 两个类型。让我们先看一下 <code>EpoxyModelStorage</code>。</p>
+<h3 id="epoxymodelstorage"><code>EpoxyModelStorage</code></h3>
+<p>该类型在<a href="https://github.com/airbnb/epoxy-ios/blob/master/Sources/EpoxyCore/Model/EpoxyModelStorage.swift#L11">这里</a>进行定义。</p>
+<p>依然贴出来一些关键代码：</p>
+<pre><code class="language-swift">public struct EpoxyModelStorage {
+  public init() { }
+
+  /// Stores or retrieves the value of the specified property.
+  public subscript&lt;Property&gt;(property: EpoxyModelProperty&lt;Property&gt;) -&gt; Property {
+    get {
+      guard let propertyStorage = storage[property.keyPath] else {
+        return property.defaultValue()
+      }
+
+      // This cast will never fail as the storage is only settable via this subscript and the `KeyPath` key is unique for any provider and value type pair.
+      // swiftlint:disable:next force_cast
+      return propertyStorage.value as! Property
+    }
+    set {
+      // We first update the value without using the `updateStrategy` since the likely scenario
+      // is that there won't be a collision that requires the `updateStrategy`, and we'll be able to
+      // return without incurring the cost of another write.
+      let propertyStorage = PropertyStorage(value: newValue, property: property)
+
+      guard var replaced = storage.updateValue(propertyStorage, forKey: property.keyPath) else {
+        return
+      }
+
+      // This cast will never fail as the storage is only settable via this subscript and the
+      // `KeyPath` key is unique for any provider and value type pair.
+      // swiftlint:disable:next force_cast
+      replaced.value = property.updateStrategy.update(replaced.value as! Property, newValue)
+
+      storage[property.keyPath] = replaced
+    }
+  }
+
+  // MARK: Private
+
+  /// The underlying storage for the properties, with a key of the `EpoxyModelProperty.keyPath` and
+  /// a value of the property's `PropertyStorage`.
+  ///
+  /// Does not include default values.
+  private var storage = [AnyKeyPath: PropertyStorage]()
+}
+
+// MARK: - PropertyStorage
+
+/// A value stored within an `EpoxyModelStorage`.
+private struct PropertyStorage {
+  /// The type-erased value of the `EpoxyModelProperty`.
+  var value: Any
+
+  /// The property's corresponding `EpoxyModelProperty`, erased to an `AnyEpoxyModelProperty`.
+  var property: AnyEpoxyModelProperty
+}
+</code></pre>
+<p>可以看到在 <code>EpoxyModelStorage</code> 中定义了一个关键的存储属性 <code>storage</code>，该属性是字典类型，使用 KeyPath 做 Key，Value 是一个自定义属性。但是这里其实 <code>PropertyStorage</code> 不是重点，因为用到 <code>PropertyStorage.property</code> 的代码并不在本文的范围之内，所以我们可以将 <code>storage</code> 进行简化，就当作 <code>[AnyKeyPath: Any]</code> 类型来对待。</p>
+<p>再回看 <code>EpoxyModelStorage</code> 的 <code>subscript</code> 实现，至此其实我们已经能明白 Epoxy 在 extension 中定义存储属性的原理：其实就是<strong>用 KeyPath 做 key，将存储属性对应的值存储到内部的一个字典属性中</strong>。</p>
+<p>看到这里会不会有点失望？有的人还会说这是脱裤子放屁，理由如下：</p>
+<ol>
+<li>在需要 extension 定义存储属性的类型里手动定义一个 <code>[String: Any]</code>，然后在 extension 里操作这个字典不也能达到一样的效果吗？还至于费这么大劲写这么多封装？</li>
+<li>而且一点也不灵活，不像是ObjC一样随写随用，无需更改原类型的定义。</li>
+<li>还有，因为 protocol 是 public 的，那么 <code>storage</code> 必然会被暴露给外界，造成一定程度的隐患。</li>
+</ol>
+<p>疑问暂且按下不表，再来看看 <code>EpoxyModelProperty</code> 这个类型。</p>
+<h3 id="epoxymodelproperty"><code>EpoxyModelProperty</code></h3>
+<p>先看<a href="https://github.com/airbnb/epoxy-ios/blob/master/Sources/EpoxyCore/Model/EpoxyModelProperty.swift#L33">定义</a>：</p>
+<pre><code class="language-swift">public struct EpoxyModelProperty&lt;Value&gt; {
+  /// Creates a property identified by a `KeyPath` to its provided `value` and with its default value if not customized in content by consumers.
+  ///
+  /// The `updateStrategy` is used to update the value when updating from an old value to a new value.
+  public init&lt;Model&gt;(
+    keyPath: KeyPath&lt;Model, Value&gt;,
+    defaultValue: @escaping @autoclosure () -&gt; Value,
+    updateStrategy: UpdateStrategy)
+  {
+    self.keyPath = keyPath
+    self.defaultValue = defaultValue
+    self.updateStrategy = updateStrategy
+  }
+
+  /// The `KeyPath` that uniquely identifies this property.
+  public let keyPath: AnyKeyPath
+
+  /// A closure that produces the default property value when called.
+  public let defaultValue: () -&gt; Value
+
+  /// A closure used to update an `EpoxyModelProperty` from an old value to a new value.
+  public let updateStrategy: UpdateStrategy
+}
+
+// MARK: EpoxyModelProperty.UpdateStrategy
+
+extension EpoxyModelProperty {
+  /// A closure used to update an `EpoxyModelProperty` from an old value to a new value.
+  public struct UpdateStrategy {
+    public init(update: @escaping (Value, Value) -&gt; Value) {
+      self.update = update
+    }
+
+    /// A closure used to update an `EpoxyModelProperty` from an old value to a new value.
+    public var update: (_ old: Value, _ new: Value) -&gt; Value
+  }
+}
+
+// MARK: Defaults
+
+extension EpoxyModelProperty.UpdateStrategy {
+  /// Replaces the old value with the new value when an update occurs.
+  public static var replace: Self {
+    .init { _, new in new }
+  }
+
+  /// Chains the new closure value onto the old closure value, returning a new closure that first calls the old closure and then subsequently calls the new closure.
+  public static func chain() -&gt; EpoxyModelProperty&lt;(() -&gt; Void)?&gt;.UpdateStrategy {
+    .init { old, new in
+      guard let new = new else { return old }
+      guard let old = old else { return new }
+      return {
+        old()
+        new()
+      }
+    }
+  }
+
+  /// Chains the new closure value onto the old closure value, returning a new closure that first calls the old closure and then subsequently calls the new closure.
+  public static func chain&lt;A&gt;() -&gt; EpoxyModelProperty&lt;((A) -&gt; Void)?&gt;.UpdateStrategy {
+    .init { old, new in
+      guard let new = new else { return old }
+      guard let old = old else { return new }
+      return { a in
+        old(a)
+        new(a)
+      }
+    }
+  }
+
+  // Add more arities as needed
+}
+</code></pre>
+<p><code>EpoxyModelProperty</code> 有三个属性：<code>keyPath</code>、<code>defaultValue</code> 和 <code>updateStrategy</code>。</p>
+<p><code>keyPath</code> 和 <code>defaultValue</code> 配合范型可以很好的解决 <code>objc_getAssociatedObject</code> 中类型转换的问题，我们可以回看上面提到过的这个代码片段：</p>
+<pre><code class="language-swift">// This cast will never fail as the storage is only settable via this subscript and the `KeyPath` key is unique for any provider and value type pair.
+// swiftlint:disable:next force_cast
+return propertyStorage.value as! Property
+</code></pre>
+<p>这也就解答了上面提到的第一个问题：如果仅仅定义一个 <code>[String: Any]</code>，那么 <code>String</code> 类型的 Key 和 <code>Any</code> 类型的 Value 明显无法保证对齐。</p>
+<p>那么你可能想说改成 <code>[KeyPath: Any]</code> 呢？答案也是不行的。因为在调用 <code>subscript</code> 时，如果直接使用 KeyPath，则会触发系统默认的通过 KeyPath 取值的方法，不会走自定义的 <code>subscript</code>，所以 Map 的 Key 无论如何都需要自定义类型来包一层，既然要包一层，何不直接连 <code>defaultValue</code> 也封装一下呢？</p>
+<p>至于 <code>updateStrategy</code> 定义了属性赋值时的方法，是替换原值？还是两个值都执行？虽然它和本文内容无关，但是这个实用的属性确实也是 <code>EpoxyModelProperty</code> 的必要性之一。</p>
+<h3 id="解决疑问">解决疑问</h3>
+<p>针对上述三个问题：</p>
+<ol>
+<li>为何不手动定义 <code>[String: Any]</code>？epoxy 属于过度封装</li>
+<li>缺乏灵活性，而且需要更改原类型的定义。对于无法更改定义的类型，则无法使用这个方法。</li>
+<li>因为 protocol 是 public 的，导致 <code>storage</code> 会被暴露给外界，造成一定程度的隐患。</li>
+</ol>
+<p>针对第一个问题，用 protocol 规范属性定义在 Swift 中绝对不算是过度封装，而是很常见的方法；因为无法直接使用 <code>KeyPath</code> 类型作为 Map 的Key，为了保持类型安全，在上层调用中也无法直接使用 <code>AnyKeyPath</code>，所以必然需要自定义一个类型来做调用链中的 “索引”。</p>
+<p>而且其他两个问题确实是实际存在的。特别是第二个问题，除非使用 <code>objc_getAssociatedObject</code> 来实现相关协议，否则则无法使用这套方法。</p>
+<p>至于第三个问题，考虑到外部对该类型的扩展性，暴露 <code>storage</code> 属性给外界是必然的，否则外部如何给这个类型增加新的存储属性呢？除非你明确不允许外部给这个类型增加存储属性，那么你可以使用一个 <code>internal type</code> 包一层 Map。</p>
+<h3 id="简化代码">简化代码</h3>
+<p>现在让我们学以致用，考虑一下如何简化代码。</p>
+<p>关键类型是三个协议：<code>EpoxyModeled</code>、<code>EpoxyModelStorage</code> 和 <code>EpoxyModelProperty</code>，简化肯定也是针对这三个类型进行简化。</p>
+<p>但是其实可以删减的空间并不多，仅仅在你不需要 <code>updateStrategy</code> 时，可以将实现简化为下面的这样：</p>
+<pre><code class="language-swift">public struct ModelProperty&lt;Value&gt; {
+    public init&lt;Model&gt;(
+        keyPath: KeyPath&lt;Model, Value&gt;,
+        defaultValue: @escaping @autoclosure () -&gt; Value
+    ) {
+        self.keyPath = keyPath
+        self.defaultValue = defaultValue
+    }
+
+    public let keyPath: AnyKeyPath
+
+    public let defaultValue: () -&gt; Value
+}
+
+public struct ModelStorage {
+    private var storage = [AnyKeyPath: Any]()
+
+    public init() { }
+
+    public subscript&lt;Property&gt;(property: ModelProperty&lt;Property&gt;) -&gt; Property {
+        get {
+            guard let propertyStorage = storage[property.keyPath] else {
+                return property.defaultValue()
+            }
+            return propertyStorage as! Property
+        }
+        set {
+            storage[property.keyPath] = newValue
+        }
+    }
+}
+
+public protocol Modeled {
+    var storage: ModelStorage { get set }
+}
+
+extension Modeled {
+    public subscript&lt;Property&gt;(property: ModelProperty&lt;Property&gt;) -&gt; Property {
+        get { storage[property] }
+        set { storage[property] = newValue }
+    }
+}
+</code></pre>
+<p>其实上述代码也就相当于 <code>updateStrategy = .replace</code> 的情况。不过，查看这份简化的代码是不是感觉整个逻辑都更清晰了呢😏</p>
+<p>在调用上和原本实现也没有区别：</p>
+<pre><code class="language-swift">struct Action: Modeled {
+    var storage = ModelStorage()
+}
+
+extension Action {
+    var testString: String {
+        get { self[testStringProperty] }
+        set { self[testStringProperty] = newValue }
+    }
+
+    private var testStringProperty: ModelProperty&lt;String&gt; {
+        .init(keyPath: \Self.testString, defaultValue: &quot;default&quot;)
+    }
+}
+
+var testAction = Action()
+print(testAction.testString) // &quot;default&quot;
+testAction.testString = &quot;123&quot;
+print(testAction.testString) // &quot;123&quot;
+</code></pre>
+<p>对了，<code>Modeled</code> 中的 <code>subscript</code> 其实属于简化代码的操作，如果去掉这部分代码，那么在 <code>testString</code> 的 get 和 set 中，使用 <code>self.storage[testStringProperty]</code> 也是可以的，不影响主要逻辑。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Github Action：在步骤之间共享数据]]></title>
+        <id>https://blog.rakuyoo.top/share-env-between-steps-in-github-action/</id>
+        <link href="https://blog.rakuyoo.top/share-env-between-steps-in-github-action/">
+        </link>
+        <updated>2024-05-11T06:02:09.000Z</updated>
+        <summary type="html"><![CDATA[<p>Github Action 各个 Setp 之间是互相独立的，所以假如我们在 A Step 中定义了一个环境变量，在接下来的 Step 中是无法使用的。</p>
+<p>那么怎么共享呢？在最新的 Github Action 中，可以通过 <a href="https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#environment-files">Environment files</a> 来实现。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>Github Action 各个 Setp 之间是互相独立的，所以假如我们在 A Step 中定义了一个环境变量，在接下来的 Step 中是无法使用的。</p>
+<p>那么怎么共享呢？在最新的 Github Action 中，可以通过 <a href="https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#environment-files">Environment files</a> 来实现。</p>
+<!-- more -->
+<h1 id="environment-files">Environment files</h1>
+<p>它的做法是通过一个环境变量配置文件，在各个Step之间共享自定义环境变量。</p>
+<p>官方的例子如下所示：</p>
+<pre><code class="language-yaml">steps:
+  - name: Set the value
+    id: step_one
+    run: |
+      echo &quot;action_state=yellow&quot; &gt;&gt; &quot;$GITHUB_ENV&quot;
+  - name: Use the value
+    id: step_two
+    run: |
+      printf '%s\n' &quot;$action_state&quot; # This will output 'yellow'
+</code></pre>
+<p><code>echo &quot;action_state=yellow&quot; &gt;&gt; &quot;$GITHUB_ENV&quot;</code> 这段就是关键代码了。</p>
+<h1 id="被抛弃的-set-env">被抛弃的 <code>set-env</code></h1>
+<p>如果你在 Google 上搜索过这个问题的话，你可能会搜到这篇文章：<a href="https://qiwihui.com/qiwihui-blog-98/">GitHub Actions 第15天：在步骤之间共享数据</a>。</p>
+<p>这篇文章中提到的 <code>set-env</code> 方法，在后续的 Github Action 中被禁止使用了，详见官方博文：<a href="https://github.blog/changelog/2020-10-01-github-actions-deprecating-set-env-and-add-path-commands/">GitHub Actions: Deprecating set-env and add-path commands</a></p>
+<p>在本文撰写时，如果在 Github Action 中没有经过任何配置地去使用 <code>set-env</code> 的话，会直接报错，Step 执行失败。</p>
+<p>“Environment files” 的做法也并不麻烦，反而觉得比 <code>set-env</code> 简单很多，所以就使用上面的方法吧。</p>
+]]></content>
+    </entry>
+</feed>
