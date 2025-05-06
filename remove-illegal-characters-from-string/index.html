@@ -1,0 +1,375 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>移除字符串中的� | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyoo.top/favicon.ico?v=1746522689999">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyoo.top/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1746522689999"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    移除字符串中的�
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2023-07-24 ·
+                    </time>
+                    
+                </div>
+                <div class="post-content">
+                    <p>一个非常非常非常常见的需求，一个限制输入长度的输入框，同时不限制用户输入字符的类型。</p>
+<p>这里我们先假定一个需求：</p>
+<blockquote>
+<p>一个最多输入6个字符的输入框，不限制用户输入的字符类型，即可以输入空格、中文英文、标点符号、数字以及 Emoji。</p>
+</blockquote>
+<p>在这个需求下考虑下面这个场景：</p>
+<blockquote>
+<p>输入框上已经有了文字：&quot; g,5就&quot;，用户即将输入一个 🉑️。</p>
+</blockquote>
+<p>这时，你的程序很可能就会出问题了。</p>
+<h1 id="字符长度">字符长度</h1>
+<p>我们大家应该都知道 Swift.String 的 <code>count</code> 属性和 ObjC 的 <code>length</code> 属性获取的结果不同。</p>
+<p>比如下面的代码，实际输出结果如注释所述。</p>
+<pre><code class="language-swift">let string = &quot; g,5就🉑️&quot;
+
+print(string.count) // 6
+print((string as NSString).length) // 8
+</code></pre>
+<p>回到需求和场景上，我相信你早就知道，在做这种截取的时候，不能直接用 <code>string.count</code> 判断长度。</p>
+<p>这种时候我们一般会用 utf16 编码来获取长度：</p>
+<pre><code class="language-swift">let string = &quot; g,5就🉑️&quot;
+
+print(string.count) // 6
+print(string.utf16.count) // 8
+print((string as NSString).length) // 8
+</code></pre>
+<h1 id="直接截取">直接截取</h1>
+<p>搞定了长度，剩下的就是截取了：</p>
+<pre><code class="language-swift">extension String {
+    func prefixed(_ maxLength: Int) -&gt; String {
+        let sequence = utf16
+        
+        guard sequence.count &gt; maxLength else { return self }
+        
+        let startIndex = sequence.startIndex
+        let endIndex = sequence.index(startIndex, offsetBy: maxLength)
+        
+        let result = String(sequence[startIndex ..&lt; endIndex])
+        
+        // 以防万一，借助 Objective-C 的能力进行截取
+        return result ?? (self as NSString).substring(to: maxLength)
+    }
+}
+</code></pre>
+<p>因为 String 的 <code>init?(_ codeUnits: Substring.UTF16View)</code> 构造器返回可能为空，保险起见最后还是借用了一下 ObjC 的方法来做截取。</p>
+<p>好了，到目前为止是我写这篇博客之前的理解和做法。后面开始说<strong>问题</strong>。</p>
+<h1 id="半个-emoji">半个 emoji</h1>
+<p>对上述的场景应用该方法后，我们得到的截取结果其实是有问题的：</p>
+<pre><code class="language-swift">&quot; g,5就🉑️&quot;.prefixed(6) //  g,5就�
+</code></pre>
+<p>6的长度限制正好卡在 🉑️ 的编码上，导致最后遗留下来半个 emoji。</p>
+<p>如果仅仅是展示还好，但是如果拿这个字符串在 iOS 13 上，使用 <code>JSONEncoder</code> 去编码，就会<strong>造成闪退</strong>，而且不论是通过 <code>try catch</code> 也好，<code>try?</code> 也好，都无法捕获到该异常（<code>EXC_BAD_ACCESS</code>）。</p>
+<h1 id="解决问题">解决问题</h1>
+<p>通过断点可知，原本方法的 <code>result</code> 属性是 <code>nil</code>，最终是通过 ObjC 的 <code>substring</code> 方法得到了目标字符串。</p>
+<p>很明显这个问题是 emoji 截取不全导致的，这种情况下我们应该删除整个 emoji，而不是残留半个。</p>
+<p>进一步搜索，我找到了这篇文章：<a href="https://www.jianshu.com/p/a7af09322e02">Swift 字符串 截取 半个表情emoji \u0000fffd 的处理</a></p>
+<p>原文解决方法如下所示，通过实践，该方法确实可以解决问题。</p>
+<pre><code class="language-swift">// text:Optional(&quot;123456789😒&quot;)
+var newText = (text as NSString).substring(to: 10)
+newText = (text as NSString).substring(to: maxLength)
+
+// 有可能会截取到半个表情，所以这里剔除掉半个表情的情况
+if let data = newText.data(using: .utf8),
+    let temp = NSString(data: data, encoding: String.Encoding.utf8.rawValue),
+   temp.contains(&quot;\u{0000fffd}&quot;) {
+    newText = temp.replacingOccurrences(of: &quot;\u{0000fffd}&quot;, with: &quot;&quot;) as String
+}
+</code></pre>
+<h1 id="进一步优化">进一步优化</h1>
+<p>其实上面的方法无需将 <code>data</code> 转为 NSString，直接使用 String 去 <code>contains</code> 也是可以的，这个暂且按下不表。</p>
+<p>但是对于无法预测的用户输入，每一次截取都要先将 text 转为 data，再转回 string，最后才能做判断，我是不太想接受的。</p>
+<p><s>所以我直接将这个答案丢给了 ChatGPT</s>，结果一系列的调教和实践，最终得到了如下版本的方法：</p>
+<pre><code class="language-swift">extension String {
+    func prefixed(_ maxLength: Int) -&gt; String {
+        let sequence = utf16
+        
+        guard sequence.count &gt; maxLength else { return self }
+        
+        let startIndex = sequence.startIndex
+        var endIndex = sequence.index(startIndex, offsetBy: maxLength)
+        
+        while endIndex &gt; startIndex &amp;&amp; UTF16.isTrailSurrogate(sequence[endIndex]) {
+            endIndex = sequence.index(before: endIndex)
+        }
+        
+        let result = String(sequence[..&lt;endIndex])
+        
+        return result ?? (self as NSString).substring(to: maxLength)
+    }
+}
+</code></pre>
+<h1 id="一些-utf-16-的概念">一些 UTF-16 的概念</h1>
+<p>如果你对 “为什么” 不感兴趣，那么现在你已经得到了答案，可以关闭掉这个页面了。</p>
+<p>下面的内容将先介绍一些和 UTF-16 有关的概念。</p>
+<h2 id="utf-16">UTF-16</h2>
+<p>UTF-16编码的字符可以是1个或2个16位码元。<br>
+那些只需要1个16位码元的字符被称为BMP（基本多文本平面）字符，如英文字母，数字，标点符号等。<br>
+而那些需要2个16位码元的字符被称为非BMP字符，如某些emoji。</p>
+<h2 id="surrogate-pairs">Surrogate Pairs</h2>
+<p>在 Unicode标准中，还包含 &quot;Low surrogate&quot; 和 &quot;High surrogate&quot; 两个概念，或者也称为前导代理（lead surrogate）和 尾随代理（trail surrogate）。</p>
+<p>它们共同组成了 &quot;surrogate pairs&quot;，即一个代理对。<br>
+它被用来表示在 UTF-16 编码中，不能用单个16位编码单元所表示的字符，取值范围在 U+10000 至 U+10FFFF 之间。</p>
+<p>&quot;High surrogate&quot; 是一个代理对中的第一个16位编码单元，其范围从 U+D800 到 U+DBFF。<br>
+&quot;Low surrogate&quot; 是一个代理对中的第二个16位编码单元，其范围从 U+DC00 到 U+DFFF。</p>
+<p>例如，emoji &quot;🉑️&quot; 在UTF-16编码下，是由两个16位码元组成的：0xD83D 和 0xDD91。这两个码元就是一个代理对，其中 0xD83D 是前导代理，0xDD91 是尾随代理。</p>
+<h2 id="回到需求和场景">回到需求和场景</h2>
+<p>对于字符串 <code>&quot; g,5就🉑️&quot;</code>，当我们的最大长度为 6 位时，截取的为止恰好在 0xD83D 和 0xDD91 的中间。此时 <code>endIndex</code> 指向的是第7位，即 0xDD91 尾随代理。</p>
+<p>所以我们用 <code>UTF16.isTrailSurrogate</code> 方法判断，如果截取的末尾是一个尾随代理，则向前移动一位，将整个 emoji 舍掉。</p>
+<h1 id="一些其他的想法">一些其他的想法</h1>
+<p>其实其他方法还有很多，比如：</p>
+<ol>
+<li>通过文档可知，<code>init?(_ codeUnits: Substring.UTF16View)</code> 当 <code>codeUnits</code> 非法时返回 <code>nil</code>。所以也可以通过这点来编写递归/循环，递减 <code>endIndex</code>。</li>
+<li>提前判断所要截取的字符是否是 emoji，如果是，则整个 emoji 截掉。</li>
+<li>从 <code>&quot; g,5就�&quot;</code> 中判断是否包含 <code>�</code> 这个字符，如果有就全局替换。</li>
+</ol>
+<p>其中第三个方法我还具体实践了一下。</p>
+<p>首先我们没有办法通过 utf16 直接得到 String 对象，因为 <code>�</code> 这个符号会导致初始化失败。所以只能通过 NSString 来拿到目标字符串。</p>
+<p>其次，当我们拿到了 NSString 对象后，直接调用 <code>.contains(&quot;�&quot;)</code>，返回值居然是 <code>false</code>。</p>
+<pre><code class="language-swift">let string = &quot; g,5就🉑️&quot;
+let original = (string as NSString).substring(to: 6)
+print(original.contains(&quot;�&quot;)) // false
+</code></pre>
+<p>此时，只要向文中提到的第一种方法那样，对 string 转一次 data 即可判断成功。</p>
+<pre><code class="language-swift">let string = &quot; g,5就🉑️&quot;
+
+let original = (string as NSString).substring(to: 6)
+let utf8Data = original.data(using: .utf8)!
+
+if let test = String(data: utf8Data, encoding: .utf8) {
+    print(test.contains(&quot;�&quot;)) // true
+}
+</code></pre>
+<p>但是这一套下来确实有点得不偿失了。</p>
+<h2 id="但是为什么是-false">但是，为什么是 false？</h2>
+<p>经过翻阅资料，怀疑这是因为 NSString 和 String 的底层处理不同导致的。</p>
+<p>对于 NSString，允许存在无效字符，所以 <code>&quot; g,5就�&quot;</code> 中的 <code>�</code> 和我们手写的 <code>�</code> 并非是统一个含义，后者代表一个 “Unicode替换字符”，它用来替换无法识别或无效的Unicode字符。而 NSString 中的 <code>�</code> 就只是一个无效的 Unicode，所以这两个才会不匹配。</p>
+<p>这其实也能回答最开始的那个方案，为什么需要先转 data，再转一次 string，最后才能判断成功。</p>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyoo.top/ji-podspec-zhuan-podspecjson/" class="post-title gt-a-link">
+                    记 podspec 转 podspec.json
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyoo.top/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>
