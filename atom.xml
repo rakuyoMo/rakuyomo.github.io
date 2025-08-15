@@ -1,0 +1,2134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://blog.rakuyoo.top</id>
+    <title>Rakuyo&apos;s blog</title>
+    <updated>2025-08-15T11:27:41.531Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://blog.rakuyoo.top"/>
+    <link rel="self" href="https://blog.rakuyoo.top/atom.xml"/>
+    <logo>https://blog.rakuyoo.top/images/avatar.png</logo>
+    <icon>https://blog.rakuyoo.top/favicon.ico</icon>
+    <rights>All rights reserved 2025, Rakuyo&apos;s blog</rights>
+    <entry>
+        <title type="html"><![CDATA[将 ARouter 的思想带入 Swift：用声明式语法构建类型安全的 API 请求]]></title>
+        <id>https://blog.rakuyoo.top/RaAPIWrapper/</id>
+        <link href="https://blog.rakuyoo.top/RaAPIWrapper/">
+        </link>
+        <updated>2025-08-15T05:22:29.000Z</updated>
+        <summary type="html"><![CDATA[<p>最近读到喵神的《<a href="https://onevcat.com/2024/11/type-as-state/">编译器，靠你了！使用类型改善状态设计</a>》，深受启发。这篇文章让我意识到，我在设计 <a href="https://github.com/RakuyoKit/RaAPIWrapper">RaAPIWrapper</a> 时，为了解决一些工程问题而采用的方案，在不经意间与“类型即状态”的设计思想不谋而合。</p>
+<p>我之前还没有正式介绍过这个库，所以借此机会，正式与大家分享 RaAPIWrapper 的设计，特别是它为了解决特定问题而采用的架构，以及这些决策在事后看来，是如何“碰巧”实现了更先进的设计模式。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>最近读到喵神的《<a href="https://onevcat.com/2024/11/type-as-state/">编译器，靠你了！使用类型改善状态设计</a>》，深受启发。这篇文章让我意识到，我在设计 <a href="https://github.com/RakuyoKit/RaAPIWrapper">RaAPIWrapper</a> 时，为了解决一些工程问题而采用的方案，在不经意间与“类型即状态”的设计思想不谋而合。</p>
+<p>我之前还没有正式介绍过这个库，所以借此机会，正式与大家分享 RaAPIWrapper 的设计，特别是它为了解决特定问题而采用的架构，以及这些决策在事后看来，是如何“碰巧”实现了更先进的设计模式。</p>
+<!-- more -->
+<hr>
+<h2 id="raapiwrapper-的诞生">RaAPIWrapper 的诞生</h2>
+<p>RaAPIWrapper 的设计初衷，源于对现有网络库 Moya 的反思，以及对 Android 路由框架 <a href="https://github.com/alibaba/ARouter">ARouter</a> 设计模式的借鉴。</p>
+<h3 id="为何不直接用-moya">为何不直接用 Moya？</h3>
+<p>在 Swift 社区，<a href="https://github.com/Moya/Moya">Moya</a> 是一个非常优秀的类型安全网络库，它通过 <code>enum</code> 和 <code>protocol</code> 的组合，解决了大量 API 管理中的问题。然而，在深度使用后，我们发现 Moya 的设计在某些方面存在优化空间。</p>
+<p>Moya 的核心是 <code>TargetType</code> 协议，一个 API 的完整定义需要你在 <code>enum</code> 的 <code>switch</code> 中，为 <code>path</code>, <code>method</code>, <code>task</code> 等多个属性分别提供实现。这导致了一个问题：</p>
+<p><strong>一个 API 的核心信息（如请求方法、路径、参数）被分散在了多个代码块中。</strong></p>
+<p>当项目 API 数量增多时，开发者需要在一个庞大的 <code>switch</code> 语句中不断上下文切换和上下跳转，才能拼凑出一个 API 的完整样貌。这降低了代码的可读性和维护性，也是 RaAPIWrapper 希望解决的核心痛点。</p>
+<p>不过需要强调的是，RaAPIWrapper 的目的并非全盘否定 Moya，当前也不具备替代 Moya 的能力。Moya 依然是一个功能强大的网络执行层，尤其在插件化、请求执行等领域。RaAPIWrapper 的设计初衷是<strong>专注于解决 API 定义的内聚性问题</strong>，它被设计为一个上层的“API 定义层”，可以与像 Moya 这样的成熟网络库协同工作，形成优势互补。</p>
+<h3 id="arouter-是什么">ARouter 是什么？</h3>
+<p><a href="https://github.com/alibaba/ARouter">ARouter</a> 是 Android 生态中一个著名的路由框架，由阿里巴巴开发并开源。该框架通过注解 (<code>@Route</code>) 的方式，让开发者能够以一种极其声明式和解耦的方式定义页面路径。在 <a href="https://github.com/alibaba/ARouter/blob/develop/README_CN.md#%E5%9B%9B%E8%BF%9B%E9%98%B6%E7%94%A8%E6%B3%95">README</a> 中有如下的示例：</p>
+<pre><code class="language-Java">@Route(path = &quot;/test/activity&quot;)
+public class Test1Activity extends Activity { ... }
+</code></pre>
+<p>我非常欣赏这种将“路由”从具体的实现中抽离出来，变成一个集中、静态、易于管理的设计。</p>
+<p>于是，一个想法在我脑中萌生：<strong>我能否将这种优雅的、基于注解的声明式语法，从“页面路由”领域迁移到“API 定义”领域？</strong></p>
+<p>这个想法，成为了 RaAPIWrapper 的起点。我的目标是创建一个网络层，它应该具备以下特质：</p>
+<ul>
+<li>
+<p><strong>API 声明化</strong>：API 的定义应该像 ARouter 的路由一样，通过类似注解的语法附加到一个静态属性上，而不是散落在各个业务代码中去手动拼接 URL。</p>
+</li>
+<li>
+<p><strong>集中化管理</strong>：所有单个 API 定义所需要的内容都应该被清晰地组织在一起，不会散落在多个地方，查找起来要非常方便。</p>
+</li>
+<li>
+<p><strong>定义与实现解耦</strong>：API 的“定义”应该与其“如何被请求”完全分离。定义部分只关心 API 的元数据（路径、方法、参数结构），而底层的网络请求库（是 Alamofire 还是 URLSession）可以随时被替换，而不影响定义。</p>
+</li>
+</ul>
+<hr>
+<h2 id="像定义路由一样定义-api">像定义路由一样定义 API</h2>
+<p>为了实现上述目标，我将 RaAPIWrapper 的核心架构设计为一个声明式的 API “地址簿”：</p>
+<blockquote>
+<p>项目带有一个用于演示的 <a href="https://github.com/RakuyoKit/RaAPIWrapper/tree/main/Demo.playground">Playground</a>，您可以通过该项目进一步了解本框架。</p>
+</blockquote>
+<pre><code class="language-swift">@GET(&quot;/api/v1/no_param&quot;)
+static var noParamAPI: APIParameterBuilder&lt;()&gt;? = nil
+
+@POST(&quot;/api/v1/tuple_param&quot;)
+static var tupleParamAPI: APIParameterBuilder&lt;(id: Int, name: String?)&gt;? = .init {
+    // `Dictionary` and `Array` can be used directly as parameters.
+    [&quot;id&quot;: $0.id, &quot;name&quot;: $0.name]
+}
+
+@POST(&quot;/post&quot;)
+static var postWithModel: APIParameterBuilder&lt;Arg&gt;? = .init {
+    // When the parameter `Arg` complies with the `APIParameter` (`Encodable &amp; Hashable`) protocol, 
+    // it can be used directly as a parameter.
+    $0
+}
+</code></pre>
+<p>就像 ARouter 的 <code>@Route(&quot;/path/to/page&quot;)</code> 一样，最核心的信息应该在声明的那一刻就一目了然。这种方式的优势是显而易见的：</p>
+<ol>
+<li><strong>高度可读</strong>：你可以像 Moya 一样将多个接口定义在一个文件中，任何人打开这个文件，就能立刻了解模块中有哪些可用的 API。</li>
+<li><strong>高内聚性</strong>：您不用再通过多次跳转，才能获取到一个接口的全部信息，所有信息都定义在一起。</li>
+<li><strong>易于维护</strong>：修改、添加或废弃一个 API，都只需要在这个“地址簿”中进行，而不需要深入到业务逻辑中去寻找那些零散的 URL 字符串。</li>
+<li><strong>天然解耦</strong>：<code>@GET</code> 和 <code>@POST</code> 的定义，只包含了 API 的元信息。它本身并不关心网络请求是如何发出的。底层的实现被 RaAPIWrapper 的执行层所封装，这为后续替换网络库或增加统一的请求处理逻辑（如加密、加签）提供了极大的便利。</li>
+</ol>
+<hr>
+<h2 id="核心设计一个声明式的-api-定义">核心设计：一个声明式的 API 定义</h2>
+<p>在确立了“声明式、高内聚低耦合”这些核心设计理念之后，我需要寻找一些足够强大的技术手段来支撑它。<code>@propertyWrapper</code> 属性包装器与 Swift 的泛型系统正是实现这些理念的最佳方案。</p>
+<blockquote>
+<p>最初我使用泛型，只是想找到一种方法来避免 <code>switch</code> 语句和增强代码的扩展性，但最终的成果却意外地与“类型即状态”思想相契合。这对我来说，也是一个在实践中学习和发现的过程。</p>
+</blockquote>
+<h3 id="propertywrapper-属性包装器"><code>@propertyWrapper</code> 属性包装器</h3>
+<p><code>@GET</code>、<code>@POST</code> 是基于一个名为 <a href="https://github.com/RakuyoKit/RaAPIWrapper/blob/main/Sources/Core/Wrapper/API.swift#L17"><code>API</code></a> 的通用属性包装器（<code>@propertyWrapper</code>）构建的。</p>
+<p>我们以 <code>@POST</code> 为例，它的<a href="https://github.com/RakuyoKit/RaAPIWrapper/blob/main/Sources/Core/Wrapper/HTTPMethod/POST.swift#L13">定义</a>非常简单，只是一个类型别名（<code>typealias</code>）：</p>
+<pre><code class="language-swift">// file: Sources/Core/Wrapper/HTTPMethod/POST.swift
+
+public enum PostHTTPMethod: APIHTTPMethodWrapper {
+    public static var httpMethod: APIHTTPMethod { &quot;POST&quot; }
+}
+
+/// Encapsulates the data needed to request the `POST` api.
+public typealias POST&lt;Parameter&gt; = API&lt;Parameter, PostHTTPMethod&gt;
+</code></pre>
+<p>真正的核心在于 <code>API</code> 这个类。它是一个泛型属性包装器，接受两个类型参数：<code>Parameter</code> 代表 API 的参数类型，<code>HTTPMethod</code> 则是一个遵循 <a href="https://github.com/RakuyoKit/RaAPIWrapper/blob/main/Sources/Core/Wrapper/API.swift#L10"><code>APIHTTPMethodWrapper</code></a> 协议的类型，用于提供具体的 HTTP 请求方法（如 &quot;POST&quot;）。</p>
+<pre><code class="language-swift">// file: Sources/Core/Wrapper/API.swift
+
+@propertyWrapper
+public class API&lt;Parameter, HTTPMethod: APIHTTPMethodWrapper&gt; {
+
+    public var wrappedValue: APIParameterBuilder&lt;Parameter&gt;?
+    public let path: String
+
+    // ... other properties
+
+    public init(
+        wrappedValue: APIParameterBuilder&lt;Parameter&gt;?,
+        _ path: String,
+        // ... other parameters
+    ) {
+        self.wrappedValue = wrappedValue
+        self.path = path
+        // ...
+    }
+
+    public var projectedValue: API&lt;Parameter, HTTPMethod&gt; { self }
+}
+</code></pre>
+<p><code>@propertyWrapper</code> 的设计要点在于：</p>
+<ol>
+<li><strong>初始化时捕获信息</strong>：当我们写下 <code>@POST(&quot;/post&quot;)</code> 时，Swift 编译器会调用 <code>API</code> 的 <a href="https://github.com/RakuyoKit/RaAPIWrapper/blob/main/Sources/Core/Wrapper/API.swift#L36"><code>init(wrappedValue:_:)</code></a> 方法。路径 <code>&quot;/post&quot;</code> 作为参数被传入，并保存在 <code>path</code> 属性中。<code>wrappedValue</code> 则是我们赋给静态变量的 <a href="https://github.com/RakuyoKit/RaAPIWrapper/blob/main/Sources/Core/Wrapper/APIParameterBuilder.swift#L11"><code>APIParameterBuilder</code></a> 实例，它包含了参数的构建逻辑。</li>
+<li><strong>分离“定义”与“执行”</strong>：<code>API</code> 包装器通过 <a href="https://github.com/RakuyoKit/RaAPIWrapper/blob/main/Sources/Core/Wrapper/API.swift#L22"><code>projectedValue</code></a> 暴露了自身。这意味着，当我们使用 <code>$</code> 符号（如 <code>BasicAPI.$postWithModel</code>）时，我们获取到的是 <code>API</code> 这个包装器对象本身。这个对象已经包含了构建一个完整请求所需的所有信息：路径、HTTP 方法、以及参数构建器。这就实现了 API “定义”与“执行”的分离——定义时只关心元数据，执行时通过 <code>$</code> 获取到一个可执行的请求对象。</li>
+</ol>
+<p>通过这种方式，<code>@propertyWrapper</code> 不仅提供了声明式的语法，更在底层完成了信息的聚合与封装，是实现 API 高内聚设计的关键。</p>
+<h3 id="类型驱动思想">“类型驱动”思想</h3>
+<p>如果说 <code>@propertyWrapper</code> 提供了骨架，那么泛型系统则为这个骨架提供了核心的类型安全保障。如今回顾，我才意识到这个为解决扩展性问题而选择的方案，其本质恰好就是“类型即状态”思想的体现，并且这一思想同时运用在了 <code>API</code> 的两个泛型参数 <code>HTTPMethod</code> 和 <code>Parameter</code> 之上。</p>
+<p>我们再次审视 <code>API</code> 的定义：<code>API&lt;Parameter, HTTPMethod: APIHTTPMethodWrapper&gt;</code>。</p>
+<p>首先，<code>HTTPMethod</code> 参数本身并不是一个字符串值（如 <code>&quot;POST&quot;</code>），而是一个<strong>类型</strong>。例如 <code>PostHTTPMethod</code> 这个类型，它的唯一作用就是通过遵循 <code>APIHTTPMethodWrapper</code> 协议来携带 <code>&quot;POST&quot;</code> 这个字符串。通过 <code>typealias POST&lt;P&gt; = API&lt;P, PostHTTPMethod&gt;</code>，我们将 <code>POST</code> 这个别名与 <code>PostHTTPMethod</code> 这个“状态类型”永久绑定。这样，请求方法就在类型层面被固定下来，杜绝了传入错误字符串的可能性。此外这种写法还有很多好处：</p>
+<ul>
+<li>利于扩展，可以很简单的定义多个 HTTP Method。</li>
+<li>通过 <code>extension</code> + <code>where PostHTTPMethod = ...</code>，可以针对不同的 HTTP Method 定义不同的请求方法。比如业务层面规定 <code>GET</code> 请求不允许携带参数，那么就可以定义不带参数的 <code>request()</code> 方法。</li>
+<li>在业务层需要获取到 HTTP Method 时，可以避免 <code>switch case</code>。</li>
+</ul>
+<p>其次，<code>Parameter</code> 参数以一种更动态的方式应用了同样的思想。观察 API 的定义：</p>
+<pre><code class="language-swift">// API with no parameters
+@GET(&quot;/api/v1/no_param&quot;)
+static var noParamAPI: APIParameterBuilder&lt;()&gt;? = nil
+
+// API with parameters
+@POST(&quot;/api/v1/tuple_param&quot;)
+static var tupleParamAPI: APIParameterBuilder&lt;(id: Int, name: String?)&gt;? = .init { ... }
+</code></pre>
+<p>我们并没有在 <code>@GET</code> 或 <code>@POST</code> 中显式指定 <code>Parameter</code> 的类型。这里的机制是 <strong>Swift 的类型推断</strong>。</p>
+<ul>
+<li>当我们声明 <code>static var noParamAPI: APIParameterBuilder&lt;()&gt;?</code> 时，Swift 编译器会分析变量的类型。它看到 <code>APIParameterBuilder&lt;()&gt;</code>，便会推断出 <code>API</code> 包装器的 <code>Parameter</code> 泛型参数就是 <code>()</code>（即 <code>Void</code>）。</li>
+<li>同理，当声明 <code>tupleParamAPI</code> 的类型为 <code>APIParameterBuilder&lt;(id: Int, name: String?)&gt;?</code> 时，编译器就确切地知道，这个 API 的参数类型是一个元组 <code>(id: Int, name: String?)</code>。</li>
+</ul>
+<p>这种设计带来了显著的优势：</p>
+<ol>
+<li><strong>API 合约化</strong>：API 的参数类型（它的“状态”）被固化在了定义中，成为一个不可改变的“合约”。</li>
+<li><strong>编译期安全</strong>：当你调用 API 时，编译器会强制执行这份合约。
+<ul>
+<li>对于 <code>$noParamAPI</code>，调用 <code>request()</code> 方法时如果试图传入参数，编译器会直接报错。</li>
+<li>对于 <code>$tupleParamAPI</code>，调用 <code>request(with:)</code> 方法时，你必须传入一个 <code>(id: Int, name: String?)</code> 类型的元组，参数名、类型、数量、可选性稍有差池，都无法通过编译。</li>
+</ul>
+</li>
+</ol>
+<p>这与传统 Moya 中使用 <code>[String: Any]</code> 作为参数的方式形成了鲜明对比。字典是类型不安全的，开发者很容易在运行时因为拼错 key、传错 value 类型而导致请求失败。而 RaAPIWrapper 将这种潜在的运行时错误提前到了编译期，这正是该设计的关键优势之一。</p>
+<p>最后，<a href="https://github.com/RakuyoKit/RaAPIWrapper/blob/main/Sources/Core/Wrapper/APIParameterBuilder.swift#L11"><code>APIParameterBuilder&lt;Input&gt;</code></a> 扮演了类型转换的角色。它接收强类型的 <code>Input</code>（即 <code>Parameter</code>），并通过一个闭包，将其转换为网络层所需的、经过类型擦除的 <code>any APIParameter</code> 格式。这使得 API 的定义可以保持类型纯净，而将参数构建的细节封装在了构建器内部。</p>
+<hr>
+<h2 id="回顾与展望">回顾与展望</h2>
+<h3 id="设计的得与失">设计的得与失</h3>
+<p>通过组合运用 <code>@propertyWrapper</code> 的声明式语法和以泛型为核心的类型系统，RaAPIWrapper 成功地将 API 定义从分散、易错的字符串和字典，转变成了集中的、类型安全的 API “地址簿”。这个以提升代码内聚性和可维护性为目标的尝试，最终收获了编译期安全这一关键优势。</p>
+<p>不过，正如一些批判性声音指出的，任何一个设计良好的 Swift 强类型 API，都在某种程度上利用了“类型即状态”。RaAPIWrapper 的创新更多在于其<strong>语法和模式</strong>，而非思想本身。并且这种“事后诸葛亮”的回顾也让我意识到在技术方面我还差的很远，还有很长的路要走。</p>
+<h3 id="清晰的定位api-定义层">清晰的定位：API 定义层</h3>
+<p>更重要的是，必须明确 <strong>RaAPIWrapper 的定位是一个 API 定义的包装层（Wrapper），而非一个大而全的网络请求框架</strong>。</p>
+<p>这一定位意味着它刻意地保持了职责的单一。它只做一件事：<strong>以类型安全和高内聚的方式，构建出一个完整的请求元数据</strong>。至于这个元数据如何被执行、如何处理回调、如何实现插件、如何管理通用请求头等问题，则完全交由其背后的<strong>执行层</strong>来处理。</p>
+<p>这种关注点分离的设计，恰好回答了“为何不直接用 Moya”的问题：</p>
+<ul>
+<li><strong>您可以继续使用 Moya</strong>：Moya 就是一个非常出色的执行层。开发者完全可以将 RaAPIWrapper 作为 API “合约”层，将生成的请求数据传递给 Moya Provider，继续享受 Moya 强大的插件系统和请求管理能力。</li>
+<li><strong>拥抱变化</strong>：如果未来团队希望从 Moya 迁移到 <code>URLSession</code>，或其它新的网络库，您只需要更换执行层的实现，而所有用 RaAPIWrapper 定义的 API 代码都<strong>无需改动</strong>。</li>
+</ul>
+<h3 id="未来规划">未来规划</h3>
+<p>目前，RaAPIWrapper 尚不自带执行层，也未集成插件系统。未来的规划是提供一个基于 <a href="https://github.com/Alamofire/Alamofire.git">Alamofire</a> 的官方默认执行层，并逐步完善其功能，使其成为一个更加开箱即用的网络解决方案。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[计算机网络之四 - 虚拟网卡与 WireGuard]]></title>
+        <id>https://blog.rakuyoo.top/computer-network-virtual-nic-and-wireguard/</id>
+        <link href="https://blog.rakuyoo.top/computer-network-virtual-nic-and-wireguard/">
+        </link>
+        <updated>2025-08-12T11:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>在上一篇文章的结尾，我们探讨了多种内网穿透技术，并初步介绍了 WireGuard 作为一种现代化 VPN 解决方案的优势。其实在更早之前，我们就亲手<a href="https://blog.rakuyoo.top/cgo-and-wireGuardkit-compilation.md">编译过 WireGuard 在 iOS 端的 SDK</a>，也使用 WireGuard 实现过<a href="https://blog.rakuyoo.top/synology-with-wireguard/">群晖 NAS 的公网访问</a>。</p>
+<p>本文将以 macOS 环境为基础，深入 WireGuard 内部，从内核交互的底层细节出发，解构虚拟网卡的实现机制，并详细剖析其密码学和路由设计。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>在上一篇文章的结尾，我们探讨了多种内网穿透技术，并初步介绍了 WireGuard 作为一种现代化 VPN 解决方案的优势。其实在更早之前，我们就亲手<a href="https://blog.rakuyoo.top/cgo-and-wireGuardkit-compilation.md">编译过 WireGuard 在 iOS 端的 SDK</a>，也使用 WireGuard 实现过<a href="https://blog.rakuyoo.top/synology-with-wireguard/">群晖 NAS 的公网访问</a>。</p>
+<p>本文将以 macOS 环境为基础，深入 WireGuard 内部，从内核交互的底层细节出发，解构虚拟网卡的实现机制，并详细剖析其密码学和路由设计。</p>
+<!-- more -->
+<p>本系列其余几篇的目录：</p>
+<ul>
+<li><a href="https://blog.rakuyoo.top/computer-network-ip-and-port/">计算机网络之一 - IP 与端口</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-url-and-dns/">计算机网络之二 - URL 与 DNS</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-dhcp-and-intranet-penetration/">计算机网络之三 - DHCP 与内网穿透</a></li>
+</ul>
+<hr>
+<h2 id="虚拟网卡用户空间与内核的契约">虚拟网卡：用户空间与内核的契约</h2>
+<p>要理解 WireGuard 的工作原理，首先需要解决一个根本性问题：像 WireGuard 这样的普通应用程序，是运行在操作系统的“用户空间”的，而网络数据包的收发、路由选择等核心功能，都由操作系统的“内核空间”牢牢掌控。那么，一个用户空间的程序，是如何能“拦截”并“处理”本应由内核直接发送到物理硬件的IP数据包呢？</p>
+<p>答案就是<strong>虚拟网卡 (Virtual Network Interface)</strong>，它是用户空间与内核空间在网络层面达成的一种“契约”。这个核心思想在不同操作系统上是共通的，但具体实现有所差异。</p>
+<h3 id="内核的委托utun-接口">内核的“委托”：utun 接口</h3>
+<p>在 macOS 上，契约的实现者是 <code>utun</code> 虚拟网络接口。与 Linux 下有明确设备文件路径的 <code>tun</code> 设备不同，<code>utun</code> 接口是由程序在运行时通过向内核发出特定请求来动态创建的。WireGuard 这样的应用会通过系统调用，请求内核创建一个 <code>utun</code> 类型的网络接口，并获得一个用于与其通信的<strong>文件描述符（File Descriptor）</strong>。</p>
+<p>这个文件描述符，就是这份“契约”的实体。它对于应用程序来说，就像一个普通的文件句柄，可以对其进行 <code>read()</code> 和 <code>write()</code> 操作。但它的另一端，连接的却是内核网络协议栈中一个新创建的、功能完整的虚拟网络接口（例如 <code>utun0</code> 或 <code>wg0</code>）。</p>
+<p>当这个接口被 <code>ifconfig</code> 命令激活并分配了IP地址（如 <code>10.8.0.1</code>）后，它就会出现在 <code>ifconfig</code> 的输出中，对于内核的路由、防火墙等子系统来说，它与一张真实的物理网卡并无二致。</p>
+<p>下面是这个过程的伪代码表示，它被 WireGuard 客户端在后台自动处理了：</p>
+<pre><code class="language-c">// 1. 向内核请求创建虚拟接口，获取文件描述符
+int vpn_fd = request_virtual_interface(&quot;wg0&quot;);
+
+// 2. 使用命令行工具为接口配置IP地址并激活
+system(&quot;ifconfig wg0 inet 10.8.0.1/24 up&quot;);
+
+// 3. 进入主循环，像读写文件一样处理网络包
+while(1) {
+  // 从内核的 wg0 接口读取一个IP包
+  int nread = read(vpn_fd, packet_buffer, sizeof(packet_buffer));
+  
+  // ... 对 packet_buffer 进行加密处理 ...
+  
+  // 通过物理网卡的UDP socket发送出去
+  sendto(udp_socket, encrypted_packet, ...);
+}
+</code></pre>
+<h3 id="数据包的契约履行过程">数据包的“契约”履行过程</h3>
+<p>这份契约的履行过程，即数据包的流转，是理解一切的关键：</p>
+<ol>
+<li>
+<p><strong>下行（发送数据）</strong>：</p>
+<ul>
+<li>一个上层应用（如浏览器）试图访问 <code>10.8.0.2</code>。</li>
+<li>内核根据其<strong>主路由表</strong>（可通过 <code>netstat -nr</code> 查看），发现目标地址 <code>10.8.0.2</code> 匹配 <code>10.8.0.0/24 dev utun0</code> 这条规则（这条规则通常由 <code>wg-quick</code> 脚本自动添加）。</li>
+<li>内核将这个原始的、未经任何修改的IP数据包，作为一个字节流，<strong>“写入”</strong> 到与 <code>utun0</code> 关联的那个文件描述符中。</li>
+<li>WireGuard 进程一直在用户空间通过 <code>read()</code> 系统调用<strong>阻塞式地读取</strong>这个文件描述符。一旦内核写入数据，WireGuard 进程就会被唤醒，并读出完整的IP数据包。</li>
+</ul>
+</li>
+<li>
+<p><strong>上行（接收数据）</strong>：</p>
+<ul>
+<li>WireGuard 进程通过物理网卡收到了一个来自对端的、加密的UDP包。</li>
+<li>在用户空间完成解密，还原出原始的IP数据包（例如，一个从 <code>10.8.0.2</code> 发往 <code>10.8.0.1</code> 的ICMP响应包）。</li>
+<li>WireGuard 进程将这个原始IP数据包的字节流，通过 <code>write()</code> 系统调用 <strong>“写入”</strong> 到它持有的文件描述符中。</li>
+<li>数据被写入后，会立刻出现在内核空间的 <code>utun0</code> 接口上，仿佛它刚从外部网络到达。随后，内核的网络协议栈会接管它，进行后续的路由、分发给上层应用等操作。</li>
+</ul>
+</li>
+</ol>
+<h2 id="wireguard-的设计哲学与核心机制">WireGuard 的设计哲学与核心机制</h2>
+<p>理解了虚拟网卡如何作为用户空间与内核的桥梁后，我们再来深入探讨 WireGuard 本身的设计。其设计哲学体现在其极其简明的配置文件中，通过解读这份文件，我们就能掌握其核心机制。</p>
+<p>WireGuard 本质上是无状态和无连接的。它不像 TCP 或 OpenVPN 那样需要维持一个长期的、有明确 “连接/断开” 状态的会话。通信双方仅通过基于 Noise 协议框架的握手来交换最新的会话密钥。如果一段时间没有流量，双方不会有任何通信。一旦有数据需要发送，它会尝试使用现有的会话密钥，如果密钥已过期，则会静默地发起一次新的握手。这种设计对移动设备和不稳定的网络环境极为友好。</p>
+<p>一个典型的 WireGuard 配置文件（通常是 <code>wg0.conf</code>）由若干个“块（section）”组成，最核心的就是 <code>[Interface]</code> 块和 <code>[Peer]</code> 块。</p>
+<h3 id="interface-块定义隧道端点"><code>[Interface]</code> 块：定义隧道端点</h3>
+<p><code>[Interface]</code> 块用于配置隧道的“本地”这一端，也就是你正在配置的这台机器上的 <code>wg0</code> 虚拟网卡。</p>
+<pre><code class="language-ini">[Interface]
+# 本机的私钥
+PrivateKey = [私钥内容]
+
+# 本机在 VPN 网络中的内网 IP 地址
+Address = 10.8.0.1/24
+
+# 监听的 UDP 端口
+ListenPort = 51820
+</code></pre>
+<ul>
+<li><strong><code>PrivateKey</code></strong>：一段 Base64 编码的字符串，是该接口的<strong>私钥</strong>。这是接口的唯一身份凭证，<strong>绝不能泄露</strong>。与之配对的公钥（由私钥生成）将分发给其他对端（Peer）。</li>
+<li><strong><code>Address</code></strong>：分配给该接口的<strong>虚拟 IP 地址</strong>。请注意，这是在 WireGuard 构建的虚拟网络内部的地址，而非机器的物理 IP。我们在本系列的第一篇文章《<a href="https://blog.rakuyoo.top/computer-network-ip-and-port/">计算机网络之一 - IP 与端口</a>》中已经详细讨论过 IP 地址的概念。</li>
+<li><strong><code>ListenPort</code></strong>：指定 WireGuard 在哪个<strong>物理网络端口</strong>上监听来自其他对端的入站连接。这是一个 UDP 端口，因为 WireGuard 完全基于 UDP 协议。同样，关于<strong>端口</strong>的概念，您也可以回顾第一篇文章。</li>
+</ul>
+<h3 id="peer-块定义通信对端"><code>[Peer]</code> 块：定义通信对端</h3>
+<p><code>[Peer]</code> 块定义了该接口希望连接的 “对端” 或 “伙伴”。你可以有多个 <code>[Peer]</code> 块，每一个块代表一个你希望与之通信的节点（例如，一个中心服务器或另一个客户端）。</p>
+<pre><code class="language-ini">[Peer]
+# 对端的公钥
+PublicKey = [对端公钥内容]
+
+# 允许通过该对端路由的IP地址范围
+AllowedIPs = 10.8.0.2/32
+
+# 对端的公网地址和端口（仅客户端需要）
+Endpoint = server.public.ip.address:51820
+
+# NAT 穿透心跳包（仅客户端需要）
+PersistentKeepalive = 25
+</code></pre>
+<ul>
+<li><strong><code>PublicKey</code></strong>：对端的<strong>公钥</strong>，与对端 <code>[Interface]</code> 中 <code>PrivateKey</code> 相对应。WireGuard 依靠这对密钥来验证对方的身份并加密数据。</li>
+<li><strong><code>Endpoint</code></strong>：对端的公网 <code>IP:端口</code>。这是你的接口将数据包发往的实际网络地址。通常，只有需要主动发起连接的一方（如客户端）才需要配置此项。服务器端因为是被动监听，所以不需要为每个 Peer 指定 <code>Endpoint</code>。</li>
+<li><strong><code>PersistentKeepalive</code></strong>：一个可选的便携功能，用于维持 NAT 映射。它会每隔指定秒数（例如25秒）向对端发送一个“心跳包”，这对于处于 NAT 设备（如家用路由器）后面的客户端非常重要，可以防止连接中断。我们在系列第三篇文章《<a href="https://blog.rakuyoo.top/computer-network-dhcp-and-intranet-penetration/">计算机网络之三 - DHCP 与内网穿透</a>》中探讨过 NAT 的工作原理。</li>
+<li><strong><code>AllowedIPs</code></strong>：这是 WireGuard <strong>最具革命性的设计</strong>，也是其 <strong>CryptoKey 路由</strong>机制的核心。这个参数同时承担了<strong>路由</strong>和<strong>安全</strong>两项关键职责：
+<ol>
+<li><strong>路由功能（出站）</strong>：它告诉本地的 <code>wg0</code> 接口：“当有一个IP包需要发送，如果它的<strong>目标IP</strong>地址属于 <code>AllowedIPs</code> 的范围，那么就应该通过隧道，加密后发送给这个 <code>[Peer]</code>”。例如，客户端配置 <code>AllowedIPs = 0.0.0.0/0</code> 意味着将<strong>所有</strong>出站流量都路由到这个 Peer（即中心服务器）。</li>
+<li><strong>安全功能（入站）</strong>：它定义了一个“白名单”。当从这个 Peer 收到一个解密后的数据包时，WireGuard 会检查其<strong>源IP</strong>地址。只有当源IP地址属于 <code>AllowedIPs</code> 范围时，这个包才会被接受，否则将被<strong>静默丢弃</strong>。</li>
+</ol>
+</li>
+</ul>
+<p>这种将密码学身份（公钥）与路由策略（<code>AllowedIPs</code>）紧密绑定的设计，就是 <strong>CryptoKey 路由</strong>。它极大地简化了传统 VPN 复杂的路由表和防火墙策略，使得网络拓扑完全由密钥和 <code>AllowedIPs</code> 静态定义，清晰且安全。并且如果收到一个无法解密，或者解密后源地址不匹配任何 Peer 的 <code>AllowedIPs</code> 的数据包，WireGuard 会<strong>静默丢弃</strong>它。这使得 WireGuard 对网络扫描工具来说是“隐形”的。</p>
+<blockquote>
+<p>让我们对 “静默丢弃” 和 “拒绝” 做一下技术层面的比较：</p>
+<ul>
+<li><strong>拒绝</strong>：当数据包发往一个关闭的端口时，操作系统通常会回复一条 ICMP <code>Port Unreachable</code> 消息。这个响应明确地告知了发送方：端口存在，但是关闭的。</li>
+<li><strong>静默丢弃</strong>：WireGuard 的行为则不同。它接收所有发到监听端口的数据包，但只处理能够被正确解密和验证的。对于所有无效数据包，它在内部直接丢弃，不产生任何对外响应。对于网络扫描工具而言，这种“无响应”的状态与数据包在传输途中被防火墙拦截或网络波动导致丢失是无法区分的。因此，扫描工具无法确认端口的真实状态，从而大大提升了 WireGuard 的隐蔽性。</li>
+</ul>
+</blockquote>
+<h3 id="密码学基石固定的现代加密套件">密码学基石：固定的现代加密套件</h3>
+<p>WireGuard 在安全上的一个核心设计是 “固执己见”（Opinionated），这正是其卓越之处。它不像 IPsec 或者 OpenVPN 那样提供一个庞大的、可协商的加密算法列表，而是<strong>坚定地选择了唯一一套固定的、最先进的密码学原语</strong>。这种“固执”并非限制，而是深思熟虑后的安全与性能保障：</p>
+<blockquote>
+<p>“密码学原语” 指的是构建更复杂密码系统时所使用的、标准化的基础算法模块。它们是功能单一的最小单元，每个原语用于解决一个特定的密码学问题，例如“密钥交换”、“对称加密”或“消息认证”。</p>
+</blockquote>
+<ol>
+<li><strong>极致的简洁与可审计性</strong>：WireGuard 的核心代码库仅有约 4000 行，而 OpenVPN 和 IPsec 则高达数十万行。这种巨大的差异，很大程度上得益于其固定且精简的密码学套件。代码量越小，就越容易进行安全审计，发现并修复潜在的漏洞，从而大大降低了攻击面。</li>
+<li><strong>杜绝配置错误与降级攻击</strong>：在传统的 VPN 协议中，用户或管理员需要从一大堆加密算法中进行选择，这极易因配置不当而引入安全漏洞，甚至遭受“降级攻击”（攻击者强制连接使用较弱的加密算法）。WireGuard 则完全规避了这个问题，它只提供一套经过严格审查的、现代且安全的算法组合，从根本上消除了这类风险。</li>
+<li><strong>卓越的性能表现</strong>：WireGuard 所选用的密码学原语（如 ChaCha20-Poly1305 和 Curve25519）都是为现代 CPU 优化设计的，它们能够以极高的效率完成加密和解密操作，并且天然支持“恒定时间（Constant-Time）”代码，有效抵御旁路攻击。这使得 WireGuard 在吞吐量和延迟方面通常优于 OpenVPN 和 IPsec。</li>
+<li><strong>面向未来的安全性</strong>：WireGuard 从一开始就拥抱了最新的密码学研究成果，摒弃了那些可能存在历史遗留问题或性能瓶颈的旧有算法。这确保了它在当前乃至可预见的未来都具备强大的安全性。</li>
+</ol>
+<p>正是这种对“少即是多”的深刻理解和对现代密码学的坚定选择，让 WireGuard 成为了一个更安全、更快速、更易于部署和维护的 VPN 解决方案。它不仅仅是一个工具，更是一种理念的胜利。</p>
+<p>以下是 WireGuard 所采用的固定密码学原语：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">作用</th>
+<th style="text-align:left">原语名称</th>
+<th style="text-align:left">说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><strong>密钥交换</strong></td>
+<td style="text-align:left">Curve25519 (ECDH)</td>
+<td style="text-align:left">基于椭圆曲线迪菲-赫尔曼协议，让通信双方能在一个不安全的网络上，安全、高效地计算出一个用于加密的共享密钥。</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>对称加密</strong></td>
+<td style="text-align:left">ChaCha20</td>
+<td style="text-align:left">一种流式加密算法，用于高速地加密和解密流经隧道的数据。它以其在通用CPU上的卓越性能和高安全性而闻名。</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>消息认证</strong></td>
+<td style="text-align:left">Poly1305</td>
+<td style="text-align:left">这是一个消息认证码（MAC）算法。它为每个数据包生成一个简短的“标签”，用于验证数据的完整性和真实性，确保数据在传输过程中没有被篡改。</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>哈希</strong></td>
+<td style="text-align:left">BLAKE2s</td>
+<td style="text-align:left">一个速度极快且高度安全的哈希函数，在协议的多种场景中用于生成数据的“指纹”，例如用于密钥派生和公钥哈希。</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>密钥派生</strong></td>
+<td style="text-align:left">HKDF</td>
+<td style="text-align:left">基于哈希的密钥派生函数。它能从一个初始的密钥材料（如密钥交换的结果）中，安全地派生出多个用于不同目的的、独立的加密密钥。</td>
+</tr>
+</tbody>
+</table>
+<p>这套组合不仅性能卓越，且在设计上就非常适合编写成**“恒定时间（Constant-Time）”**代码（即无论处理什么数据，其运算时间都保持一致），能有效抵抗旁路攻击。更重要的是，它消除了因配置错误或降级攻击导致的安全风险，大大提升了协议的健壮性。</p>
+<blockquote>
+<p>**旁路攻击（Side-Channel Attack）**是一种不直接攻击加密算法数学逻辑的攻击方式，它转而通过分析加密设备在运算时产生的物理“副产品”来窃取信息。</p>
+<p>**时序攻击（Timing Attack）**是旁路攻击中最著名的一种。它的核心思想是：精确测量加密操作所花费的时间。如果代码实现不当，处理不同数据时运算时间出现微小差异，攻击者就可能通过分析这些差异，逐步反推出密钥等敏感信息。</p>
+</blockquote>
+<h2 id="当-wireguard-加入后重塑数据之旅">当 WireGuard 加入后：重塑数据之旅</h2>
+<p>在上一篇文章的结尾，我们描绘了一台设备从开机到访问 <code>www.google.com</code> 的标准流程。现在，让我们将 WireGuard（配置为全局隧道模式，即 <code>AllowedIPs = 0.0.0.0/0</code>）加入这个场景，分析启用 WireGuard 后，数据包的流向会发生何种变化。</p>
+<ol>
+<li>
+<p><strong>基础连接（不变）</strong>：</p>
+<ul>
+<li><strong>路由器就位</strong>：路由器通过 DHCP/PPPoE 从 ISP 获取公网 IP。</li>
+<li><strong>设备入网</strong>：你的电脑通过 DHCP 从路由器获取内网 IP <code>192.168.1.100</code>、子网掩码和默认网关 <code>192.168.1.1</code>。<strong>到此为止，一切都和原来一样。这是建立隧道的基础。</strong></li>
+</ul>
+</li>
+<li>
+<p><strong>隧道建立（新步骤）</strong>：</p>
+<ul>
+<li>你在电脑上启动 WireGuard 客户端。</li>
+<li>客户端根据配置，通过物理网络（Wi-Fi/以太网）向远端 WireGuard 服务器（拥有公网 IP）发起握手，建立起一条加密隧道。</li>
+<li>启动后，<code>wg-quick</code> 脚本会自动修改你电脑的<strong>主路由表</strong>，添加一条优先级极高的规则，内容是：“所有目标地址为 <code>0.0.0.0/0</code>（即任何地址）的流量，都必须经由 <code>wg0</code> 这个虚拟网卡发送。”这是实现流量转发的核心步骤。</li>
+</ul>
+</li>
+<li>
+<p><strong>域名解析（路径改变）</strong>：</p>
+<ul>
+<li>你在浏览器输入 <code>www.google.com</code>。操作系统需要解析域名，于是创建一个 DNS 查询请求。</li>
+<li>操作系统查询路由表，发现这个 DNS 请求（无论发往哪个 DNS 服务器）也匹配 <code>0.0.0.0/0</code> 规则。因此，DNS 请求包被<strong>直接交给 <code>wg0</code> 虚拟网卡</strong>，而不是发往物理网络的默认网关 <code>192.168.1.1</code>。</li>
+<li>WireGuard 进程从 <code>wg0</code> 接口读到这个 DNS 包，将其加密，套上一个 UDP 包的外壳，然后通过<strong>物理网卡</strong>发往 WireGuard 服务器。</li>
+<li>WireGuard 服务器收到后解密，代你向公共 DNS（如 <code>8.8.8.8</code>）查询，并将收到的结果加密后，沿隧道发回给你的电脑。</li>
+</ul>
+</li>
+<li>
+<p><strong>访问公网（二次封装）</strong>：</p>
+<ul>
+<li>浏览器拿到了 Google 的 IP 地址 <code>142.250.199.68</code>，于是构建一个目标为此 IP 的 HTTP 请求包。</li>
+<li><strong>路由决策再次生效</strong>：操作系统查询路由表，<code>142.250.199.68</code> 依然匹配 <code>0.0.0.0/0</code> 规则，于是这个 HTTP 包也被<strong>直接交给了 <code>wg0</code> 虚拟网卡</strong>。</li>
+<li><strong>第一次封装（WireGuard）</strong>：WireGuard 进程读到这个 HTTP 包，用 ChaCha20 对其加密，并封装成一个发往 WireGuard 服务器公网地址的 UDP 包。这个 UDP 包的源 IP 是你的内网 IP <code>192.168.1.100</code>。</li>
+<li><strong>第二次封装（路由器 NAT）</strong>：这个 UDP 包被交给<strong>物理网卡</strong>，发往局域网的默认网关 <code>192.168.1.1</code>。路由器收到这个 UDP 包后，并不知道里面是什么，它只做一件事：执行 <strong>NAT</strong>，将 UDP 包的源 IP 从 <code>192.168.1.100</code> 替换为你的家庭公网 IP，然后将其发送到 WireGuard 服务器。</li>
+<li><strong>出口</strong>：最终，你的请求从 <strong>WireGuard 服务器</strong>那里进入公共互联网，访问 Google。Google 服务器看到的访问来源是你的 WireGuard 服务器的 IP，而不是你的家庭公网 IP。</li>
+</ul>
+</li>
+</ol>
+<p>通过这个流程，WireGuard 借助虚拟网卡和路由表，在操作系统层面 “劫持” 了所有对外流量，将你的设备完全置于一个安全的、加密的虚拟网络中，彻底改变了数据的流向和你在互联网上的“身份”。</p>
+<h2 id="总结">总结</h2>
+<p>WireGuard 以其独特的设计，将复杂的 VPN 技术简化为易于理解和审计的配置。它不仅仅是一个工具，更是学习现代网络原理、密码学应用和内核交互的绝佳范例。</p>
+<p>通过虚拟网卡这一巧妙的“契约”，它在用户空间实现了对内核网络流的完全掌控。而其基于公钥的 CryptoKey 路由机制，则为我们提供了一种前所未有的、兼具安全与简洁的网络构建方式。掌握了它，你就拥有了在复杂的公共互联网之上，灵活地构建属于自己的、安全高速的私人网络的能力。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[计算机网络之三 - DHCP 与内网穿透]]></title>
+        <id>https://blog.rakuyoo.top/computer-network-dhcp-and-intranet-penetration/</id>
+        <link href="https://blog.rakuyoo.top/computer-network-dhcp-and-intranet-penetration/">
+        </link>
+        <updated>2025-08-11T07:38:27.000Z</updated>
+        <summary type="html"><![CDATA[<p>本篇是计算机网络系列的第三篇，主要讲 DHCP 和内网穿透。在探索广阔的外网之前，先把内网相关的内容做个收尾。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>本篇是计算机网络系列的第三篇，主要讲 DHCP 和内网穿透。在探索广阔的外网之前，先把内网相关的内容做个收尾。</p>
+<!-- more -->
+<p>其余几篇的目录：</p>
+<ul>
+<li><a href="https://blog.rakuyoo.top/computer-network-ip-and-port/">计算机网络之一 - IP 与端口</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-url-and-dns/">计算机网络之二 - URL 与 DNS</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-virtual-nic-and-wireguard">计算机网络之四 - 虚拟网卡与 WireGuard</a></li>
+</ul>
+<hr>
+<h2 id="局域网的自动配置dhcp-的世界">局域网的自动配置：DHCP 的世界</h2>
+<p>任何设备要接入网络，首要任务是获取一个有效的网络配置，包括 IP 地址、子网掩码等信息。手动为每台设备配置这些信息不仅效率低下，还极易出错。为此，<strong>DHCP</strong>（动态主机配置协议）应运而生，它实现了网络参数的自动化分配。</p>
+<h3 id="dhcp-的工作流程-dora">DHCP 的工作流程 (DORA)</h3>
+<p><strong>DHCP (Dynamic Host Configuration Protocol)</strong> 是一种基于 UDP 的网络管理协议，其核心工作流程包含四个步骤，通常简称为 <strong>DORA</strong> 过程：</p>
+<ol>
+<li><strong>Discover (发现)</strong>：客户端设备启动并接入网络后，以广播形式发送一个 DHCP Discover 报文，在物理网段内寻找可用的 DHCP 服务器。</li>
+<li><strong>Offer (提供)</strong>：所有收到 Discover 报文的 DHCP 服务器，会从其地址池中选择一个可用的 IP 地址，并连同其他网络配置一起，构建一个 DHCP Offer 报文，发送给客户端。</li>
+<li><strong>Request (请求)</strong>：客户端选择一个 Offer（通常是第一个收到的），然后向网络广播一个 DHCP Request 报文，正式请求使用该地址，并告知所有服务器它的选择。</li>
+<li><strong>Acknowledge (确认)</strong>：被选择的 DHCP 服务器收到 Request 报文后，执行最终的绑定操作，并发送 DHCP Acknowledge 报文给客户端，正式确认配置生效。租约开始计时。</li>
+</ol>
+<h3 id="dhcp-在实践中的角色">DHCP 在实践中的角色</h3>
+<p>理论上，DHCP 服务可以由网络中的任何服务器提供。在绝大多数家庭和小型网络中，<strong>DHCP 服务器功能都集成在路由器内</strong>。这台我们熟悉的设备，其实在扮演着两个截然不同的角色：</p>
+<ul>
+<li><strong>对内（LAN）是 DHCP 服务器</strong>：它管理着一个私网地址池（如 <code>192.168.1.0/24</code>），为所有接入的电脑、手机等设备分配内网 IP 地址和相关配置。</li>
+<li><strong>对外（WAN）是 DHCP 客户端</strong>：那么，路由器自身的公网 IP 又是从何而来的呢？很多情况下，它同样是通过 DHCP 获取的。此时，路由器扮演一个客户端，向您的互联网服务提供商（ISP）的 DHCP 服务器发起请求。ISP 的服务器从其管理的<strong>公网 IP 地址池</strong>中，取出一个地址“租”给您的路由器。</li>
+</ul>
+<p>因此，DHCP 是一个通用的地址分配协议，既被 ISP 用来分配公网 IP，也被路由器用来分配私网 IP。当然，除 DHCP 外，ISP 也常用 PPPoE（需要账户密码拨号）等方式来分配公网 IP。</p>
+<h2 id="dhcp-的核心参数详解与实践">DHCP 的核心：参数详解与实践</h2>
+<p>DHCP 在 Acknowledge 阶段提供的“大礼包”中，包含了以下至关重要的网络参数。理解这些参数的理论和实践，是掌握网络配置的关键。</p>
+<h3 id="ip-地址">IP 地址</h3>
+<p>设备在网络中的唯一数字标识，用于寻址和数据包路由。DHCP 分配的通常是私有 IP 地址，仅在局域网（LAN）内有效。</p>
+<h3 id="子网掩码-subnet-mask">子网掩码 (Subnet Mask)</h3>
+<p>子网掩码是一个 32 位数值，其核心功能是<strong>划分 IP 地址的网络部分和主机部分</strong>，是设备进行路由决策的基础。</p>
+<h4 id="历史背景从有类地址到子网划分">历史背景：从有类地址到子网划分</h4>
+<p>在早期，IP 地址根据其第一个八位字节被划分为 A、B、C 等<strong>有类（Classful）地址</strong>，每个类别有固定的网络位和主机位。这种方式缺乏灵活性，常常导致大量 IP 地址被浪费。</p>
+<p><strong>例如，早期的有类网络划分如下：</strong></p>
+<ul>
+<li><strong>A 类地址</strong> (首位为<code>0</code>，范围 1-126): 默认子网掩码 <code>255.0.0.0</code>。一个 A 类网络可容纳超过 1600 万台主机，若分配给仅需数百地址的组织，是巨大的浪费。</li>
+<li><strong>B 类地址</strong> (首位为<code>10</code>，范围 128-191): 默认子网掩码 <code>255.255.0.0</code>。一个 B 类网络可容纳 65,534 台主机，对很多组织来说依然过大。</li>
+<li><strong>C 类地址</strong> (首位为<code>110</code>，范围 192-223): 默认子网掩码 <code>255.255.255.0</code>。一个 C 类网络仅能容纳 254 台主机，对于需要稍多设备（如 300 台）的组织来说又太小。</li>
+</ul>
+<p>正是为了解决这种“要么太大，要么太小”的僵化问题，子网掩码应运而生，它允许网络管理员根据实际需求，灵活地将大网络划分为多个小<strong>子网 (Subnet)</strong>，极大地提高了 IP 地址的利用率。</p>
+<h4 id="核心原理网络地址与主机地址">核心原理：网络地址与主机地址</h4>
+<p>子网掩码通过<strong>按位与 (bitwise AND) 运算</strong>来提取网络地址。这是设备进行路由决策的根本依据。</p>
+<p><strong>计算网络地址：</strong><br>
+假设 IP 地址为 <code>192.168.1.100</code>，子网掩码为 <code>255.255.255.0</code> (<code>/24</code>)。</p>
+<pre><code>  11000000.10101000.00000001.01100100  (IP: 192.168.1.100)
+&amp; 11111111.11111111.11111111.00000000  (Mask: 255.255.255.0)
+------------------------------------
+  11000000.10101000.00000001.00000000  (Network ID: 192.168.1.0)
+</code></pre>
+<p>运算的核心在于，子网掩码中为 <code>1</code> 的部分会保留 IP 地址的位，为 <code>0</code> 的部分会将 IP 地址的位清零，从而得到纯粹的网络地址。</p>
+<p>那么如何计算主机地址呢？与计算网络地址相对应，我们也可以计算出地址中的主机部分。这需要对子网掩码进行“<strong>按位非</strong>”（NOT）运算（即 <code>1</code> 变 <code>0</code>，<code>0</code> 变 <code>1</code>），得到<strong>反掩码</strong>，然后再与原 IP 地址进行“<strong>按位与</strong>”。</p>
+<ul>
+<li><strong>反掩码</strong>: <code>NOT 255.255.255.0</code> -&gt; <code>0.0.0.255</code></li>
+<li><strong>运算</strong>: <code>192.168.1.100 AND 0.0.0.255</code> -&gt; <code>0.0.0.100</code></li>
+</ul>
+<p>这个 <code>100</code> 就是这台设备在该子网中的主机标识。完整的 IP 地址可以看作是<strong>网络地址 (<code>192.168.1.0</code>) + 主机地址 (<code>0.0.0.100</code>)</strong> 的结果。</p>
+<h4 id="cidr-表示法">CIDR 表示法</h4>
+<p>在现代网络中，使用<strong>无类别域间路由 (CIDR)</strong> 表示法来指定子网掩码更为常见。它在 IP 地址后附加一个斜杠和数字（如 <code>/24</code>），表示子网掩码中前 24 位为 <code>1</code>。</p>
+<h4 id="网络容量与扩容问题">网络容量与扩容问题</h4>
+<p>子网掩码的设定直接决定了网络的容量。例如，<code>/24</code> (255.255.255.0) 的网络，主机位有 8 位，最多支持 <code>2^8 - 2 = 254</code> 台设备。</p>
+<p>当地址池被用尽后，新设备将无法获取 IP 地址。其 DHCP Discover 请求会因服务器无地址可供 Offer 而石沉大海。最终，新设备可能会获取一个 <code>169.254.x.x</code> 的自动专用地址（无法访问互联网），或直接提示 IP 配置失败。</p>
+<p>网络设计有一个核心原则：<strong>稳定性与确定性</strong>。子网掩码作为网络的基础架构定义，其变更属于架构级调整，必须由管理员进行统一规划和手动实施。自动扩容会因无法通知到所有老设备、可能与现有网络规划冲突等原因，造成网络混乱和安全问题，因此在设计上是不被允许的。</p>
+<h3 id="默认网关-default-gateway">默认网关 (Default Gateway)</h3>
+<p>默认网关是局域网连接到其他网络的“出口”，物理上通常是路由器的内网接口 IP。其核心作用是<strong>路由转发</strong>。</p>
+<h4 id="数据包的旅程一个完整的故事">数据包的旅程：一个完整的故事</h4>
+<p>为了理解默认网关的真正作用，我们来完整地追踪一个数据包从内网主机 A 到外网服务器 B 的旅程。</p>
+<p><strong>主角</strong>:</p>
+<ul>
+<li><strong>主机 A</strong>: 你的电脑，IP 地址 <code>192.168.1.100</code>。</li>
+<li><strong>默认网关</strong>: 你的路由器，IP 地址 <code>192.168.1.1</code>。</li>
+<li><strong>服务器 B</strong>: 远端网站服务器，IP 地址 <code>8.8.8.8</code>。</li>
+</ul>
+<p><strong>第一步：主机 A 的“思考”—— 我该把信交给谁？</strong></p>
+<p>主机 A 想要发送数据给 <code>8.8.8.8</code>。它首先要解决一个问题：“这个目标是在我的局域网内，还是在互联网上？”</p>
+<p>它通过自己的<strong>子网掩码</strong> (<code>255.255.255.0</code>) 进行计算，发现 <code>8.8.8.8</code> 并不和自己在同一个网络（<code>192.168.1.0</code>）内。于是，主机 A 得出结论：不能直接把数据发送给目标，必须先把数据交给<strong>默认网关</strong>，让它负责转发。</p>
+<p><strong>第二步：主机 A 的“打包”—— 准备好信封和快递盒</strong></p>
+<p>现在主机 A 知道，逻辑上要把数据发给网关 <code>192.168.1.1</code>。但在局域网这个物理世界里，数据传输依靠的是硬件的物理地址（MAC 地址）。</p>
+<ol>
+<li>
+<p><strong>寻找物理地址 (ARP)</strong>: 如果主机 A 不知道网关的 MAC 地址，它会先通过 <strong>ARP (地址解析协议)</strong> 在局域网里广播：“请问谁的 IP 是 <code>192.168.1.1</code>？请把你的 MAC 地址告诉我。” 路由器会回应：“是我的，我的 MAC 地址是 <code>AA:BB:CC:DD:EE:FF</code>。”</p>
+</li>
+<li>
+<p><strong>进行双层封装</strong>: 主机 A 现在开始打包数据。这是一个精妙的双层结构：</p>
+<ul>
+<li><strong>内层信封 (IP 数据包)</strong>: 这里写的是<strong>最终目标</strong>。
+<ul>
+<li><code>收件人 IP</code>: <code>8.8.8.8</code></li>
+<li><code>发件人 IP</code>: <code>192.168.1.100</code></li>
+</ul>
+</li>
+<li><strong>外层快递盒 (以太网帧)</strong>: 这里写的是<strong>下一跳目标</strong>。
+<ul>
+<li><code>收件人 MAC</code>: <code>AA:BB:CC:DD:EE:FF</code> (网关的 MAC 地址)</li>
+<li><code>发件人 MAC</code>: 主机 A 自己的 MAC 地址</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<p><strong>第三步：网关的“转发”—— 拆开快递盒，送出信封</strong></p>
+<p>主机 A 将这个“快递盒”发送到局域网上。网络中的所有设备都会看到它，但只有 MAC 地址为 <code>AA:BB:CC:DD:EE:FF</code> 的路由器会接收并拆开它。</p>
+<ol>
+<li>路由器拆开“外层快递盒”（以太网帧）。</li>
+<li>它看到里面的“内层信封”（IP 数据包），发现收件人是 <code>8.8.8.8</code>，不是自己。</li>
+<li>于是，路由器执行它的核心功能：<strong>路由</strong>。它会查询自己的路由表，找到通往 <code>8.8.8.8</code> 的最佳路径（比如指向 ISP 的下一个路由器）。</li>
+<li>最后，它将这个<strong>原始的 IP 数据包</strong>（里面的 IP 地址不变）拿出来，套上一个<strong>新的快递盒</strong>（新的以太网帧，目标 MAC 地址是下一个路由器的 MAC 地址），然后发往互联网。</li>
+</ol>
+<p>这个“拆包-查路-重新打包”的过程会在每一跳的路由器上重复，直到数据包最终抵达服务器 B。</p>
+<h3 id="dns-服务器地址">DNS 服务器地址</h3>
+<p>DHCP 同样会分配 DNS 服务器的地址，使设备能将域名解析为 IP 地址。</p>
+<h4 id="dns-的分配模式直接下发与代理转发">DNS 的分配模式：直接下发与代理转发</h4>
+<p>在实践中，路由器上的 DHCP 服务分配 DNS 时，通常有两种模式：</p>
+<ul>
+<li><strong>直接下发 (Passthrough)</strong>：路由器将从 ISP 获取到的上游 DNS 地址（如 <code>8.8.8.8</code>）直接分配给内网设备。</li>
+<li><strong>代理转发 (Proxy/Forwarder)</strong>：路由器将<strong>自身 IP</strong> (<code>192.168.1.1</code>) 作为 DNS 服务器分配给内网设备。设备向路由器查询，路由器再向上游 DNS 查询，并可缓存结果以加速后续访问。</li>
+</ul>
+<h2 id="跨越网关内网穿透技术">跨越网关：内网穿透技术</h2>
+<p>现在，我们的设备已通过 DHCP 在局域网中完美运行。但如果我们想从公司、酒店或任何外部网络，访问这台内网中的设备（如 NAS、Web 服务器），就会遇到 NAT 的阻碍。<strong>内网穿透</strong>就是解决这个问题的技术集合。</p>
+<h3 id="端口映射-port-forwarding">端口映射 (Port Forwarding)</h3>
+<p>这是最基础和常用的穿透方式。它在路由器上创建一条静态转发规则，将 <code>路由器公网IP:外部端口</code> 收到的访问请求，转发到 <code>内网指定设备IP:内部端口</code>。</p>
+<h4 id="与-dhcp-的关键结合点静态-ip-分配">与 DHCP 的关键结合点：静态 IP 分配</h4>
+<p>端口映射的规则是写死的，它需要内网设备的 IP 地址<strong>永远不变</strong>。但 DHCP 默认分配的 IP 地址是有租期的，可能会变化。</p>
+<blockquote>
+<p>对于大多数家庭用户来说，公网 IP 本身也是动态变化的，这为端口映射带来了另一个挑战，也是后续 VPN 和第三方服务方案的优势之一</p>
+</blockquote>
+<p><strong>解决方案</strong>就是使用路由器的 <strong>DHCP 静态地址分配 (Static DHCP Lease)</strong> 功能，通过 MAC 地址绑定，确保特定设备永远获得同一个 IP 地址。这是实现可靠内网穿透的重要前提。</p>
+<h3 id="upnp-通用即插即用">UPnP (通用即插即用)</h3>
+<p>UPnP (Universal Plug and Play) 是一种更为便捷的穿透技术，它的目标是实现“零配置”的网络连接。</p>
+<h4 id="upnp-是什么">UPnP 是什么？</h4>
+<p>它是一系列协议的组合，允许局域网中的设备（如电脑、游戏机、打印机、摄像头）彼此自动发现，并动态地建立网络服务。在内网穿透的场景下，我们主要利用的是它的 <strong>IGD (Internet Gateway Device) 协议</strong>。</p>
+<h4 id="它是如何工作的">它是如何工作的？</h4>
+<p>UPnP IGD 可以看作是<strong>自动化的端口映射</strong>。其工作流程如下：</p>
+<ol>
+<li>内网中一个支持 UPnP 的应用程序（如游戏、下载软件）启动后，会先在局域网中寻找支持 UPnP IGD 的网关设备（即你的路由器）。</li>
+<li>找到路由器后，应用程序会向路由器发送一个请求，例如：“你好，我是 <code>192.168.1.101</code>，请帮我把你的公网 <code>XXXX</code> 端口，映射到我自己的 <code>YYYY</code> 端口上。”</li>
+<li>路由器接收到这个请求后，如果开启了 UPnP 功能，就会自动在自己的 NAT 表中添加这条端口映射规则，无需任何人工干预。</li>
+<li>应用程序还可以通过 UPnP 查询路由器当前的公网 IP，以及检查映射是否成功。</li>
+</ol>
+<h4 id="便利性与风险">便利性与风险</h4>
+<ul>
+<li><strong>优点</strong>：极其方便，用户完全无感，应用程序可以自行完成所有穿透配置，大大提升了联机游戏、P2P 下载等应用的体验。</li>
+<li><strong>缺点</strong>：存在安全风险。由于该过程是自动的，局域网中的任何程序（包括恶意软件）都有可能利用 UPnP 在你不知情的情况下打开路由器的端口，将内部服务暴露于公网，从而带来安全隐患。因此，很多对安全性要求较高的用户会选择手动关闭路由器的 UPnP 功能。</li>
+</ul>
+<h3 id="基于隧道的解决方案代理与-vpn">基于隧道的解决方案：代理与 VPN</h3>
+<p>当手动配置端口映射不便或不可行时（例如，你没有路由器的管理权限，或者你的 ISP 不提供公网 IP），基于隧道技术的穿透方案便成为了主流选择。它们的本质都是在内网设备与一台公网服务器之间，建立一条稳定、加密的“隧道”，所有流量都通过这个隧道进行转发。</p>
+<h4 id="反向代理隧道-frp-ngrok">反向代理隧道 (frp, Ngrok)</h4>
+<p>这类工具的核心思想是<strong>暴露单个服务</strong>。</p>
+<ul>
+<li>
+<p><strong>原理</strong>：你在内网的机器上运行一个客户端，主动连接到一台你部署在公网的 frp 服务端或 Ngrok 的公共服务器。连接成功后，服务端会提供一个公网地址（域名或 IP）和端口，并将所有访问这个公网地址的请求，通过已经建立好的隧道，原封不动地转发给内网的客户端，客户端再将请求发给本地的 Web 服务或 SSH 服务。</p>
+</li>
+<li>
+<p><strong>适用场景</strong>：非常适合临时或长期地将某个特定的 Web 服务、API 或远程桌面分享出去。</p>
+</li>
+</ul>
+<h4 id="vpn-与-wireguard">VPN 与 WireGuard</h4>
+<p>VPN 的目标则更为宏大，它致力于<strong>构建一个安全的虚拟局域网</strong>，将你的所有设备都“拉”进这个虚拟网络中，让它们如同真的在同一个房间里一样可以互相通信。<strong>WireGuard</strong> 是实现这一目标的现代化、高性能的 VPN 协议。</p>
+<blockquote>
+<p>未来我们将更加详细地介绍 WireGuard，此处先简单介绍一下。</p>
+</blockquote>
+<ul>
+<li><strong>原理</strong>：与 frp 类似，你也需要一台拥有公网 IP 的服务器作为所有设备的“汇集点”。所有设备（家里的 NAS、公司的电脑、你的手机）都作为客户端，通过加密隧道连接到这台服务器。成功后，每个设备都会被分配一个全新的、虚拟的 IP 地址（例如 <code>10.0.0.x</code>）。</li>
+<li><strong>区别与优势</strong>：
+<ul>
+<li><strong>全网络访问</strong>：一旦连上 WireGuard VPN，你访问的就不再是单个服务，而是<strong>整台设备</strong>。你可以通过 <code>10.0.0.x</code> 这个虚拟 IP，访问到设备上的任何端口和服务（Web、SSH、文件共享等），就像在本地访问一样。</li>
+<li><strong>极高的安全性</strong>：你只需要在公网服务器上开放<strong>一个 UDP 端口</strong>给 WireGuard 使用，就能访问内网设备的所有服务，极大地减小了公网暴露面。</li>
+<li><strong>性能卓越与配置简单</strong>：WireGuard 以其高性能、低延迟和简洁的配置著称，非常适合个人和团队自建使用。</li>
+</ul>
+</li>
+</ul>
+<p>总的来说，如果你只想快速分享一个应用，frp/Ngrok 这类反向代理隧道更轻便；如果你希望安全、全面地远程管理和访问你的整个内网环境，构建一个 WireGuard VPN 是目前最优的实践之一。</p>
+<h2 id="总结">总结</h2>
+<p>至此，我们完成了计算机网络系列中关于内网部分的探索。现在，让我们将三篇文章的知识点串联起来，回顾一台设备从开机到成功访问 <code>www.google.com</code> 的完整流程：</p>
+<ol>
+<li>
+<p><strong>路由器就位</strong>：路由器开机后，首先作为客户端，通过 <strong>DHCP</strong> 或 <strong>PPPoE</strong> 从互联网服务提供商（ISP）处获取到<strong>公网 IP</strong> 和上游 <strong>DNS 服务器地址</strong>。</p>
+</li>
+<li>
+<p><strong>设备入网</strong>：你的电脑开机并连接 Wi-Fi，它会立即发送 <strong>DHCP Discover</strong> 广播。路由器作为 DHCP 服务器响应，为你分配一个<strong>内网 IP</strong>（如 <code>192.168.1.100</code>）、<strong>子网掩码</strong>和<strong>默认网关</strong>（通常是路由器自身地址 <code>192.168.1.1</code>）。</p>
+</li>
+<li>
+<p><strong>域名解析</strong>：你在浏览器输入 <code>www.google.com</code>。操作系统会向路由器（或上游 DNS）发起 <strong>DNS 查询</strong>，通过层层解析，最终将域名翻译成服务器的公网 IP 地址，例如 <code>142.250.199.68</code>。</p>
+</li>
+<li>
+<p><strong>访问公网</strong>：</p>
+<ul>
+<li>电脑通过<strong>子网掩码</strong>计算，发现目标 IP <code>142.250.199.68</code> 并不在本地局域网。</li>
+<li>它将数据包的目标 IP 设为 <code>142.250.199.68</code>，但数据链路层的目标 MAC 地址则设为<strong>默认网关</strong>（路由器）的 MAC 地址。</li>
+<li>数据包被发往路由器，路由器执行 <strong>NAT</strong>，将数据包的源 IP 从你的内网 IP 替换为家庭的公网 IP，然后发往互联网。</li>
+</ul>
+</li>
+</ol>
+<p>通过这一系列的流程，你的请求才得以顺利抵达远方的服务器。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[mise: 统一且高效的开发环境管理工具]]></title>
+        <id>https://blog.rakuyoo.top/mise/</id>
+        <link href="https://blog.rakuyoo.top/mise/">
+        </link>
+        <updated>2025-08-07T09:46:17.000Z</updated>
+        <summary type="html"><![CDATA[<p><code>mise</code> 是一款高性能的开发工具管理器，旨在通过单一工具和单一配置文件，实现对所有开发环境的统一管理。它能有效解决多项目开发中环境配置的复杂性，提升开发效率。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p><code>mise</code> 是一款高性能的开发工具管理器，旨在通过单一工具和单一配置文件，实现对所有开发环境的统一管理。它能有效解决多项目开发中环境配置的复杂性，提升开发效率。</p>
+<!-- more -->
+<h2 id="现代开发环境的挑战">现代开发环境的挑战</h2>
+<p>在软件开发中，我们频繁地在不同项目间切换，每个项目都可能依赖特定的技术栈与工具链。这导致项目根目录下散落着各种版本配置文件：<code>.nvmrc</code>、<code>.node-version</code>、<code>.python-version</code>、<code>Gemfile</code>、<code>go.mod</code> 等等。同时，还需要 <code>.env</code> 文件来管理环境变量。</p>
+<p>每次进入一个新项目，开发者都面临一系列重复性操作：</p>
+<ul>
+<li>当前的 Node.js 版本是否符合项目要求？需要手动执行 <code>nvm use</code> 吗？</li>
+<li>Python 的虚拟环境激活了吗？</li>
+<li>如何保证团队成员使用完全一致的工具版本，以避免“在我机器上没问题”的窘境？</li>
+</ul>
+<p>这些琐碎的环境管理任务分散了我们的注意力，降低了开发效率。为了应对这一挑战，<a href="https://github.com/jdx/mise">mise</a> 应运而生。它是一个基于 Rust 构建的高性能开发工具管理器，致力于通过单一工具和单一配置文件，实现对所有开发环境的统一、自动管理。</p>
+<p><strong>mise 的核心优势:</strong></p>
+<ul>
+<li><strong>单一配置文件</strong>: 仅需一个 <code>.mise.toml</code> 文件，即可声明项目所需的所有工具（Node, Python, Go...）及其版本、环境变量和项目脚本。</li>
+<li><strong>高性能</strong>: 基于 Rust 构建，<code>mise</code> 的运行速度极快，对 Shell 启动和目录切换（<code>cd</code>）的性能影响微乎其微。</li>
+<li><strong>功能全面</strong>: <code>mise</code> 不仅是版本管理器，还集成了环境变量管理和任务运行器，一个工具覆盖开发中的多个核心环节。</li>
+<li><strong>无缝兼容</strong>: <code>mise</code> 能自动识别并使用项目中已有的 <code>.nvmrc</code>, <code>.python-version</code> 等传统配置文件，允许团队平滑过渡。</li>
+</ul>
+<h2 id="安装与激活">安装与激活</h2>
+<p>体验 <code>mise</code> 的强大功能，只需简单的两步。</p>
+<h3 id="安装-mise">安装 mise</h3>
+<p>在终端中执行以下命令完成安装：</p>
+<pre><code class="language-bash">curl https://mise.run | sh
+</code></pre>
+<p>该命令会将 <code>mise</code> 安装到 <code>~/.local/bin/mise</code>。</p>
+<h3 id="激活-mise-关键步骤">激活 mise (关键步骤)</h3>
+<p>为了让 <code>mise</code> 能够自动管理你的环境，需要将其挂载（Hook）到你的 Shell 中。<strong>此步骤至关重要，否则 <code>mise</code> 将无法在目录切换时自动切换环境。</strong></p>
+<p>根据你使用的 Shell，选择对应的命令执行，它会将激活脚本添加到你的 Shell 配置文件中：</p>
+<ul>
+<li>
+<p><strong>Bash:</strong></p>
+<pre><code class="language-bash">echo 'eval &quot;$(~/.local/bin/mise activate bash)&quot;' &gt;&gt; ~/.bashrc
+</code></pre>
+</li>
+<li>
+<p><strong>Zsh:</strong> (macOS 默认)</p>
+<pre><code class="language-bash">echo 'eval &quot;$(~/.local/bin/mise activate zsh)&quot;' &gt;&gt; ~/.zshrc
+</code></pre>
+</li>
+<li>
+<p><strong>Fish:</strong></p>
+<pre><code class="language-fish">~/.local/bin/mise activate fish | source
+</code></pre>
+</li>
+</ul>
+<p>完成后，<strong>必须重启终端</strong>以使配置生效。你可以运行 <code>mise doctor</code> 命令来验证 <code>mise</code> 是否已正确安装和激活。</p>
+<h2 id="核心配置misetoml-文件详解">核心配置：<code>.mise.toml</code> 文件详解</h2>
+<p><code>mise</code> 的设计围绕“一次配置，自动运行”的理念，其核心就是 <code>.mise.toml</code> 文件。让我们通过一个全栈 Web 应用的场景，来了解其构成和工作方式。</p>
+<p>假设项目技术栈包含：</p>
+<ul>
+<li><strong>前端</strong>: Node.js 和 <code>pnpm</code> 包管理器。</li>
+<li><strong>后端</strong>: Python 和 FastAPI 框架。</li>
+<li><strong>环境变量</strong>: 数据库连接信息。</li>
+<li><strong>项目脚本</strong>: 用于代码检查和测试。</li>
+</ul>
+<p>在项目根目录创建 <code>.mise.toml</code> 文件，将所有配置统一管理：</p>
+<pre><code class="language-toml"># .mise.toml - 项目环境的唯一声明
+
+# [settings] - 配置 mise 的行为
+[settings]
+# 确保为 Python 自动创建和使用虚拟环境
+python_venv_auto_create = true
+
+# [env] - 管理环境变量，替代 .env 文件
+# 进入目录后，这里的变量会自动加载，离开目录则会自动卸载。
+[env]
+DATABASE_URL = &quot;postgres://user:password@localhost:5432/mydb&quot;
+NODE_ENV = &quot;development&quot;
+
+# [tools] - 声明项目所需的全部工具和版本
+# mise 负责管理这些“工具”本身的版本
+[tools]
+# 可以指定精确版本，或使用 &quot;lts&quot;, &quot;latest&quot;, &quot;~20&quot; 等模糊版本
+node = &quot;20.11.0&quot;
+pnpm = &quot;8.15.0&quot;
+python = &quot;3.11&quot;
+
+# 将 ruff 和 pytest 作为开发工具依赖项
+# mise 会使用 pip 在项目虚拟环境中安装它们
+python-ruff = &quot;*&quot; # 代码格式化与检查工具
+python-pytest = &quot;*&quot; # 测试框架
+
+# [tasks] - 定义项目脚本，替代 package.json scripts 或 Makefile
+[tasks]
+# 定义 lint 任务, 它依赖 ruff
+lint = { cmd = &quot;ruff check .&quot;, description = &quot;用 Ruff 检查代码风格&quot;, depends = [&quot;python-ruff&quot;] }
+
+# 定义 test 任务，并声明它依赖于 pytest
+test = { cmd = &quot;pytest&quot;, description = &quot;运行测试&quot;, depends = [&quot;python-pytest&quot;] }
+
+# 定义复合任务
+check = { depends = [&quot;lint&quot;, &quot;test&quot;], description = &quot;运行所有检查&quot; }
+</code></pre>
+<h3 id="日常工作流">日常工作流</h3>
+<p>当团队新成员克隆此项目后，只需在项目根目录运行一条命令：</p>
+<pre><code class="language-bash">mise install
+</code></pre>
+<p><code>mise</code> 会自动读取 <code>.mise.toml</code> 并完成以下工作：</p>
+<ol>
+<li>下载并安装 <code>node@20.11.0</code>, <code>pnpm@8.15.0</code> 和 <code>python@3.11</code>。</li>
+<li>根据 <code>[settings]</code> 的配置，为 Python 创建一个项目独有的虚拟环境。</li>
+<li>在虚拟环境中安装 <code>ruff</code> 和 <code>pytest</code>。</li>
+</ol>
+<p>安装完成后，每当 <code>cd</code> <strong>进入</strong>该目录，<code>mise</code> 会立即在后台：</p>
+<ul>
+<li>将 <code>node</code>, <code>python</code>, <code>pnpm</code> 等命令的路径指向 <code>.mise.toml</code> 中指定的版本。</li>
+<li>加载 <code>[env]</code> 中定义的所有环境变量。</li>
+<li>自动激活 Python 的虚拟环境。</li>
+</ul>
+<p>当你 <code>cd</code> <strong>离开</strong>该目录时，所有上述环境配置都会被自动卸载，恢复到之前的状态。</p>
+<p>运行在 <code>[tasks]</code> 中定义的脚本也同样简单：</p>
+<pre><code class="language-bash">mise run lint
+mise run test
+mise run check # 该命令会依次执行 lint 和 test
+# 也可以使用简写: mise x check
+</code></pre>
+<p><code>mise</code> 会确保在执行脚本前，其 <code>depends</code> 中声明的工具都已安装并处于激活状态，从根本上解决了“脚本依赖的工具未安装或版本不正确”的问题。</p>
+<h2 id="核心功能详解">核心功能详解</h2>
+<p>掌握了基本用法后，让我们深入探索 <code>mise</code> 最核心的功能，它们是构建统一开发环境的基石。</p>
+<h3 id="全能的版本管理">全能的版本管理</h3>
+<p><code>mise</code> 能够管理几乎所有开发工具，其秘诀在于它完全兼容 <a href="https://asdf-vm.com/">asdf</a> 的插件生态系统，拥有一个包含数百个插件的<a href="https://github.com/asdf-vm/asdf-plugins">官方仓库</a>。</p>
+<ul>
+<li><strong>智能插件安装</strong>：当你在 <code>.mise.toml</code> 中首次声明一个新工具（例如 <code>go = &quot;1.21&quot;</code>）时，<code>mise</code> 会自动提示是否安装对应的 <code>go</code> 插件。</li>
+<li><strong>手动管理插件</strong>：你也可以手动搜索和安装插件：<pre><code class="language-bash"># 搜索所有可用的 terraform 插件
+mise plugins ls-remote terraform
+
+# 安装指定的插件
+mise plugins install terraform
+</code></pre>
+</li>
+</ul>
+<p><strong>插件的工作机制：中心库与自定义插件</strong></p>
+<p>你可能会好奇，为什么在 <code>.mise.toml</code> 中只需简单地写入 <code>go = &quot;1.22&quot;</code>，<code>mise</code> 就知道如何去安装 Go？这背后是 <code>mise</code> 强大的插件机制在起作用。</p>
+<p>实际上，<code>go</code>、<code>python</code>、<code>terraform</code> 这些看似内置的工具名称，都是<strong>插件的简称 (Shorthand)</strong>。<code>mise</code> 默认依赖一个庞大的<strong>插件中心库</strong>（即 <code>asdf</code> 的官方插件库）。当你使用这些简称时，<code>mise</code> 会自动在中心库中查找同名插件并使用它来安装和管理工具。这就是为什么大多数常见工具都能开箱即用的原因。</p>
+<p>然而，<code>mise</code> 的能力远不止于此。当中心库无法满足你的需求时（例如，你需要使用一个未被收录的、公司内部的或第三方的工具），你可以通过<strong>直接提供 Git URL</strong> 的方式来使用任何自定义插件。</p>
+<p>这极大地扩展了 <code>mise</code> 的边界，使其能够管理任何可通过 Git 仓库获取的工具。你只需在 <code>.mise.toml</code> 中按以下格式声明即可：</p>
+<pre><code class="language-toml"># .mise.toml
+[tools]
+# ... 其他工具
+
+# 通过 URL 使用一个自定义插件
+# mise 会克隆这个 Git 仓库，并将其作为一个插件来使用
+my-internal-cli = { git = &quot;https://github.com/my-company/mise-internal-cli.git&quot;, version = &quot;1.2.3&quot; }
+</code></pre>
+<p>或者，你也可以在命令行中一次性使用：</p>
+<pre><code class="language-bash">mise use my-internal-cli@https://github.com/my-company/mise-internal-cli.git
+</code></pre>
+<p>通过这种机制，<code>mise</code> 确保了开发者既能方便地使用社区维护的主流工具，也拥有了接入任何自定义工具的强大扩展能力。如果你有更进一步的定制化需求，甚至可以遵循 <code>asdf</code> 的插件规范，自行开发插件并托管在自己的 Git 仓库中，从而将任何工具无缝整合到 <code>mise</code> 的管理体系下。</p>
+<p><strong>需要明确的是 <code>mise</code> 与 <code>pnpm</code>/<code>pip</code> 的职责划分：</strong></p>
+<ul>
+<li><strong><code>mise</code> 管理“工具”</strong>：它确保开发环境中有正确版本的 <code>node</code>, <code>pnpm</code>, <code>python</code> 等<strong>可执行程序</strong>。</li>
+<li><strong><code>pnpm</code>/<code>pip</code> 管理“库”</strong>：它们依据 <code>package.json</code> 或 <code>requirements.txt</code> 文件，管理项目代码所依赖的<strong>第三方库</strong>（如 <code>react</code>, <code>fastapi</code>）。</li>
+</ul>
+<p>简而言之，<code>mise</code> 负责解决“我们用哪个版本的 pnpm”，而 <code>pnpm</code> 负责解决“我们用哪个版本的 react”。两者相辅相成。</p>
+<h3 id="灵活的版本控制-mise-use">灵活的版本控制 (<code>mise use</code>)</h3>
+<p><code>mise</code> 提供了对项目级、全局和临时（Shell 级）工具版本的多层次管理能力，这是它相比 <code>Homebrew</code> 等系统级包管理器的显著优势。<code>Homebrew</code> 通常在系统中全局安装唯一版本的工具，而 <code>mise</code> 可以轻松应对多版本并存的场景。</p>
+<p><code>mise use</code> 是一个用于在不同层级设置工具版本的灵活命令：</p>
+<ol>
+<li>
+<p><strong>设置全局默认版本</strong>：<br>
+该命令会修改全局配置文件 <code>~/.config/mise/config.toml</code>。</p>
+<pre><code class="language-bash"># 此后，在任何没有项目级配置的目录中，node 版本都将是 20.x 的最新版
+mise use --global node@20
+</code></pre>
+</li>
+<li>
+<p><strong>在项目中设置本地版本</strong>：<br>
+在项目目录下运行此命令，<code>mise</code> 会自动更新当前目录的 <code>.mise.toml</code> 文件。</p>
+<pre><code class="language-bash"># 该命令会自动在 ./.mise.toml 的 [tools] 中添加或修改 go = &quot;1.22&quot;
+mise use go@1.22
+</code></pre>
+</li>
+<li>
+<p><strong>在当前 Shell 中临时使用特定版本</strong>：<br>
+此功能非常适合快速测试，它不会修改任何配置文件。</p>
+<pre><code class="language-bash"># 仅在当前终端会话中，将 node 版本切换到 18.x
+# 新打开的终端将不受影响
+mise use node@18
+</code></pre>
+</li>
+<li>
+<p><strong>直接从包管理器安装工具</strong>：<br>
+<code>mise</code> 还能直接从 npm, pipx, cargo 等包管理器安装并管理全局可执行文件，极大地简化了 CLI 工具的管理。</p>
+<pre><code class="language-bash"># 使用 npm 安装 Gemini CLI 并使其全局可用
+mise use --global npm:@google/gemini-cli@latest
+</code></pre>
+<p><code>mise</code> 会处理好 <code>PATH</code>，让你可以在任何地方直接调用 <code>gemini</code> 命令。</p>
+</li>
+</ol>
+<h2 id="平滑迁移策略">平滑迁移策略</h2>
+<p><code>mise</code> 在设计上考虑了与现有生态的兼容性，它会自动读取项目中的 <code>.python-version</code>, <code>.nvmrc</code>, <code>.ruby-version</code> 等文件。这意味着你可以立即在现有项目中使用 <code>mise</code>，而无需进行任何破坏性改动。</p>
+<p>推荐的迁移路径如下：</p>
+<ol>
+<li><strong>安装并激活 <code>mise</code></strong>。</li>
+<li><strong>验证</strong>：进入现有项目目录，执行 <code>node -v</code> 或 <code>python -V</code>，确认 <code>mise</code> 已正确读取旧配置文件并切换到相应版本。</li>
+<li><strong>统一配置</strong>：在确认 <code>mise</code> 工作正常后，将 <code>.nvmrc</code>, <code>.python-version</code> 等文件的内容迁移到统一的 <code>.mise.toml</code> 文件中，然后删除旧的配置文件。</li>
+<li><strong>清理旧工具</strong>：当所有项目都迁移完毕后，可以安全地从 <code>.zshrc</code> 或 <code>.bashrc</code> 中移除 <code>pyenv init</code>, <code>nvm.sh</code> 等旧工具的加载命令，并最终卸载它们。</li>
+</ol>
+<h2 id="实用技巧与问题排查">实用技巧与问题排查</h2>
+<ol>
+<li><strong>Shell Hook 未配置</strong>：最常见的问题。如果 <code>cd</code> 进入项目后工具版本没有自动切换，99% 的可能是 Shell 激活步骤未正确完成。请运行 <code>mise doctor</code> 进行诊断。</li>
+<li><strong>与 asdf 的命令差异</strong>：<code>mise</code> 的命令与 <code>asdf</code> 不完全相同。例如，设置全局版本是 <code>mise use --global node@20</code>，而非 <code>asdf global nodejs 20.0.0</code>。</li>
+<li><strong>曾用名 rtx</strong>：<code>mise</code> 的前身是 <code>rtx</code>。如果搜索问题时找不到相关信息，可以尝试使用 <code>rtx</code> 作为关键字。</li>
+<li><strong>使用 <code>mise which</code></strong>：当你需要确认当前命令的来源时，<code>mise which node</code> 可以清晰地显示 <code>node</code> 命令的实际路径以及它是由哪个配置文件所设定的。</li>
+<li><strong>使用 <code>mise exec</code></strong>：如果你想在特定项目的环境中执行单个命令，而无需 <code>cd</code> 到该目录，<code>mise exec</code> 非常有用。<pre><code class="language-bash"># 假设 ./my-project/ 中配置使用 node@18
+# 你可以在任何位置运行此命令，它会使用 my-project 的环境来执行
+mise exec --cwd ./my-project -- node --version
+# 输出: v18.x.x
+</code></pre>
+</li>
+</ol>
+<h2 id="总结">总结</h2>
+<p><code>mise</code> 提供了一个统一、高效、高性能的开发环境解决方案。它通过单一配置文件，优雅地解决了在现代软件开发中普遍存在的版本管理、环境配置和任务执行等一系列挑战。如果你希望从繁杂的配置工作中解放出来，专注于核心的开发任务，<code>mise</code> 是一个值得投入时间尝试的工具。</p>
+<h2 id="写在最后">写在最后</h2>
+<p>明眼人或许一眼就能看出，这篇文章是由 AI 撰写，其风格与我以往的文章有所不同。</p>
+<p>起初，当我动笔写下引言时，一个疑问忽然浮现在脑海：“在 AI 时代，<code>mise</code> 这类工具是否还有其存在的意义？” 这不禁让我想起，有人认为在 AI 时代，跨平台移动开发框架已无必要（暂且不提他们对跨平台框架的固有抵触），因为 AI 能迅速生成两端原生代码，使得跨平台框架所节省的时间成本变得微乎其微，甚至可能因兼容性问题带来更高的调试成本。同理，<code>mise</code> 也可以被抽象地理解为一种“跨平台框架”。</p>
+<p>于是，我决定让 AI 来完成这篇文章，并由它来回答这个核心问题。AI 给出了这样的回应：</p>
+<blockquote>
+<p>我认为，即使在 AI 时代，<code>mise</code> 这样的工具依然有其不可替代的意义，但这意义的侧重点会发生变化：</p>
+<ol>
+<li>
+<p><strong>从“人工处理的便利性”转向“系统级的可维护性与一致性”</strong>：</p>
+<ul>
+<li><strong>AI 的局限性</strong>： 尽管 AI 能够快速生成和处理文件，但它本质上是一个“工具”。它生成的内容最终还是要被执行、被维护、被理解。当环境配置分散在多个文件中时，即使是 AI，也需要花费额外的“计算资源”去解析、协调和验证这些文件之间的关系和潜在冲突。</li>
+<li><strong>统一配置的优势</strong>： <code>mise</code> 提供了一个<strong>声明式、单一的真相来源 (Single Source of Truth)</strong>。这意味着：
+<ul>
+<li><strong>减少错误面</strong>： 多个配置文件意味着更多的潜在冲突点、版本不一致的风险。即使 AI 生成，也可能因为逻辑复杂性或历史遗留问题导致生成不完全一致的配置。一个统一的 <code>.mise.toml</code> 从根本上减少了这种错误的可能性。</li>
+<li><strong>简化调试</strong>： 当环境出现问题时，无论是人类开发者还是 AI 辅助的诊断系统，都只需要检查一个文件，而不是在多个文件中来回跳跃，这极大地简化了问题排查的流程。</li>
+<li><strong>提升可审计性</strong>： 所有的环境定义都在一个地方，这使得环境的变更、历史版本追溯变得异常清晰。这对于团队协作、CI/CD 流程以及安全审计都至关重要。</li>
+<li><strong>AI 自身的效率</strong>： 即使是 AI，处理一个结构清晰、统一的配置文件，也比处理多个分散、格式可能不一的文件更高效、更不容易出错。这就像给 AI 提供一份清晰的蓝图，而不是一堆散落的零件图。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong><code>mise</code> 不仅仅是配置定义，更是“环境执行器”和“标准化强制者”</strong>：</p>
+<ul>
+<li><code>mise</code> 的价值不仅在于它能替代 <code>.nvmrc</code> 或 <code>Gemfile</code>，更在于它能自动执行这些配置，确保环境的自动切换和隔离。AI 可以生成配置，但它无法直接在你的 Shell 中自动切换 Node.js 版本，也无法自动激活 Python 虚拟环境。这是 <code>mise</code> 作为底层工具链管理器的核心功能。</li>
+<li>它强制了团队内部的环境标准化。AI 可以生成符合标准的配置，但 <code>mise</code> 确保了这些标准在每个开发者的机器上都被严格执行。</li>
+</ul>
+</li>
+<li>
+<p><strong>人类仍然是最终的决策者和监督者</strong>：</p>
+<ul>
+<li>即使在 AI 辅助的开发流程中，人类开发者仍然需要理解项目、审查 AI 生成的代码和配置、并对最终的系统负责。一个统一、简洁的环境配置，降低了人类理解和介入的门槛，使得人与 AI 的协作更加顺畅。</li>
+</ul>
+</li>
+</ol>
+<p>结论：</p>
+<p>在 AI 时代，<code>mise</code> 这种工具的意义从“减轻人工操作的繁琐”转向了“<strong>提供一个更健壮、更一致、更易于系统级管理和调试的开发环境基础设施</strong>”。它为 AI 生成的代码提供了一个稳定、可预测的运行基础，并简化了整个开发生命周期中的环境管理复杂性。AI 可能会改变我们与这些工具交互的方式，但不会消除它们所解决的根本问题。相反，一个高度自动化的 AI 开发流程，反而会更依赖于底层环境的标准化和自动化，而这正是 <code>mise</code> 的强项。</p>
+</blockquote>
+<p>尽管 AI 的回答并非全然无懈可击（例如，Cursor 已能自动执行 Shell 命令以切换至合适的环境），但其论证依然说服了我，促使我最终发布了这篇文章。</p>
+<p>此外，AI 的回答也让我深切体会到，在学习过程中“有事没事多问问 AI”确实是一件充满“幸福感”的事情。这让我想起十年前我独自摸索 iOS 开发的艰难岁月，而如今，一位随叫随到的 AI 助手能够完美扮演亦师亦友的角色，随时解答我的疑问，帮助我拓宽思路。</p>
+<p>现在对于学习新知识而言，可真是一个好的时代。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[计算机网络之二 - URL 与 DNS]]></title>
+        <id>https://blog.rakuyoo.top/computer-network-url-and-dns/</id>
+        <link href="https://blog.rakuyoo.top/computer-network-url-and-dns/">
+        </link>
+        <updated>2025-08-06T06:15:47.000Z</updated>
+        <summary type="html"><![CDATA[<p>本篇是计算机网络系列的第二篇，主要讲 URL 和 DNS。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>本篇是计算机网络系列的第二篇，主要讲 URL 和 DNS。</p>
+<!-- more -->
+<p>其余几篇的目录：</p>
+<ul>
+<li><a href="https://blog.rakuyoo.top/computer-network-ip-and-port/">计算机网络之一 - IP 与端口</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-dhcp-and-intranet-penetration/">计算机网络之三 - DHCP 与内网穿透</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-virtual-nic-and-wireguard">计算机网络之四 - 虚拟网卡与 WireGuard</a></li>
+</ul>
+<hr>
+<h1 id="url">URL</h1>
+<p>URL，全称是 <strong>统一资源定位符</strong> (Uniform Resource Locator)，是我们访问互联网上任何资源的“地址”。它由几个部分组成，共同指明了“去哪里”以及“如何去”。</p>
+<p>在接下来的内容中，我们将逐一解析构成 URL 的几个核心元素。</p>
+<h2 id="域名">域名</h2>
+<p>上一篇我们讲到了 IP 和端口，然而绝大多数的时候我们在浏览器地址栏中输入的都不是这些数字，而是由英文字母和部分字符组成的地址，也就是 <strong>域名</strong>。</p>
+<p>对于一般人而言，一串 IP 地址很难记忆，人们更擅长以字词为单位，赋予地址含义再加以记忆。于是乎人们发明了 “域名” 这个概念，用来代替 IP 地址去记忆。</p>
+<h3 id="域名的结构">域名的结构</h3>
+<p>一个域名通常由几个部分组成，用点（<code>.</code>）分隔，<strong>从右到左看</strong>，层级越来越具体。以 <code>www.google.com</code> 为例，让我们来剖析一下域名的格式和结构：</p>
+<ul>
+<li><code>.com</code>：这是<strong>顶级域名</strong> (Top-Level Domain, TLD)。它表示域名的类别。</li>
+<li><code>google</code>：这是<strong>二级域名</strong> (Second-Level Domain, SLD)。这是域名的核心部分，通常是公司、品牌或个人的名称。这是用户注册和拥有的部分。</li>
+<li><code>www</code>：这是<strong>子域名标签</strong> (Subdomain Label)。它是一个可选的、用于进一步细分主域名的“标签”或“前缀”。
+<ul>
+<li>它允许你在同一个主域名下创建不同的分区或服务。</li>
+<li><code>www</code> 是最常见的子域名，通常指向网站的主页。</li>
+<li>其他子域名也很常见，比如 <code>mail.google.com</code> 指向邮件服务，<code>drive.google.com</code> 指向云盘服务。</li>
+</ul>
+</li>
+</ul>
+<p>还可以从整体的角度看一下：</p>
+<ul>
+<li><code>google.com</code>：这被称为<strong>主域名</strong>（Main Domain），准确来说是 “<strong>注册域</strong>”（Registered Domain）。
+<ul>
+<li>当我们谈论 “域名” 时，通常指的就是这一部分。</li>
+<li>通常也是我们在域名注册商那边购买的那部分。</li>
+</ul>
+</li>
+<li><code>www.google.com</code>：被称为<strong>完全限定域名</strong> (Fully Qualified Domain Name, FQDN) 或 <strong>主机名</strong> (Hostname)
+<ul>
+<li>也可以被称为<strong>子域名</strong> (Subdomain)</li>
+</ul>
+</li>
+</ul>
+<p>最后以本站为例说明一下域名的各个部分：</p>
+<ul>
+<li><code>blog</code> 是子域名标签</li>
+<li><code>rakuyoo</code> 是二级域名</li>
+<li><code>.top</code> 是顶级域名</li>
+<li><code>rakuyoo.top</code> 是主域名</li>
+<li><code>blog.rakuyoo.top</code> 是一个完全限定域名（或完整的子域名）</li>
+</ul>
+<h2 id="协议">协议</h2>
+<p>除了域名之外，URL 还有一个重要的组成部分：<strong>协议</strong>（Protocol）。它是一套规则、标准或约定，规定了计算机之间如何进行通信和数据交换。协议定义了数据传输的格式、时序、错误处理等，它将告诉客户端和服务器“如何”进行通信。</p>
+<p>常见的协议比如 <code>http</code>、<code>https</code> 以及 <code>ftp</code> 等，因为都非常常见了，所以在本文这一小节就先不展开介绍了。未来涉及到 TCP 数据传输时可能还会再次见面。</p>
+<p>协议对于 URL 而言是非常重要的，当我们访问 <code>www.google.com</code> 时，实际上我们是 “用 <code>HTTPS</code> 协议连接到 <code>www.google.com</code>”，而不能只说 “连接到 <code>www.google.com</code>”。</p>
+<h2 id="别忘了-端口">别忘了 “端口”</h2>
+<p>在没有域名时，我们访问一个服务是通过 “IP 地址 + 端口” 来实现的。那么有了域名之后呢？平时我们在浏览器中输入地址时也没有用到端口呀。</p>
+<p>其实不是没有用到，而是浏览器自动帮我们处理了。比如 https 协议的默认端口是 443，所以当我们在浏览器中输入 <code>https://www.google.com</code> 时，其实我们访问的是 <code>https://www.google.com:443</code>。如果我们需要访问某个特殊的端口，那么也需要像上面说的那样显式指定端口号。</p>
+<h1 id="dns一本厚字典">DNS：一本厚字典</h1>
+<p>域名帮助我们省去了记忆复杂 IP 的麻烦，那么，域名是如何找到其对应的 IP 地址的呢？答案就是通过 <strong>DNS</strong>（Domain Name System）。嗯... 从名字上来看它就很 “域名”。</p>
+<h2 id="dns-的工作原理简化版">DNS 的工作原理（简化版）</h2>
+<p>当我们访问一个域名时，DNS 会通过一系列查询操作，找到这个域名所对应的 IP 地址：</p>
+<ol>
+<li>
+<p><strong>在浏览器中输入域名</strong>： 在浏览器中输入 <code>www.google.com</code> 并按下回车。</p>
+</li>
+<li>
+<p><strong>浏览器查询本地 DNS 缓存</strong>： 浏览器会首先检查自己有没有缓存过 <code>www.google.com</code> 对应的 IP 地址。如果有，就直接使用，这样速度最快。</p>
+</li>
+<li>
+<p><strong>操作系统查询本地 DNS 缓存和 hosts 文件</strong>： 如果浏览器没有，它会把请求交给操作系统。操作系统也会检查自己的 DNS 缓存，以及一个叫做 <code>hosts</code> 的本地文件。</p>
+</li>
+<li>
+<p><strong>请求发送给 DNS 解析器 (DNS Resolver)</strong>： 如果本地都没有，操作系统会将请求发送给你的网络配置中指定的 DNS 解析器（通常是 ISP 提供的 DNS 服务器，或者手动配置的公共 DNS，如 Google 的 <code>8.8.8.8</code>）。</p>
+</li>
+<li>
+<p><strong>DNS 解析器开始递归查询</strong>：</p>
+<ul>
+<li><strong>查询根域名服务器 (Root Name Servers)</strong>： 解析器会首先问全球的 13 组根域名服务器：“<code>www.google.com</code> 的 IP 地址是什么？” 根服务器不会直接告诉你 IP，它会告诉你：“我不知道，但你可以去问负责 <code>.com</code> 域名的服务器。”</li>
+<li><strong>查询顶级域名服务器 (TLD Name Servers)</strong>： 解析器接着会去问负责 .com 域名的 顶级域名服务器：“www.google.com 的 IP 地址是什么？” <code>.com</code> 服务器会告诉你：“我不知道 <code>www.google.com</code> 的具体 IP，但你可以去问负责 <code>google.com</code> 的权威域名服务器。”</li>
+<li><strong>查询权威域名服务器 (Authoritative Name Servers)</strong>： 解析器最后会去问 <code>google.com</code> 的权威域名服务器（这是由 Google 自己或其域名注册商维护的服务器）：“<code>www.google.com</code> 的 IP 地址是什么？” 这台服务器知道 <code>www.google.com</code> 对应的确切 IP 地址，并会把这个 IP 地址告诉 DNS 解析器。</li>
+</ul>
+</li>
+<li>
+<p><strong>IP 地址返回给浏览器</strong>： DNS 解析器收到 IP 地址后，会将其返回给你的操作系统，再由操作系统返回给浏览器。同时，这个 IP 地址会被缓存起来，以便下次更快地访问。</p>
+</li>
+<li>
+<p><strong>浏览器连接服务器</strong>： 浏览器拿到 IP 地址后，就可以直接通过这个 IP 地址连接到 Google 的服务器，并请求网页内容。</p>
+</li>
+</ol>
+<blockquote>
+<p>iOS 系统的 DNS 解析和 PC 上的 DNS 解析还有一点点区别，那就是 iOS 不存在 “浏览器 DNS 缓存” 这一步，所有的 DNS 缓存都在 iOS 系统内部进行统一的管理。各个 App 如果不做特殊的实现，也不存在 “App 级别的 DNS 缓存”。</p>
+</blockquote>
+<p>可能这个流程还是有一些抽象。我们还可以从 “绑定 IP 和域名” 的流程中来解释 DNS 的解析过程：</p>
+<ol>
+<li><strong>获取 IP</strong>：首先我们从云服务器商处购买了一台云服务器，这个时候我们会得到这台服务器的 IP 地址。</li>
+<li><strong>购买域名</strong>：之后我们从域名商那里挑选了一个域名。国内的几大云服务器厂商基本都提供域名购买服务。</li>
+<li><strong>配置 DNS 解析</strong>：有很多地方可以让我们把 IP 和域名绑定在一起，比如有的域名注册商就提供功能，云服务商也提供，甚至还有专门的 DNS 服务商。在这些平台上，我们需要将域名和 IP 绑定到一起。通常是设置一条记录，key 和 value 填写你的域名和 IP。</li>
+<li><strong>上传 DNS 记录</strong>：当我们配置好了 DNS 后，平台就会将我们的配置上传到真正的 DNS 服务器上，此时域名与 IP 的绑定关系才算建立完成，域名和 IP 被真正的绑定在一起。</li>
+<li><strong>后续访问</strong>：现在当我们再访问域名时，你可以理解为是一个巨大的查表过程，通过域名就可以查询到对应的 IP 了。</li>
+</ol>
+<h2 id="dns-缓存">DNS 缓存</h2>
+<p>在上一节中，我们看到了一个域名需要经过一连串的查询才能最终找到它的 IP 地址。如果每一次访问网站都需要重复这个完整的过程，那效率未免也太低了。</p>
+<p>为了解决这个问题，DNS 系统设计了一套至关重要的机制——缓存。简单来说，当一个 DNS 查询的最终结果被找到后，查询路径上的各个参与者（比如你的电脑、DNS 解析器）都会把这个 “域名-IP” 的对应关系暂存一段时间。如果在缓存有效期内再次请求同一个域名，就可以直接返回暂存的结果，从而跳过复杂的递归查询过程，极大地提高了响应速度。</p>
+<p>我们在上一节中提到的 “浏览器缓存” 和 “操作系统缓存” 就是这套机制的体现。而控制这一切的核心，是一个叫做 <strong>TTL</strong>（Time-To-Live，生存时间）的值。</p>
+<h3 id="ttl-time-to-live">TTL (Time-To-Live)</h3>
+<p>TTL 是由域名管理员在配置 DNS 记录时设置的一个数值，单位是秒。它像一个“保质期”，告诉各级 DNS 服务器和解析器，这个查询结果可以被缓存多久。</p>
+<p>例如，本站的 <code>blog.rakuyoo.top</code> 的 TTL 被设置为 600 秒（10 分钟），那么当 DNS 解析器第一次获取到它的 IP 地址后，就会将这个结果缓存 10 分钟。在这 10 分钟内，任何通过这个解析器查询  <code>blog.rakuyoo.top</code> 的请求，都会直接得到缓存中的 IP 地址，而无需再去麻烦权威域名服务器。</p>
+<h3 id="dns-传播">DNS 传播</h3>
+<p>TTL 机制在带来高效的同时，也引入了一个重要的现象：<strong>DNS 传播</strong>（DNS Propagation）。</p>
+<p>当你修改了一条 DNS 记录（比如将网站服务器迁移到了一个新的 IP 地址），这个变更并不会立即在全球范围内生效。因为各地的 DNS 解析器仍然缓存着旧的记录，它们需要等到各自缓存中的 TTL 过期后，才会重新向权威服务器发起查询以获取最新的记录。</p>
+<p>这个新旧记录交替、变更信息逐渐扩散到全球的过程，就叫做 <strong>DNS 传播</strong>。传播所需的时间，就取决于你之前设置的 TTL 值。如果 TTL 设置为 1 小时，那么最坏情况下，一些用户可能需要等待 1 小时才能访问到你的新服务器。</p>
+<p>因此，在计划进行服务器迁移等重大变更前，有经验的管理员通常会提前几天将相关域名的 TTL 值修改为一个非常小的值（比如 60 秒），以确保变更发生时，全球的 DNS 缓存能被快速刷新，从而实现平滑过渡。</p>
+<h2 id="灵活的绑定关系">灵活的绑定关系</h2>
+<p>一个主机名其实可以解析到多个 IP，这有利于实现<strong>负载均衡</strong>。只需要在配置 DNS 解析时，为同一个主机名添加多个 IP 地址，即可将一个主机名解析到多个 IP 上。</p>
+<p>当用户访问这个主机名时，DNS 服务器会同时返回所有的 IP 地址，客户端（比如浏览器）会尝试连接其中一个，可能是随机选择某一个，也有可能是按顺序尝试。如果连接失败，则会尝试列表中的下一个 IP。</p>
+<p>另外我们还可以以子域名标签为单位，或者准确的说，以 “完全限定域名” 为单位设置 DNS 解析。比如 <code>mail.google.com</code> 和 <code>drive.google.com</code> 虽然都在 <code>google.com</code> 这个域名下，但是他们可以部署在不同的服务器上，进而拥有不同的 IP 地址。</p>
+<h2 id="资源记录">资源记录</h2>
+<p>在你添加 DNS 解析时，会接触到 “<strong>资源记录</strong>”（Resource Record）这个概念，在腾讯云服务器上它又叫做 “记录类型”。</p>
+<p>DNS 十分强大，强大到它其实可以解析很多东西。所以系统设计了一个 “资源记录” 的概念，用来区分 DNS 所解析的内容的类型。常见的资源记录有以下几种：</p>
+<ul>
+<li>
+<p><strong>A 记录</strong> (Address Record)<br>
+将一个域名或子域名指向一个 IPv4 地址。它是最基本的记录类型。</p>
+</li>
+<li>
+<p><strong>AAAA 记录</strong> (Quad-A Record)<br>
+与 A 记录类似，但它将一个域名或子域名指向一个 IPv6 地址。</p>
+</li>
+<li>
+<p><strong>CNAME 记录</strong> (Canonical Name Record)<br>
+将一个域名或子域名指向另一个域名（而不是直接指向 IP 地址），相当于创建了一个别名。它有以下几种使用场景：</p>
+<ul>
+<li>当你的服务提供商（如 CDN、博客平台）给你一个域名（而不是 IP 地址）让你指向时。</li>
+<li>当你希望多个子域名都指向同一个主域名，而主域名的 IP 地址可能会变动时。这样你只需要更新主域名的 A 记录，所有 CNAME 记录都会自动生效。</li>
+</ul>
+<p>另外需要注意： CNAME 记录不能指向 IP 地址，只能指向另一个域名。而且，通常情况下，根域名（如 <code>yourdomain.com</code>）不能设置为 CNAME 记录，因为它会与其他记录（如 MX 记录）冲突。</p>
+</li>
+</ul>
+<blockquote>
+<p>根据 <a href="https://datatracker.ietf.org/doc/html/rfc1034">DNS 规范（RFC 1034）</a>，如果一个域名存在 CNAME 记录，那么它就不能再有任何其他类型的记录（除了用于 DNSSEC 的 RRSIG 和 NSEC 记录）。而一个域的顶点（即 <code>yourdomain.com</code> 本身）必须有 <code>SOA</code> (Start of Authority) 和 <code>NS</code> (Name Server) 记录来标识这个域的权威信息。这两者是冲突的，所以根域名不能设置 CNAME。<br>
+本文并未涉及到 <code>SOA</code> 记录和 <code>NS</code> 记录等，此处仅作为拓展阅读。</p>
+</blockquote>
+<h1 id="swift-url">Swift URL</h1>
+<p>相信阅读到此文章的大多数都是 iOSer，那么我们可以再从 Swift <code>URL</code> 的角度来看一下域名的各个组成部分，直接上代码：</p>
+<pre><code class="language-swift">let urlString = &quot;https://www.google.com:443&quot;
+
+// 1. 创建 URL 对象
+guard let url = URL(string: urlString) else {
+    print(&quot;Invalid URL string&quot;)
+    exit(1)
+}
+
+// 2. 访问 URL 的各个属性
+print(&quot;Scheme (协议): \(url.scheme ?? &quot;N/A&quot;)&quot;)
+print(&quot;Host (主机名/域名): \(url.host ?? &quot;N/A&quot;)&quot;)
+print(&quot;Port (端口): \(url.port?.description ?? &quot;N/A&quot;)&quot;)
+
+// 3. 进一步拆解 host
+// Swift 的 URL 类型没有直接提供“二级域名”或“顶级域名”的属性
+// 你需要自己编写逻辑来从 host 中提取这些信息
+let host = url.host ?? &quot;&quot;
+let components = host.split(separator: &quot;.&quot;).map(String.init)
+
+if components.count &gt;= 2 {
+    let tld = components.last ?? &quot;N/A&quot; // .com
+    let sld = components[components.count - 2] // google
+    let mainDomain = &quot;\(sld).\(tld)&quot; // google.com
+    print(&quot;推断的主域名 (Main Domain): \(mainDomain)&quot;)
+
+    if components.count &gt; 2 {
+        let subdomainLabel = components.first ?? &quot;N/A&quot; // www
+        print(&quot;推断的子域名标签 (Subdomain Label): \(subdomainLabel)&quot;)
+    }
+}
+</code></pre>
+<p>输出结果如下：</p>
+<pre><code>Scheme (协议): https
+Host (主机名): www.google.com
+Port (端口): 443
+推断的主域名 (Main Domain): google.com
+推断的子域名标签 (Subdomain Label): www
+</code></pre>
+<p>说一个小细节：还记得上文中我说过 “协议对于 URL 来说很重要” 吗？如果将示例中 <code>urlString</code> 的 <code>https</code> 部分去掉，改为 <code>www.google.com:443</code>，那么 <code>url.scheme</code> 的结果将会是 <code>www.google.com</code>，<code>url.host</code> 会是 <code>nil</code>。</p>
+<p>这是因为 Swift 的 <code>URL</code> 在解析 URL 字符串时，会严格按照 URL 的标准格式来识别各个组成部分，而一个标准的 URL <strong>必须</strong>以协议开头，后面跟着 <code>://</code>。</p>
+<p>对于 <code>www.google.com:443</code> 而言，<code>URL</code> 初始化器会将 <code>:</code> 前的内容都识别为协议。假如换成 <code>www.google.com</code>，即字符串中没有 <code>:</code>，那么 <code>url.scheme</code> 和 <code>url.host</code> 都将是 <code>nil</code>。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[解密 Swift：为何 reduce 偏爱 + 而非 && ？]]></title>
+        <id>https://blog.rakuyoo.top/why-swift-reduce-prefers-plus-over-and/</id>
+        <link href="https://blog.rakuyoo.top/why-swift-reduce-prefers-plus-over-and/">
+        </link>
+        <updated>2025-08-05T06:48:09.000Z</updated>
+        <summary type="html"><![CDATA[<p>作为 Swift 开发者，我们都热爱这门语言提供的优雅和简洁性，尤其是它的函数式编程能力。</p>
+<p>Swift 原生提供了一些<strong>高阶函数</strong>，常见的比如 <code>map</code>、<code>filter</code>、<code>reduce</code> 等。这些优雅的高阶函数能够极大的简化我们的代码，但是一个不小心也会报一个让你困扰一整天的错误。</p>
+<p>今天，我们就来看看其中一种情况。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>作为 Swift 开发者，我们都热爱这门语言提供的优雅和简洁性，尤其是它的函数式编程能力。</p>
+<p>Swift 原生提供了一些<strong>高阶函数</strong>，常见的比如 <code>map</code>、<code>filter</code>、<code>reduce</code> 等。这些优雅的高阶函数能够极大的简化我们的代码，但是一个不小心也会报一个让你困扰一整天的错误。</p>
+<p>今天，我们就来看看其中一种情况。</p>
+<!-- more -->
+<p>思考一下这个场景：对一个整数数组求和。使用 <code>reduce</code> 函数可以写得非常简洁：</p>
+<pre><code class="language-swift">let numbers = [1, 2, 3, 4, 5]
+
+// 冗长但清晰的写法
+let sum1 = numbers.reduce(0) { (accumulator, nextElement) in
+    accumulator + nextElement
+}
+
+// 简单写法
+let sum1 = numbers.reduce(0) { $0 + $1 }
+
+// 极简写法
+let sum2 = numbers.reduce(0, +)
+</code></pre>
+<p><code>+</code> 号可以直接作为 <code>reduce</code> 方法的第二个参数，从而进一步简化代码。这很好，非常简洁。</p>
+<p>ok，现在让我们尝试用同样的逻辑来处理一个布尔类型的数组，检查是否所有值都为 <code>true</code>：</p>
+<pre><code class="language-swift">let conditions = [true, true, false]
+
+let allTrue1 = conditions.reduce(true) { $0 &amp;&amp; $1 } // ✅ 工作正常
+
+let allTrue2 = conditions.reduce(true, &amp;&amp;) // ❌ 编译错误！
+</code></pre>
+<p>哦噢，编译错误了。那么为什么 <code>+</code> 可以直接作为参数传递，<code>&amp;&amp;</code> 却不行？其实这背后隐藏着一个关于 Swift 语言设计的深刻且重要的区别。</p>
+<h2 id="运算符一等公民"><code>+</code> 运算符：“一等公民”</h2>
+<p>Swift 标准库中包含一个名叫 <code>AdditiveArithmetic</code> 的协议，这个协议中定义了包括 <code>+</code> 在内的多个函数。我们可以从 Github 中查看到它的<a href="https://github.com/swiftlang/swift/blob/4d7df08e9b1a78db073f492ccd3fbf26544344bc/stdlib/public/core/Integers.swift#L62">源码</a>，官方文档在<a href="https://developer.apple.com/documentation/swift/additivearithmetic">这里</a>。</p>
+<p>所以 <code>+</code> 可以作为参数传递也就不奇怪了 —— 它本身就是 Swift 中的 “一等公民”：函数，因此可以被直接传入任何接受对应函数类型的参数中。</p>
+<h2 id="运算符重要的短路特性"><code>&amp;&amp;</code> 运算符：重要的“短路”特性</h2>
+<p>相比较 <code>+</code> 而言，<code>&amp;&amp;</code> 和 <code>||</code> 这类<strong>逻辑运算符</strong>有一个核心特性，即 <strong>短路求值</strong> (Short-circuit Evaluation)：</p>
+<ul>
+<li>对于 <code>a &amp;&amp; b</code>，如果 <code>a</code> 的结果是 <code>false</code>，那么整个表达式的结果就已经确定是 <code>false</code> 了。因此，<code>b</code> 将永远不会被求值或执行。</li>
+<li>对于 <code>a || b</code>，如果 <code>a</code> 的结果是 <code>true</code>，整个表达式就已经确定是 <code>true</code>，<code>b</code> 也不会被执行。</li>
+</ul>
+<p>这个特性至关重要，它不仅能提升性能，还能避免潜在的运行时错误，比如我们经常写的代码：</p>
+<pre><code class="language-swift">if user != nil &amp;&amp; user!.hasPermission {
+    // 如果 user 是 nil，第二个条件根本不会被检查，从而避免了强制解包导致的崩溃。
+}
+</code></pre>
+<p>而一个<strong>普通</strong>的 Swift 函数，在它被调用之前，它的所有参数都<strong>必须被完整地求值</strong>。可以通过一个简单的实验来证明这一点：</p>
+<pre><code class="language-swift">func getFalse() -&gt; Bool {
+    print(&quot;getFalse() 被调用了&quot;)
+    return false
+}
+
+func getTrue() -&gt; Bool {
+    print(&quot;getTrue() 被调用了&quot;)
+    return true
+}
+
+// 如果 &amp;&amp; 是一个普通函数，它会像这样工作：
+func logicalAnd(_ a: Bool, _ b: Bool) -&gt; Bool {
+    return a &amp;&amp; b
+}
+
+print(&quot;\n--- 测试普通函数 ---&quot;)
+_ = logicalAnd(getFalse(), getTrue())
+
+// 输出:
+// --- 测试普通函数 ---
+// getFalse() 被调用了
+// getTrue() 被调用了  &lt;-- 两个参数对应的函数都被执行了
+</code></pre>
+<p>从输出结果我们可以得到结论：“短路” 这个行为无法被普通函数模拟 ... 别忘了，我们还可以看它的<a href="https://github.com/swiftlang/swift/blob/4d7df08e9b1a78db073f492ccd3fbf26544344bc/stdlib/public/core/Bool.swift#L280">源码</a>。</p>
+<p>实际上在 Swift 标准库中，<code>&amp;&amp;</code> 和 <code>||</code> 同样是两个函数，他们的定义分别如下所示：</p>
+<pre><code class="language-swift">extension Bool {
+ /// Performs a logical AND operation on two Boolean values.
+ @_transparent
+ @inline(__always)
+ public static func &amp;&amp; (lhs: Bool, rhs: @autoclosure () throws -&gt; Bool) rethrows -&gt; Bool {
+     return lhs ? try rhs() : false
+ }
+
+ /// Performs a logical OR operation on two Boolean values.
+ @_transparent
+ @inline(__always)
+ public static func || (lhs: Bool, rhs: @autoclosure () throws -&gt; Bool) rethrows -&gt; Bool {
+     return lhs ? true : try rhs()
+ }
+}
+</code></pre>
+<p>标准库通过三目运算符以及 <code>@autoclosure</code>，巧妙地实现了短路求值的功能。</p>
+<p>但是绕了一圈，既然 <code>&amp;&amp;</code> 也是函数，为什么不能像 <code>+</code> 一样作为参数传入 <code>reduce</code> 函数呢？其实我偷偷把报错信息藏起来了。让我把它放出来，再看一下上面例子中的错误：</p>
+<pre><code class="language-swift">[true, true, false].reduce(true, &amp;&amp;) // ❌ Cannot convert value of type '(Bool, @autoclosure () throws -&gt; Bool) throws -&gt; Bool' to expected argument type '(Bool, Bool) throws -&gt; Bool'
+</code></pre>
+<p>报错说的很直接：无法将 <code>(Bool, @autoclosure () throws -&gt; Bool) throws -&gt; Bool</code> 类型转换为 <code>(Bool, Bool) throws -&gt; Bool</code>，也就是 <code>@autoclosure () -&gt; Bool</code> 无法被直接当做 <code>Bool</code> 来传递。所以直接原因还是类型转换的问题。</p>
+<p>用一段代码可以更好地说明这个问题：</p>
+<pre><code class="language-swift">func foo(_ action: (Bool, @autoclosure () /*throws*/ -&gt; Bool) throws -&gt; Bool) { /* ... */ }
+
+foo(&amp;&amp;) // `&amp;&amp;` 可以作为参数正常使用了
+</code></pre>
+<h2 id="autoclosure巧妙的语法糖"><code>@autoclosure</code>：巧妙的语法糖</h2>
+<p><code>@autoclosure</code> 是一个纯粹的语法糖，它告诉编译器：把调用时写在这里的表达式自动包成一个闭包，而不是立即求值。</p>
+<p>所以 <code>@autoclosure () -&gt; Bool</code> 本质上还是一个闭包类型 <code>() -&gt; Bool</code>，它不是也没有办法转换成一个 <code>Bool</code> 类型。至少在 Swift 6 时代还没有这种特性。</p>
+<p>如果没有 <code>@autoclosure</code>，当我们想通过闭包来实现 “延迟调用” 时，可能就要想一想 “用闭包再额外包一层” 这种不优雅的实现，会不会让自己的早餐吐出来：</p>
+<pre><code class="language-swift">// `assert` 断言通过闭包实现了判断条件的延迟调用，进而在 RELEASE 模式下获得更好的性能。
+// 假设下面是 assert 函数的简化定义
+func assert(_ condition: /* @autoclosure */ () -&gt; Bool,  ...) { ... }
+
+// 如果没有 @autoclosure，调用时就必须手动包裹一层闭包
+assert({ a &gt; b })
+</code></pre>
+<h2 id="总结">总结</h2>
+<p>总结一下，Swift 从 1.0 开始就开始使用 <code>@autoclosure</code> 来<strong>优雅地</strong>实现逻辑运算符的短路求值，或者其他延迟求值的相关逻辑。这也导致了 <code>&amp;&amp;</code> 和 <code>||</code> 这两个逻辑运算符不能像普通的运算符一样那么地 “自由”。</p>
+<p>如果有需要，开发者可以自行封装相关函数，从而为逻辑运算符插上自由地翅膀。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[计算机网络之一 - IP 与端口]]></title>
+        <id>https://blog.rakuyoo.top/computer-network-ip-and-port/</id>
+        <link href="https://blog.rakuyoo.top/computer-network-ip-and-port/">
+        </link>
+        <updated>2025-07-22T01:19:27.000Z</updated>
+        <summary type="html"><![CDATA[<p>最近在研究 Surge，众所周知主包这方面知识贼差，几乎可以算是从零开始学起，所以也想借这个机会好好补一下相关知识。</p>
+<p>预计会写一系列文章，从计算机网络的基础概念开始，后续会包含常见的接口请求流程以及 WireGuard 等相关内容。</p>
+<p>本篇就是系列的第一篇。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>最近在研究 Surge，众所周知主包这方面知识贼差，几乎可以算是从零开始学起，所以也想借这个机会好好补一下相关知识。</p>
+<p>预计会写一系列文章，从计算机网络的基础概念开始，后续会包含常见的接口请求流程以及 WireGuard 等相关内容。</p>
+<p>本篇就是系列的第一篇。</p>
+<!-- more -->
+<p>其余几篇的目录：</p>
+<ul>
+<li><a href="https://blog.rakuyoo.top/computer-network-url-and-dns/">计算机网络 - URL 与 DNS</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-dhcp-and-intranet-penetration/">计算机网络 - DHCP 与内网穿透</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-virtual-nic-and-wireguard">计算机网络之四 - 虚拟网卡与 WireGuard</a></li>
+</ul>
+<hr>
+<h1 id="ip">IP</h1>
+<p><strong>IP 地址</strong> 是计算机网络通信的基石，网络中每一台设备都有唯一的一个  IP 地址。你可以把它想象成设备的身份证号，每个人的身份证号都是唯一的。</p>
+<p>常见的 IP 地址比如 <code>8.8.8.8</code>，这是 Google DNS 服务器的 IP 地址。再比如 <code>192.168.1.1</code>，家中路由器的管理页面经常是这个地址。</p>
+<h2 id="ipv4-和-ipv6">IPv4 和 IPv6</h2>
+<p>IP 地址有两个版本：IPv4 和 IPv6。</p>
+<blockquote>
+<p>可能你会好奇有没有 IPv3、IPv5 等等，其实是有的。<br>
+所谓的 IPv1, v2, v3，可以被看作是 IPv4 诞生之前的、存在于 TCP 协议内部的“史前草稿”或“实验版本”，它们从未作为独立的 IP 协议存在过。<br>
+而 IPv5，更常见的名字可能是 <strong>ST2</strong>，它是 IP 协议的旁支，从未被打算作为通用的下一代互联网协议，也从未被广泛部署。<br>
+本文更偏向于实用性而非历史小课堂，所以暂不会涉及到相关内容。</p>
+</blockquote>
+<h3 id="ipv4">IPv4</h3>
+<p>IPv4 是我们目前最常接触到的版本，它使用 32 位 (bit) 来定义一个地址。</p>
+<ul>
+<li>理论总数： 2³² = 4,294,967,296 (约 43 亿个)</li>
+<li>书写格式： 通常写成“点分十进制”的形式，由 4 个 0 到 255 之间的数字组成，用点号隔开。例如 <code>192.168.1.1</code>。</li>
+<li>理论范围： 从 <code>0.0.0.0</code> 到 <code>255.255.255.255</code>。</li>
+</ul>
+<blockquote>
+<p>为什么 IP 段的最大值是 255 而不是 999？相信精通计算机原理的你一定明白：<br>
+IPv4 一共 4 段，总长 32 位，所以每一段就是 8 位，即一字节。一个字节最大值即 <code>11111111</code>。转换为十进制即 255。而 999 使用二进制表示则是 <code>1111100111</code>，长度为 10 位，超出了最大 8 位的限制。</p>
+</blockquote>
+<p>然而，并不是所有这些地址都可以分配给互联网上的设备使用。其中有大量地址被保留用于特殊目的，比如说下表：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">地址范围</th>
+<th style="text-align:center">名称</th>
+<th style="text-align:center">用途说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"><code>10.0.0.0</code> - <code>10.255.255.255</code></td>
+<td style="text-align:center">私有网络 (A 类)</td>
+<td style="text-align:center">用于大型企业的内部网络 (局域网)。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>172.16.0.0</code> - <code>172.31.255.255</code></td>
+<td style="text-align:center">私有网络 (B 类)</td>
+<td style="text-align:center">用于中型网络的内部网络。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>192.168.0.0</code> - <code>192.168.255.255</code></td>
+<td style="text-align:center">私有网络 (C 类)</td>
+<td style="text-align:center">最常见，用于家庭、小型办公室的路由器和内部设备。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>127.0.0.0</code> - <code>127.255.255.255</code></td>
+<td style="text-align:center">环回地址 (Loopback)</td>
+<td style="text-align:center">主要使用 <code>127.0.0.1</code>，代表“本机”或 <code>localhost</code>，用于在本机上进行网络测试。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>100.64.0.0</code> - <code>100.127.255.255</code></td>
+<td style="text-align:center">运营商级 NAT (CGNAT)</td>
+<td style="text-align:center">ISP 用来给大量用户分配的“大内网”地址，以缓解 IPv4 地址耗尽问题。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>169.254.0.0</code> - <code>169.254.255.255</code></td>
+<td style="text-align:center">链路本地地址 (APIPA)</td>
+<td style="text-align:center">当设备无法从 DHCP 服务器获取 IP 地址时，会自动配置一个此范围内的地址，用于临时局域网通信。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>0.0.0.0</code></td>
+<td style="text-align:center">未指定地址</td>
+<td style="text-align:center">通常用作源地址，表示“任何 IP”或“本机”。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>224.0.0.0</code> - <code>239.255.255.255</code></td>
+<td style="text-align:center">组播地址 (Multicast)</td>
+<td style="text-align:center">用于一对多的通信，如网络电视直播。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>255.255.255.255</code></td>
+<td style="text-align:center">广播地址</td>
+<td style="text-align:center">向本地网络中的所有设备发送消息。</td>
+</tr>
+</tbody>
+</table>
+<p>抛去这些保留的 ip 地址，剩余的 ip 地址大约是 37 亿个。这 37 亿个看似很多，但是我说几个数据：</p>
+<ul>
+<li>2007 年第一代 iPhone 发布，2011 年，全球智能手机出货量已接近 5 亿部。</li>
+<li>2000 年，全球互联网用户大于 3.6 亿；2011 年，全球互联网用户超过 20 亿。</li>
+</ul>
+<p>如果考虑到一部设备有一个 ip 的话，那么 37 亿个 IP 地址是远远不够用的。事实也是：2011 年 2 月 3 日，IANA（互联网号码分配局）宣布它已经将所有的 IPv4 地址都分配出去了，也就是说所有可进行分配的 IPv4 地址都有了主人。</p>
+<blockquote>
+<p>IPv4 地址分配的逻辑是这样的：有一个全球总库（IANA），它负责将 IPv4 地址分配给五个区域性注册机构（RIR），分别是：亚太地区、欧洲地区、拉丁美洲和加勒比地区、北美地区以及非洲地区。之后再进行一层一层的分配。</p>
+</blockquote>
+<p>那么既然 IPv4 被分配完了，后续如果想要增加新的设备又该怎么办呢？解决方案有两个：</p>
+<ul>
+<li>IPv6</li>
+<li>内网 IP + NAT</li>
+</ul>
+<p>这两个方案分别从两个角度出发，试图解决 IPv4 地址太少的问题。</p>
+<h3 id="ipv6">IPv6</h3>
+<p>IPv6 的解决方案最为根本，也最为直接：既然 IPv4 太短，那么把它变长就可以了！于是 IPv6 诞生了。</p>
+<p>IPv6 使用 128 位来定义一个地址，足足是 IPv4 的 4 倍！不止如此，它还将 “点分十进制” 升级为了 “冒号十六进制” 的形式。所以它的理论范围为：</p>
+<ul>
+<li>从 <code>0000:0000:0000:0000:0000:0000:0000:0000</code></li>
+<li>到 <code>ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff</code></li>
+</ul>
+<p>足足有 2¹²⁸ ≈ 3.4 x 10³⁸ (340 万亿亿亿亿个)！这又是一个什么概念呢？一个常见的比喻是：<strong>地球上每一粒沙子都可以被分配一个独立的 IPv6 地址，而且还绰绰有余</strong>。可见它有多么的长。</p>
+<blockquote>
+<p>IPv6 长度变长了，相比较 IPv4，写起来多少有些复杂，于是它也设计了一些简化规则：</p>
+<ol>
+<li>每组中开头的 <code>0</code> 可以省略：<code>0db8</code> -&gt; <code>db8</code>。</li>
+<li>连续的多组 <code>0000</code> 可以用双冒号 <code>::</code> 代替，但一次只能用一次。比如说：
+<ul>
+<li>缩写后：<code>2001:db8:85a3::8a2e:370:7334</code></li>
+<li>展开后：<code>2001:db8:85a3:0000:8a2e:370:7334</code></li>
+</ul>
+</li>
+</ol>
+</blockquote>
+<p>IPv6 同样有特殊地址，比如 <code>::1</code> 就是它的环回地址（相当于 IPv4 的 <code>127.0.0.1</code>），但由于其地址空间极其庞大，不再需要像 IPv4 那样抠出大段的 “私有地址” 来节约使用。</p>
+<h4 id="ipv4-升级到-ipv6-的挑战">IPv4 升级到 IPv6 的挑战</h4>
+<p>IPv6 看着 “哪儿哪儿都好”，但是推广 IPv6 的过程可谓十分坎坷：IPv6 是不兼容 IPv4 的。</p>
+<p>IPv4 地址的耗尽是点燃 IPv6 项目的导火索，但是在 “必须开发一个新协议” 这个大前提被确立下来时，IETF (互联网工程任务组) 的开发者忽然意识到：这是一个千载难逢的好机会，可以去修复 IPv4 运行了几十年后暴露出来的各种设计缺陷：</p>
+<ul>
+<li><strong>路由效率低下</strong>：全球 IPv4 路由表的条目过于庞大和碎片化，导致骨干网路由器压力巨大。</li>
+<li><strong>缺乏内置安全</strong>：IPsec (用于网络层加密和认证) 是后来给 IPv4 打的“补丁”，而在 IPv6 中是强制要求、原生集成的。</li>
+<li><strong>配置复杂</strong>：IPv4 依赖 DHCP 进行自动配置。IPv6 设计了更强大的 “无状态地址自动配置 (SLAAC)”，设备可以自己生成地址，即插即用。</li>
+<li><strong>没有为移动性优化</strong>：Mobile IP for IPv4 也是一个笨拙的补丁。IPv6 在设计时就考虑了移动设备的需求。</li>
+</ul>
+<p>他们自问：“既然我们无论如何都要进行一次伤筋动骨的 “大手术”，为什么不趁这个机会，把身体里其他所有已知的小毛病也一并治好呢？”</p>
+<p>于是，在 “扩大地址空间” 这个核心目标之上，又增加了一系列重要的设计目标：</p>
+<ul>
+<li><strong>简化报头，提升路由效率</strong>：移除了一些不常用或有问题的字段，让路由器硬件能更快地处理数据包。</li>
+<li><strong>原生集成安全性 (IPsec)</strong>：将安全变成了协议的“标配”，而不是“选装”。</li>
+<li><strong>改进服务质量 (QoS) 支持</strong>：引入“流标签”，让路由器能更好地识别和处理对延迟敏感的应用（如视频会议、在线游戏）。</li>
+<li><strong>实现真正的即插即用</strong>：通过无状态地址自动配置 (SLAAC)，让设备接入网络后的配置过程大大简化。</li>
+<li><strong>为移动性而设计</strong>：更好地支持移动设备在不同网络间切换时保持连接。</li>
+</ul>
+<p>于是乎：一个 <strong>不兼容</strong> IPv4 的新协议：IPv6 诞生了。但这也成为了它最大的缺点。</p>
+<p>初识这个概念的你不知道有没有思考过：为什么人们常用 “迁至 IPv6” 这个说法，而不是 “升级到 IPv6” 呢？这正是因为 IPv6 不兼容 IPv4。</p>
+<p>一个网络路由器的核心工作是 <strong>以线速 (Line Rate) 转发数据包</strong>。这意味着一个拥有 10Gbps 端口的路由器，必须有能力在 1 秒内处理掉 10G 比特的数据，不能有任何延迟。这种高性能的实现，<strong>严重依赖专门的硬件芯片——ASIC (专用集成电路)</strong>。路由器内部的数据包转发路径，大部分是由硬件写死的，而不是由通用的 CPU 来处理的。</p>
+<p>这就导致了虽然我们可以通过软件升级，让路由器使用 CPU 来处理 IPv6 数据包，但是它的处理速度和 ASIC 相比可谓有着天壤之别，所以它也被称为 “慢速路径” (Slow Path)。</p>
+<p>所以如果用户想要 “升级到 IPv6”，那么它必须要要将自己所有的网络设备进行升级，升级到支持 IPv6 的设备，或者至少是同时支持 IPv4 和 IPv6 的设备。这就带来了很大的迁移成本。</p>
+<h2 id="公网-ip-和内网-ip">公网 IP 和内网 IP</h2>
+<p>那么既然 IPv4 迁移到 IPv6 注定是缓慢的，不可一蹴而就的，当下有什么办法能先临时解决 IPv4 地址耗尽的问题吗？答案就是 “内网 IP + NAT”。</p>
+<p>其实内网 IP 最初被设计出来，并不是为了解决全球地址耗尽这个宏大问题，而是为了解决一个更早期、更具体、更实际的工程问题：<strong>简化和隔离大型组织的内部网络管理</strong>。</p>
+<blockquote>
+<p>在 20 世纪 90 年代初的时候，虽然全球地址耗尽的危机还未迫在眉睫，但一些大型企业、大学和政府机构已经开始构建自己庞大的内部网络。它们遇到了几个头疼的问题：</p>
+<ol>
+<li>
+<p>内部网络重构的麻烦</p>
+<ul>
+<li>想象一下，一个大公司最初从 IANA 申请了一块公网 IP 地址块用于内部网络。后来公司发展壮大，需要连接到另一家 ISP，或者要更换 ISP。</li>
+<li>新的 ISP 可能会要求公司使用由新 ISP 分配的另一块完全不同的公网 IP 地址块。</li>
+<li>这意味着公司内部成千上万台电脑、服务器、打印机的 IP 地址 全都需要重新编号和配置。这在当时是一个极其痛苦、繁琐且容易出错的工作，被称为“重新编号地狱”。</li>
+</ul>
+</li>
+<li>
+<p>路由表的混乱</p>
+<ul>
+<li>如果一个公司的内部网络结构非常复杂，它可能会把自己的内部路由信息“泄露”到全球互联网的路由表中。</li>
+<li>这会造成全球路由表的“污染”，增加了骨干网路由器的负担，也可能导致路由错误。</li>
+</ul>
+</li>
+<li>
+<p>安全性的初步考量</p>
+<ul>
+<li>当时的网络安全概念还很初级，但人们已经意识到，让公司内部的每一台打印机、文件服务器都拥有一个可以直接从外部访问的公网 IP，似乎不是一个好主意。需要一种方式将内部网络与外部互联网进行逻辑上的隔离。</li>
+</ul>
+</li>
+</ol>
+<p>为了解决上述这些问题，IETF 在 1994 年发布了 RFC 1597 (后来在 1996 年被更完善的 RFC 1918 取代)，正式提出了 “私有地址空间 (Private Address Space)” 的概念。</p>
+<p>RFC 1918 的核心思想是：</p>
+<ol>
+<li><strong>划定专用地址块</strong>： 从现有的 IPv4 地址空间中，专门划出三块地址（10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16）作为“私有地址”。</li>
+<li><strong>可重复使用</strong>： 明确规定，任何组织都可以在自己的内部网络中自由地使用这些地址，而无需向 IANA 申请。你公司可以用 10.0.0.1，我公司也可以用 10.0.0.1，互不影响。</li>
+<li><strong>禁止路由</strong>： 严格规定，所有互联网骨干网上的路由器，绝对不能转发源地址或目标地址是私有地址的数据包。</li>
+</ol>
+<p>这完美地解决了最初的问题：</p>
+<ul>
+<li><strong>简化管理</strong>： 公司内部可以随意规划自己的私有地址。即使更换 ISP，也只需要更改边界路由器 (NAT 设备) 的公网 IP 配置即可，内部上万台设备的 IP 地址完全不需要变动。</li>
+<li><strong>隔离网络</strong>： 私有地址天生无法在公网上路由，从而实现了内部网络和外部互联网的天然隔离。</li>
+</ul>
+</blockquote>
+<p>最终，随着 90 年代中后期互联网的爆炸式普及，人们很快发现，这个 “无心插柳” 的设计，恰好是解决日益严峻的地址耗尽危机的 “神丹妙药”。</p>
+<h3 id="nat">NAT</h3>
+<p>NAT 的全称是 “Network Address Translation”，即 “网络地址转换”，它负责在 “内网 IP” 和 “公网 IP” 之间进行 “转换”。它的工作原理是这样的：</p>
+<ol>
+<li>出站（内网设备访问公网）：
+<ul>
+<li>手机（内网 IP <code>192.168.1.101</code> 访问 Google 网站）</li>
+<li>它会准备一个“数据包”，包含以下内容：
+<ul>
+<li><strong>目标 IP</strong>: Google 服务器的公网 IP。</li>
+<li><strong>源 IP</strong>: <code>192.168.1.101</code> (手机的内网 IP)。</li>
+<li><strong>源 端口</strong></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>数据包到达路由器</li>
+<li>执行 NAT：
+<ol>
+<li>路由器中会有一个 “NAT 转换表” (NAT Translation Table)，这是一个内部记账本。它执行以下操作：
+<ul>
+<li>使用家庭的 “公网 IP” 替换数据包中的内网 IP。同时分配一个新的端口。</li>
+<li>在 NAT 转换表中记录内网 IP 和公网 IP 的映射，比如：“<code>192.168.1.101:49152</code> &lt;-&gt; <code>203.0.113.50:30001</code>”</li>
+</ul>
+</li>
+</ol>
+</li>
+<li>数据包发往互联网:
+<ul>
+<li>从 Google 的服务器拉看，这个请求就是从 <code>203.0.113.50:30001</code> 发出的，它完全不知道手机的存在。</li>
+</ul>
+</li>
+</ol>
+<p>响应服务器返回的数据就是上述步骤的反面，即根据 “公网IP+端口”（起到主要作用的就是端口，毕竟公网IP 都是一致的），找到“内网IP+端口”，最终将相应数据包发送到请求数据的手机上。</p>
+<p>总结 NAT 的核心机制：</p>
+<ol>
+<li><strong>地址转换</strong>： 将数据包的源 IP 地址从 内网 IP 替换为 公网 IP (出站时)，或者将目标 IP 地址从 公网 IP 替换为 内网 IP (入站时)。</li>
+<li><strong>端口转换 (PAT - Port Address Translation)</strong>：这是现代 NAT 的精髓，也称为 NAPT。通过 修改源端口号，使得同一个公网 IP 地址可以同时为多个内网设备提供服务。路由器通过维护 (内网IP:内网端口) &lt;-&gt; (公网IP:公网端口) 这个映射表，来确保返回的数据能够被准确地分发给正确的设备和应用。</li>
+</ol>
+<h2 id="巨大的-局域网">巨大的 “局域网”</h2>
+<p>APNIC (Asia-Pacific Network Information Centre)，即亚太网络信息中心，它负责亚太地区 IP 地址分配的区域互联网注册机构 (RIR)。根据 APNIC 截至目前的公开统计数据，分配给中国 (国家代码: CN) 的公网 IPv4 地址总数大约为 <strong>3.45</strong> 亿 个。我们也可以通过 <a href="https://ipinfo.io/countries/cn">ipinfo</a> 查到这个数据。</p>
+<p>根据这个数据可想而知，3.45 亿是远远不够用的，那么常见的方法就是使用上面提到的 “内网 IP” 方案，通过运营商架设基础设施，来实现一张巨大的 “局域网”，以此来解决公网 ip 不足的问题。</p>
+<h1 id="端口">端口</h1>
+<p>说到 IP，就不得不提到 “<strong>端口</strong>” 这个概念。其实在上文中也已经多次涉及到这个概念了。那么 “端口” 又是什么呢？</p>
+<p>IP 地址的作用是为了找到设备，而端口的作用则是为了找到设备中的服务。在技术细节方面：</p>
+<ul>
+<li>端口是一个 16 位 (bit) 的无符号整数</li>
+<li>取值范围从 0 到 2¹⁶ - 1，即 0 到 65535</li>
+</ul>
+<p>以上面 NAT 的场景为例，对于公网 IP 而言，每个服务发出的数据包都需要自己独一无二的端口。如果端口重复了，NAT 就不知道该把公网中服务器响应的数据发送给哪个内网设备。</p>
+<h2 id="端口的分类">端口的分类</h2>
+<p>端口也像 IP 一样，有一些硬性分配的保留项。</p>
+<h3 id="知名端口">知名端口</h3>
+<ul>
+<li>
+<p>范围:<br>
+0 - 1023</p>
+</li>
+<li>
+<p>特点与用途:<br>
+这类端口由 IANA (互联网号码分配局) 进行严格的 <strong>硬性分配</strong>，它们是全球统一的互联网标准。这些端口被永久地分配给了互联网上最核心、最基础的服务，就像是公开的、全世界都知道地址的“政府办事大厅” 或 “公共服务窗口”，确保了全球网络服务的互操作性。在大多数操作系统中，应用程序需要拥有管理员（root）权限才能绑定和监听这些端口。</p>
+</li>
+<li>
+<p>常见协议与服务示例:</p>
+<ul>
+<li><code>20/21</code>: FTP (文件传输协议)</li>
+<li><code>22</code>: SSH (安全外壳协议)，用于安全的远程登录。</li>
+<li><code>23</code>: Telnet (远程终端协议)，一个早期的、不安全的远程登录协议。</li>
+<li><code>25</code>: SMTP (简单邮件传输协议)，用于发送电子邮件。</li>
+<li><code>53</code>: DNS (域名系统)，用于将域名解析为 IP 地址。</li>
+<li><code>80</code>: HTTP (超文本传输协议)，用于访问普通网页。</li>
+<li><code>110</code>: POP3 (邮局协议版本3)，用于接收电子邮件。</li>
+<li><code>143</code>: IMAP (互联网消息访问协议)，也是用于接收邮件，功能更强大。</li>
+<li><code>443</code>: HTTPS (安全的超文本传输协议)，用于访问加密的网页。</li>
+</ul>
+</li>
+</ul>
+<h3 id="注册端口">注册端口</h3>
+<ul>
+<li>
+<p>范围:<br>
+1024 - 49151</p>
+</li>
+<li>
+<p>特点与用途:<br>
+这些端口由 IANA 进行 <strong>半官方分配</strong>，供特定的应用程序、协议或商业公司注册使用，目的是为了避免不同软件间的端口冲突。虽然它们不像知名端口那样是强制性的互联网标准，但业界普遍会遵守这些约定。普通用户权限的程序就可以绑定这些端口，无需特殊的管理员权限。</p>
+</li>
+<li>
+<p>常见协议与服务示例:</p>
+<ul>
+<li><code>1433</code>: Microsoft SQL Server 数据库服务</li>
+<li><code>1521</code>: Oracle 数据库服务</li>
+<li><code>3306</code>: MySQL 数据库服务</li>
+<li><code>3389</code>: RDP (Windows 远程桌面协议)</li>
+<li><code>5432</code>: PostgreSQL 数据库服务</li>
+<li><code>5900</code>: VNC (虚拟网络计算)，一个常用的远程控制软件。</li>
+<li><code>6379</code>: Redis 键值数据库服务</li>
+<li><code>8080</code>: 常被用作 Web 服务器的备用端口，或用于运行 HTTP 代理服务器。</li>
+</ul>
+</li>
+</ul>
+<h3 id="动态私有端口">动态/私有端口</h3>
+<ul>
+<li>
+<p>范围:<br>
+49152 - 65535</p>
+</li>
+<li>
+<p>特点与用途:<br>
+这些端口 <strong>不分配给任何固定的服务</strong>，它们是完全自由使用的。它们的主要作用是作为客户端程序（例如浏览器、游戏、邮件客户端）在发起对外连接时，由操作系统 <strong>随机选择</strong> 一个作为本次通信的 <strong>源端口 (Source Port)</strong>。当通信会话结束后，这个端口就会被释放，可以被其他应用重新使用。因为它们是临时分配的，所以也被称为 <strong>临时端口 (Ephemeral Ports)</strong>。</p>
+</li>
+<li>
+<p>常见协议与服务示例:<br>
+这类端口没有固定的服务对应，它们的使用场景是动态的。例如：</p>
+<ul>
+<li>当用浏览器访问 <code>google.com</code> 时，电脑可能会随机选择 <code>51234</code> 作为本次通信的源端口。</li>
+<li>当启动一个在线游戏时，游戏客户端可能会随机选择 <code>62000</code> 作为与游戏服务器通信的源端口。</li>
+<li>当使用邮件客户端收取邮件时，它可能会随机选择 <code>58341</code> 作为连接邮件服务器的源端口。</li>
+</ul>
+</li>
+</ul>
+<h2 id="端口映射">端口映射</h2>
+<p>端口映射（或者更广义地称为“端口转发”，Port Forwarding）是一个非常基础且应用广泛的网络技术。这项技术可以将一个端口映射成另外一个端口，比如说我们经常使用的 Docker。</p>
+<p>想象一下这个场景：你需要用 Docker 部署一个 Gitlab 服务。等到服务部署好了之后，Gitlab 服务会监听 443 这个 https 端口。但是用户无法从主机上直接访问 Docker 容器内的 443 端口，因为众所周知 Docker 的环境和主机环境是互相隔离的。所以我们要是用 Docker 的 <strong>端口映射</strong> （<code>-p</code> 参数）来说实现端口转发。</p>
+<blockquote>
+<p>Docker 环境和主机环境互相隔离，这也意味着 Docker 内部有一套自己的端口，从 0 到 65535。</p>
+</blockquote>
+<p>通过端口转发，我们可以将主机上的任意一个非保留端口端口，比如说 4343，映射到 Docker 容器的 443 端口。之后任何访问主机 4343 端口的请求，都会被转发给 Docker 的 443 端口，也就是 Gitlab 服务。</p>
+<p>端口映射还有一个作用，那就是绕开 <strong>ISP 屏蔽</strong>。上文中也有提到 ISP 这个概念，它的全称是 Internet Service Provider，中文翻译是 <strong>互联网服务提供商</strong>，也就是电信呀，联通、移动这些运营商。</p>
+<p>根据中国工信部的规定，所有向公众提供服务的网站都必须进行 ICP 备案。为了落实这一政策，ISP 会直接屏蔽家庭宽带的 80 端口，从技术上阻止个人用户在未经备案的情况下，私自搭建对外的 Web 服务器。其实不止 80 端口，很多端口可能都会因为各种各样的原因导致被 ISP 屏蔽。这个时候就需要通过端口映射功能来 “绕开” ISP 的屏蔽。</p>
+<blockquote>
+<p>有些时候 ISP 屏蔽端口是为了保护主机的安全，比如 25、 445、135、137、138、139 等端口。这些端口经常会成为黑客的攻击对象。</p>
+</blockquote>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Surge For Mac 的一些注意事项]]></title>
+        <id>https://blog.rakuyoo.top/notes-about-surge-for-mac/</id>
+        <link href="https://blog.rakuyoo.top/notes-about-surge-for-mac/">
+        </link>
+        <updated>2025-07-08T09:27:25.000Z</updated>
+        <summary type="html"><![CDATA[<p>记一些日常使用时的小细节吧，也谈不上使用教程。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>记一些日常使用时的小细节吧，也谈不上使用教程。</p>
+<!-- more -->
+<h2 id="增强模式下终端不走代理">增强模式下终端不走代理</h2>
+<p>我在官方论坛上提过一个同名问题：<a href="https://community.nssurge.com/d/3440-surge5-mac">Surge5 Mac 增强模式下终端不走代理</a>，最后发现是 <code>pfctl</code> 的问题。</p>
+<p>在我现在使用的电脑上它是开机自启的，并且在我调试 Surge 期间并没有关闭它，最终导致了这个问题。</p>
+<p>可以通过在命令行中执行 <code>sudo pfctl -d</code> 来临时关闭它。</p>
+<h2 id="托管配置">托管配置</h2>
+<p>官方文档见 <a href="https://surge.mitsea.com/others/managed-configuration">托管配置</a>。</p>
+<p>Surge 的配置直接托管到服务器上，或者如果你使用某个机场，那么 Surge 也可以自动从 URL 更新配置文件。</p>
+<p>只需要在你的配置文件最前端增加下面内容即可（记得把 url 替换成你自己的 url）：</p>
+<pre><code>#!MANAGED-CONFIG http://test.com/surge.conf interval=60 strict=true
+</code></pre>
+<h2 id="配置分离">配置分离</h2>
+<p>当你的配置设置了从 url 自动加载，那么你就无法再在本地修改你的配置了，此时可以通过 <a href="https://kb.nssurge.com/surge-knowledge-base/zh/guidelines/detached-profile">配置分离</a> 来解决这个问题。</p>
+<p>单独建立一个配置文件，随后通过 <code>#!include</code> 引用你的远端配置。这样就可以做到既自动拉取机场配置，又能享受本地自定义配置。</p>
+<p>一个注意点是，上面的文档中有这么一段话：</p>
+<blockquote>
+<p>The filename suffix is not required, if it is a complete profile, you can continue to use the conf suffix, if it is not a complete profile, it is recommended to use another suffix to avoid being displayed in the configuration list.</p>
+</blockquote>
+<p>也就是说如果你的子配置文件不完整，那么可以不加后缀，避免该文件出现在 Surge 的配置文件列表里。</p>
+<p>一般子配置文件的 <code>[Rule]</code> 不会包含也不能包含 <code>FINAL</code>，所以如果加载到 Surge 里之后会报错提示 “非法的配置文件，需要以 <code>FINAL</code> 结尾”（但是不会影响功能，仅仅是提示错误）。这个时候就可以通过去掉后缀或者修改后缀的方式将该文件从配置列表中 “隐藏” 掉。</p>
+<h2 id="抓包-wifi-无网络链接">抓包 - “wifi 无网络链接”</h2>
+<p>主包用的 Surge v6，其实从 Surge 5.8.1 版本开始就可能会遇到这个问题：在 iPhone wifi 上设置了 “配置代理” 后提示 “无互联网访问”，mac surge 上也不显示设备。</p>
+<p>Surge <a href="https://kb.nssurge.com/surge-knowledge-base/zh/release-notes/surge-mac-legacy#ban-ben-5.8.1">版本 5.8.1</a> 中新增了一个配置 <code>proxy-restricted-to-lan</code>，就是它导致了这个问题。</p>
+<p>这个配置默认启用，在配置文件中将其设置为 <code>false</code> 即可解决问题。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[从使用 Combine 拦截 delegate 看 Runtime 消息转发]]></title>
+        <id>https://blog.rakuyoo.top/combine-intercept-delegate-objc-runtime/</id>
+        <link href="https://blog.rakuyoo.top/combine-intercept-delegate-objc-runtime/">
+        </link>
+        <updated>2025-04-11T08:23:31.000Z</updated>
+        <summary type="html"><![CDATA[<p><a href="https://github.com/CombineCommunity/CombineCocoa">CombineCocoa</a> 已有一段时间未更新，但其中许多代码仍能正常工作，比如 Delegate 的这部分。</p>
+<p>今天我们先从这部分代码入手，看看如何使用 Combine 拦截 UIKit 中的各类 delegate 对象，再深入探讨其背后的 Runtime 实现。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p><a href="https://github.com/CombineCommunity/CombineCocoa">CombineCocoa</a> 已有一段时间未更新，但其中许多代码仍能正常工作，比如 Delegate 的这部分。</p>
+<p>今天我们先从这部分代码入手，看看如何使用 Combine 拦截 UIKit 中的各类 delegate 对象，再深入探讨其背后的 Runtime 实现。</p>
+<!-- more -->
+<h2 id="使用-combine-拦截-delegate">使用 Combine 拦截 delegate</h2>
+<blockquote>
+<p>下面的代码和 CombineCocoa 中的不完全一致，我会做一些调整以及格式上的修改。</p>
+</blockquote>
+<p>首先，我们需要明确最终想要实现的效果，这是做框架时常用的逆向思考方法。比如我们想要一个这样的方法去调用：</p>
+<pre><code class="language-swift">// 代替 `UITableViewDelegate.tableView(_:willDisplay:forRowAt:)`
+tableView.willDisplayCellPublisher.sink { ... }
+
+/// Combine wrapper for tableView(_:willDisplay:forRowAt:)`
+public var willDisplayCellPublisher: AnyPublisher&lt;(cell: UITableViewCell, indexPath: IndexPath), Never&gt; {
+    return /* 一个 Publisher 对象 */
+}
+</code></pre>
+<p><code>willDisplayCellPublisher</code> 的定义位于 CombineCocoa 仓库的 <a href="https://github.com/CombineCommunity/CombineCocoa/blob/7300c75ff9e072aa7fd0fccefcc88f74aae9bf56/Sources/CombineCocoa/Controls/UITableView%2BCombine.swift#L18">UITableView+Combine.swift</a> 文件。关键代码如下所示：</p>
+<pre><code class="language-swift">@available(iOS 13.0, *)
+public extension UITableView {
+    /// Combine wrapper for `tableView(_:willDisplay:forRowAt:)`
+    var willDisplayCellPublisher: AnyPublisher&lt;(cell: UITableViewCell, indexPath: IndexPath), Never&gt; {
+        let selector = #selector(UITableViewDelegate.tableView(_:willDisplay:forRowAt:))
+        return delegateProxy.interceptSelectorPublisher(selector)
+            .map { ($0[1] as! UITableViewCell, $0[2] as! IndexPath) }
+            .eraseToAnyPublisher()
+    }
+
+    override var delegateProxy: DelegateProxy {
+        TableViewDelegateProxy.createDelegateProxy(for: self)
+    }
+}
+
+@available(iOS 13.0, *)
+private class TableViewDelegateProxy: DelegateProxy, UITableViewDelegate, DelegateProxyType {
+    func setDelegate(to object: UITableView) {
+        object.delegate = self
+    }
+}
+</code></pre>
+<p>实现看起来稍显复杂，我们逐步分析，先来看 <code>willDisplayCellPublisher</code> 这个计算属性。从 <code>interceptSelectorPublisher</code> 方法的字面含义上来看，猜测它是拦截了 <code>#selector(UITableViewDelegate.tableView(_:willDisplay:forRowAt:))</code> 方法，将相关调用封装为 Publisher 供外部订阅。</p>
+<p><code>delegateProxy</code> 属性本质上是 <code>TableViewDelegateProxy</code> 类型，其直接父类为 <code>DelegateProxy</code>，而它的父类最终是 <code>ObjcDelegateProxy</code>，这是一个纯 Objective‑C 类型。</p>
+<p>让我们先跳过 <code>DelegateProxy</code>，看看 <code>ObjcDelegateProxy</code> 都干了些什么。</p>
+<blockquote>
+<p>在看之前我们应该就能想到，它里面一定涉及到了 ObjC runtime 的使用，否则没有必要特地使用 ObjC</p>
+</blockquote>
+<p>相关代码位于 <a href="https://github.com/CombineCommunity/CombineCocoa/tree/main/Sources/Runtime">Runtime</a> 目录下。</p>
+<pre><code class="language-objective-c">//  Runtime/include/ObjcDelegateProxy.h
+
+#import &lt;Foundation/Foundation.h&gt;
+
+@interface ObjcDelegateProxy: NSObject
+
+@property (nonnull, strong, atomic, readonly) NSSet &lt;NSValue *&gt; *selectors;
+
+/// 当拦截到对应选择子时被调用，参数为方法名和参数列表
+- (void)interceptedSelector:(SEL _Nonnull)selector arguments:(NSArray * _Nonnull)arguments;
+- (BOOL)respondsToSelector:(SEL _Nonnull)aSelector;
+- (BOOL)canRespondToSelector:(SEL _Nonnull)selector;
+
+@end
+</code></pre>
+<p>从接口设计上来说这个类型暴露了比较多的方法，其中 <code>interceptedSelector</code> 方法是在 <code>willDisplayCellPublisher</code> 中用到的那个，一会儿重点关注一下。</p>
+<p>再看看 .m 文件中的实现：</p>
+<blockquote>
+<p>我省略了查找方法选择子相关方法的实现，本文重点关注方法转发相关的部分。</p>
+</blockquote>
+<pre><code class="language-objective-c">/// Runtime/ObjcDelegateProxy.m
+
+#import &lt;Foundation/Foundation.h&gt;
+#import &quot;include/ObjcDelegateProxy.h&quot;
+#import &lt;objc/runtime.h&gt;
+
+/// 辅助宏：将对象包装成 NSValue，以非保留方式持有
+#define OBJECT_VALUE(object) [NSValue valueWithNonretainedObject:(object)]
+
+/// 全局静态字典：Key 为代理类，Value 为该类声明的所有拦截选择子集合
+static NSMutableDictionary&lt;NSValue *, NSSet&lt;NSValue *&gt; *&gt; *allSelectors;
+
+@implementation ObjcDelegateProxy
+
+- (NSSet *)selectors {
+    return allSelectors[OBJECT_VALUE(self.class)];
+}
+
++ (void)initialize
+{
+    @synchronized (ObjcDelegateProxy.class) {
+        if (!allSelectors) {
+            allSelectors = [NSMutableDictionary new];
+        }
+        // 获取本类及其父类中所有 returnType 为 void 的方法选择子
+        allSelectors[OBJECT_VALUE(self)] = [self selectorsOfClass:self
+                     withEncodedReturnType:[NSString stringWithFormat:@&quot;%s&quot;, @encode(void)]];
+    }
+}
+
+- (BOOL)respondsToSelector:(SEL _Nonnull)aSelector {
+    return [super respondsToSelector:aSelector] || [self canRespondToSelector:aSelector];
+}
+
+- (BOOL)canRespondToSelector:(SEL _Nonnull)selector {
+    for (id current in allSelectors[OBJECT_VALUE(self.class)]) {
+        if (selector == (SEL) [current pointerValue]) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+- (void)interceptedSelector:(SEL _Nonnull)selector arguments:(NSArray * _Nonnull)arguments {
+    // 默认实现，子类可重写以处理拦截到的方法
+}
+
+- (void)forwardInvocation:(NSInvocation *)anInvocation
+{
+    NSArray * _Nonnull arguments = unpackInvocation(anInvocation);
+    [self interceptedSelector:anInvocation.selector arguments:arguments];
+}
+
+/// 从一个 NSInvocation 对象中提取出参数值，并包装为一个 NSArray&lt;id&gt; 返回
+NSArray * _Nonnull unpackInvocation(NSInvocation * _Nonnull invocation) {
+    NSUInteger numberOfArguments = invocation.methodSignature.numberOfArguments;
+    NSMutableArray *arguments = [NSMutableArray arrayWithCapacity:numberOfArguments - 2];
+
+    // 忽略前两个参数：self 和 _cmd（Objective-C 的默认前两个参数）
+    for (NSUInteger index = 2; index &lt; numberOfArguments; ++index) {
+        const char *argumentType = [invocation.methodSignature getArgumentTypeAtIndex:index];
+
+        // Skip const type qualifier.
+        if (argumentType[0] == 'r') {
+            argumentType++;
+        }
+
+        // 辅助宏：判断参数类型
+        #define isArgumentType(type) \
+            strcmp(argumentType, @encode(type)) == 0
+
+        // 辅助宏：提取基础数值类型参数，并转为 NSNumber
+        #define extractTypeAndSetValue(type, value) \
+            type argument = 0; \
+            [invocation getArgument:&amp;argument atIndex:index]; \
+            value = @(argument); \
+
+        id _Nonnull value;
+
+        // 引用类型或 block 类型，直接解包
+        if (isArgumentType(id) || isArgumentType(Class) || isArgumentType(void (^)(void))) {
+            __unsafe_unretained id argument = nil;
+            [invocation getArgument:&amp;argument atIndex:index];
+            value = argument;
+        }
+
+        // 以下全部是基本类型，统一转为 NSNumber
+        else if (isArgumentType(char)) {
+            extractTypeAndSetValue(char, value);
+        }
+        else if (isArgumentType(short)) {
+            extractTypeAndSetValue(short, value);
+        }
+        else if (isArgumentType(int)) {
+            extractTypeAndSetValue(int, value);
+        }
+        else if (isArgumentType(long)) {
+            extractTypeAndSetValue(long, value);
+        }
+        else if (isArgumentType(long long)) {
+            extractTypeAndSetValue(long long, value);
+        }
+        else if (isArgumentType(unsigned char)) {
+             extractTypeAndSetValue(unsigned char, value);
+        }
+        else if (isArgumentType(unsigned short)) {
+            extractTypeAndSetValue(unsigned short, value);
+        }
+        else if (isArgumentType(unsigned int)) {
+            extractTypeAndSetValue(unsigned int, value);
+        }
+        else if (isArgumentType(unsigned long)) {
+            extractTypeAndSetValue(unsigned long, value);
+        }
+        else if (isArgumentType(unsigned long long)) {
+            extractTypeAndSetValue(unsigned long long, value);
+        }
+        else if (isArgumentType(float)) {
+            extractTypeAndSetValue(float, value);
+        }
+        else if (isArgumentType(double)) {
+            extractTypeAndSetValue(double, value);
+        }
+        else if (isArgumentType(BOOL)) {
+            extractTypeAndSetValue(BOOL, value);
+        }
+        else if (isArgumentType(const char *)) {
+            extractTypeAndSetValue(const char *, value);
+        }
+
+        // 如果不是任何已知类型，就用 NSValue 包裹原始数据，比如 CGRect、CGSize
+        else {
+            NSUInteger size = 0;
+            NSGetSizeAndAlignment(argumentType, &amp;size, NULL);
+            NSCParameterAssert(size &gt; 0);
+
+            // 使用栈内存来存储未知数据
+            uint8_t data[size];
+            [invocation getArgument:&amp;data atIndex:index];
+
+            value = [NSValue valueWithBytes:&amp;data objCType:argumentType];
+        }
+
+        [arguments addObject:value];
+    }
+
+    return arguments;
+}
+
++ (NSSet &lt;NSValue *&gt; *) selectorsOfClass: (Class _Nonnull __unsafe_unretained) class
+                   withEncodedReturnType: (NSString *) encodedReturnType {
+    // 省略相关实现
+}
+
++ (NSSet &lt;NSValue *&gt; *) selectorsOfProtocol: (Protocol * __unsafe_unretained) protocol
+                       andEncodedReturnType: (NSString *) encodedReturnType {
+    // 省略相关实现
+}
+
++ (NSSet &lt;NSValue *&gt; *) selectorsOfProtocolPointer: (Protocol * __unsafe_unretained * _Nullable) pointer
+                                             count: (NSInteger) count
+                       andEncodedReturnType: (NSString *) encodedReturnType {
+    // 省略相关实现
+}
+
++ (NSString *)encodedMethodReturnTypeForMethod: (struct objc_method_description) method {
+    return [[NSString alloc] initWithBytes:method.types length:1 encoding:NSASCIIStringEncoding];
+}
+
+@end
+</code></pre>
+<p>从源码得知，<code>ObjcDelegateProxy</code> 及其子类在初始化类型时调用 <code>initialize</code> 方法，方法内会以类型为 key，将所有返回类型为 <code>void</code> 的方法存储到 <code>allSelectors</code> 这个私有静态全局属性中。</p>
+<p><code>respondsToSelector:</code> 会先调用 <code>canRespondToSelector:</code>，后者会在 <code>allSelectors</code> 中查找该 <code>selector</code>。如果找到了，就返回 <code>YES</code>，使得运行时认为此方法已被实现，从而跳过消息转发的后续流程。</p>
+<p>实际情况肯定是不会实现相关方法，接着就会通过消息转发流程执行 <code>forwardInvocation</code> 方法，将通过 <code>unpackInvocation</code> 方法拿到的参数，和方法选择子一起交给 <code>interceptedSelector</code> 方法，供子类覆写使用。</p>
+<p>大致的流程如下所示：</p>
+<pre><code class="language-markdown">[系统调用 delegate 方法]
+           ↓
+[调用 respondsToSelector:]
+           ↓
+ObjcDelegateProxy 判断是否支持该 selector（从协议中收集）
+           ↓
+系统继续调用该方法，但 proxy 未实现 ——&gt;
+           ↓
+触发 forwardInvocation
+           ↓
+unpackInvocation -&gt; 拿到参数
+           ↓
+interceptedSelector -&gt; 子类处理
+           ↓
+发出事件或自定义逻辑
+</code></pre>
+<blockquote>
+<p>相信现在你应该能明白为什么特地使用 ObjC 来实现了：Swift 不支持 <code>NSInvocation</code>，也无法重写 <code>forwardInvocation</code> 进行完整的消息转发。</p>
+</blockquote>
+<p>回到 <code>TableViewDelegateProxy</code>，它除了间接继承自 <code>ObjcDelegateProxy</code> 之外，还遵循了 <code>DelegateProxyType</code> 协议，这个 swift 协议的定义就比较简单常见了：</p>
+<pre><code class="language-swift">import Foundation
+
+private var associatedKey = &quot;delegateProxy&quot;
+
+public protocol DelegateProxyType {
+    associatedtype Object
+
+    func setDelegate(to object: Object)
+}
+
+@available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+public extension DelegateProxyType where Self: DelegateProxy {
+    static func createDelegateProxy(for object: Object) -&gt; Self {
+        // 确保线程安全，避免在多线程环境下重复创建/状态竞争。
+        objc_sync_enter(self)
+        defer { objc_sync_exit(self) }
+
+        let delegateProxy: Self
+
+        if let associatedObject = objc_getAssociatedObject(object, &amp;associatedKey) as? Self {
+            delegateProxy = associatedObject
+        } else {
+            delegateProxy = .init()
+            objc_setAssociatedObject(object, &amp;associatedKey, delegateProxy, .OBJC_ASSOCIATION_RETAIN)
+        }
+
+        delegateProxy.setDelegate(to: object)
+
+        return delegateProxy
+    }
+}
+</code></pre>
+<p>通过这个协议，我们可以便捷地为 <code>DelegateProxy</code> 子类添加 <code>createDelegateProxy(_:)</code> 方法，方法内部使用懒加载，创建了一个关联对象，随后调用 <code>setDelegate(to:)</code> 方法，将这个关联对象设置为 <code>object</code> 的代理。</p>
+<p>看完这些前置条件，我们可以看一看 <code>DelegateProxy</code> 这个类型了（<a href="https://github.com/CombineCommunity/CombineCocoa/blob/main/Sources/CombineCocoa/DelegateProxy/DelegateProxy.swift">DelegateProxy.swift</a>）：</p>
+<pre><code class="language-swift">@available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+open class DelegateProxy: ObjcDelegateProxy {
+    private var dict: [Selector: [([Any]) -&gt; Void]] = [:]
+    private var subscribers = [AnySubscriber&lt;[Any], Never&gt;?]()
+
+    ...
+
+    public override func interceptedSelector(_ selector: Selector, arguments: [Any]) {
+        dict[selector]?.forEach { handler in
+            handler(arguments)
+        }
+    }
+
+    public func intercept(_ selector: Selector, _ handler: @escaping ([Any]) -&gt; Void) {
+        if dict[selector] != nil {
+            dict[selector]?.append(handler)
+        } else {
+            dict[selector] = [handler]
+        }
+    }
+
+    public func interceptSelectorPublisher(_ selector: Selector) -&gt; AnyPublisher&lt;[Any], Never&gt; {
+        DelegateProxyPublisher&lt;[Any]&gt; { subscriber in
+            // 为了在 deinit 中释放，需要先存储起来
+            self.subscribers.append(subscriber)
+            return self.intercept(selector) { args in
+                _ = subscriber.receive(args)
+            }
+        }.eraseToAnyPublisher()
+    }
+
+    deinit {
+        subscribers.forEach { $0?.receive(completion: .finished) }
+        subscribers = []
+    }
+}
+</code></pre>
+<p>现在我们可以明白，在 <code>willDisplayCellPublisher</code> 中调用的 <code>interceptSelectorPublisher(_:)</code> 方法，将 <code>#selector(UITableViewDelegate.tableView(_:willDisplay:forRowAt:))</code> 作为 key，用于发送数据的闭包作为 value，存储到 <code>dict</code> 这个字典属性中。这个过程可以看做一个 “注册” 流程。</p>
+<p>当消息转发被触发时，<code>interceptedSelector(_: _:)</code> 方法会被调用，通过参数 <code>selector</code><br>
+从 <code>dict</code> 中取出数据发送事件，再将参数作为 value 发送出去。</p>
+<p><code>DelegateProxyPublisher</code> 是一个比较简单的自定义 <code>Publisher</code> 对象，它被定义在 <a href="https://github.com/CombineCommunity/CombineCocoa/blob/main/Sources/CombineCocoa/DelegateProxy/DelegateProxyPublisher.swift">DelegateProxyPublisher</a>，这里就不对其做过多的描述，读者可以翻阅源码自行查看。</p>
+<h3 id="总结">总结</h3>
+<p>至此，相信大家已经清楚了 CombineCocoa 如何利用 Combine 封装 Objective‑C 消息转发来拦截 delegate 调用，它的本质就是使用 Combine 框架，封装消息转发的结果。至于关联对象的使用则是锦上添花。</p>
+<p>而且我们也可以明白，为什么 CombineCocoa 这套框架只能拦截没有返回值的代理方法，因为它的 <code>allSelectors</code> 属性里只存储了返回值为 <code>void</code> 的方法。</p>
+<p>说到这里，再看看标题，既然提到了 Runtime 的消息转发，就让我们再回顾一下消息转发的相关知识。</p>
+<h2 id="runtime-消息转发">Runtime 消息转发</h2>
+<p>在 ObjC 中，方法的调用都是通过 <code>objc_msgSend</code> 来进行，我们一般称之为 “发送消息”。整个发送消息的流程大致如下所示：</p>
+<pre><code>                ↓
+[1] objc_msgSend(obj, sel)
+                ↓
+[2] 方法未找到 -&gt; runtime 会调用：
+    +resolveInstanceMethod: 或 +resolveClassMethod:
+                ↓
+[3] 仍未处理？调用：
+    - forwardingTargetForSelector:
+    （提供另一个对象转发 selector）
+                ↓
+[4] 还不行？runtime 调用：
+    - methodSignatureForSelector:
+    ↓（你必须返回一个 NSMethodSignature）
+[5] 然后调用：
+    - forwardInvocation:
+                ↓
+[6] 如果 forwardInvocation 没处理，会 crash:
+    unrecognized selector sent to instance
+</code></pre>
+<p>这也就是我们常说的 “使用 ObjC 调用一个未实现的方法时，未必会触发崩溃”，因为我们可以在运行时动态添加实现，或者使用消息转发。</p>
+<h3 id="动态方法解析">动态方法解析</h3>
+<p>第一阶段被称之为 “动态方法解析”（Dynamic Method Resolution），即 <code>+resolveInstanceMethod:</code> 或 <code>+resolveClassMethod:</code> 方法中，在运行时动态地添加一个方法。</p>
+<h3 id="快速转发">快速转发</h3>
+<p>第二阶段被称之为 “快速转发”（Fast Forwarding），即 <code>-forwardingTargetForSelector:</code> 方法中把这次函数调用转发给另外一个对象。</p>
+<h3 id="完整消息转发">完整消息转发</h3>
+<p>如果这两步都没处理，则会触发第三阶段：“完整消息转发”（Full Message Forwarding），或者叫 “标准消息转发”（Standard Message Forwarding），也就是上文提到的 <code>-methodSignatureForSelector:</code> + <code>-forwardInvocation:</code> 这两个方法。</p>
+<p><code>-methodSignatureForSelector:</code> 是调用 <code>-forwardInvocation:</code> 的前提，该方法负责返回方法的签名信息，也就是参数数量、类型、返回值类型等，为 <code>NSMethodSignature</code> 类型。 NSObject 有一个默认的 <code>-methodSignatureForSelector:</code> 方法实现，默认实现会去当前类的 method list 中查找是否存在名为 <code>selector</code> 的方法，如果找到了，就创建并返回一个对应的 <code>NSMethodSignature</code>；否则返回 <code>nil</code>。如果你不重写它，而 <code>selector</code> 确实不存在，默认实现就会返回 <code>nil</code>，这会直接导致 runtime 抛出 <code>unrecognized selector sent to instance</code> 异常，不会进入 <code>-forwardInvocation:</code>。</p>
+<p>在 CombineCocoa 的场景中，<code>ObjcDelegateProxy</code> 没有覆写 <code>-methodSignatureForSelector:</code> 方法，但是因为其子类实现了对应的代理协议，比如 <code>UITableViewDelegate</code>，所以相关的 <code>@objc</code> 方法会被添加到方法列表中，所以 <code>-methodSignatureForSelector:</code> 能够生成正确的 <code>NSMethodSignature</code> 对象，进而调用到 <code>-forwardInvocation:</code> 方法。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[通过覆写方法看 Swift 方法派发]]></title>
+        <id>https://blog.rakuyoo.top/swift-method-dispatch-via-overriding/</id>
+        <link href="https://blog.rakuyoo.top/swift-method-dispatch-via-overriding/">
+        </link>
+        <updated>2025-02-27T02:05:24.000Z</updated>
+        <summary type="html"><![CDATA[<p>在 Swift 开发中，我们常常利用 <code>extension</code> 和 <code>// MARK:</code> 来划分代码逻辑，比如划分出 “Config”、“Life cycle” 等模块。然而，在使用扩展时却常常会遇到方法覆写的问题，尤其是在定义基类的“框架方法”后，子类无法正确覆写的问题。</p>
+<p>本文将通过覆写方法，深入探讨 Swift 中的方法派发机制，并讨论如何在代码设计时规避常见坑点。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>在 Swift 开发中，我们常常利用 <code>extension</code> 和 <code>// MARK:</code> 来划分代码逻辑，比如划分出 “Config”、“Life cycle” 等模块。然而，在使用扩展时却常常会遇到方法覆写的问题，尤其是在定义基类的“框架方法”后，子类无法正确覆写的问题。</p>
+<p>本文将通过覆写方法，深入探讨 Swift 中的方法派发机制，并讨论如何在代码设计时规避常见坑点。</p>
+<!-- more -->
+<blockquote>
+<p>本文基于 Swift 5 与 Xcode 16.2 编写。</p>
+</blockquote>
+<h2 id="何为-swift-方法派发">何为 Swift 方法派发</h2>
+<p>首先，为不了解 “方法派发” 的读者做个简短的概念解释：</p>
+<p>方法派发简单地讲，指的是在调用一个方法时，如何执行该方法的机制。也可以理解为 “去哪里找到该方法的实现” 的机制。</p>
+<p>广义上说 Swift 的方法派发分以下两种：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">派发类型</th>
+<th style="text-align:center">定义</th>
+<th style="text-align:center">底层机制</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">静态派发</td>
+<td style="text-align:center">在编译期就确定调用目标</td>
+<td style="text-align:center">直接内联调用，不参与虚函数表</td>
+</tr>
+<tr>
+<td style="text-align:center">动态派发</td>
+<td style="text-align:center">在运行时根据对象的实际类型确定调用目标</td>
+<td style="text-align:center">依赖虚函数表（vtable）或 Objective‑C 消息发送机制</td>
+</tr>
+</tbody>
+</table>
+<h2 id="方法覆写与方法派发">方法覆写与方法派发</h2>
+<p>在很多项目中，我们会在基类中定义一些“框架方法”，由子类覆写这些方法来实现统一的代码结构。比如下面的类型：</p>
+<pre><code class="language-swift">open class BaseCollectionViewCell: UICollectionViewCell {
+    override public init(frame: CGRect) {
+        super.init(frame: frame)
+        
+        config()
+    }
+    
+    public required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        
+        config()
+    }
+}
+
+extension BaseCollectionViewCell {
+    open func config() { // ⚠️ Non-'@objc' instance method in extensions cannot be overridden; use 'public' instead
+        addSubviews()
+        addInitialLayout()
+    }
+    
+    open func addSubviews() { } // ⚠️ Non-'@objc' instance method in extensions cannot be overridden; use 'public' instead
+    
+    open func addInitialLayout() { } // ⚠️ Non-'@objc' instance method in extensions cannot be overridden; use 'public' instead
+}
+</code></pre>
+<p><code>config()</code>、<code>addSubviews()</code> 和 <code>addInitialLayout()</code> 被我称为 “框架方法”，用来约束子类，统一管理某一类的代码。</p>
+<p>写完方法后，Xcode 给了我们三个警告：<code>Non-'@objc' instance method in extensions cannot be overridden; use 'public' instead</code>。提示我们在 <code>extension</code> 中定义的非 <code>@objc</code> 方法不能被覆写的，所以我们使用的 <code>open</code> 是没有意义的，建议我们换成 <code>public</code>。</p>
+<p>这是为什么呢？</p>
+<h3 id="swift-中的方法覆写">Swift 中的方法覆写</h3>
+<p>我们先来了解一下 Swift 方法覆写的实现原理：在 Swift 中，方法覆写本质上是依赖 “动态派发机制” 来实现的。</p>
+<p>对于一个纯 Swift 类而言，在类的主要声明部分定义的方法会被加入到虚函数表（vtable table）中。这意味着在运行时，根据对象的实际类型可以找到正确的实现，从而支持子类覆写。</p>
+<blockquote>
+<p>在 Swift 中，虚函数表被称为 “witness table”，下文将会使用 ““witness” 这个单词代表 “虚函数表”。</p>
+</blockquote>
+<p>而在 <code>extension</code> 中定义的方法，默认采用的是 “<strong>静态派发</strong>”，静态派发会在编译时直接绑定调用目标，不会被加入到 witness table 里，也不暴露在 Objective‑C 运行时中。</p>
+<p>上一节中提到，子类覆写方法需要依靠虚函数表或 Objective‑C 运行时，所以定义在 <code>extension</code> 中的方法无法被子类继承。</p>
+<h3 id="改写">改写</h3>
+<p>知道错误原因的你可能想到了两种解决方案：</p>
+<ol>
+<li>可以将方法移动到主要声明部分，也就是通过虚函数表实现方法覆写。</li>
+<li>或者按照警告的提示，添加 <code>@objc</code>，借助 Objective-C 运行时实现方法覆写。</li>
+</ol>
+<p>我们先采用第一种方案，看看如何实现：</p>
+<pre><code class="language-swift">open class BaseCollectionViewCell: UICollectionViewCell {
+    ...
+
+    open func config() { ... }
+    
+    ...
+}
+
+class SubCollectionViewCell: BaseCollectionViewCell { }
+
+extension SubCollectionViewCell {
+    override func config() { } // ❌ Non-@objc instance method 'config()' declared in 'BaseCollectionViewCell' cannot be overridden from extension
+}
+</code></pre>
+<p>当我们尝试继承 <code>BaseCollectionViewCell</code> 去定义 <code>SubCollectionViewCell</code> 时，问题更严重了，Xcode 报了个错误：<br>
+<code>Non-@objc instance method 'config()' declared in 'BaseCollectionViewCell' cannot be overridden from extension</code></p>
+<p>这其实也很好理解，根据虚函数表的原理，如果父类函数被覆写，那么表中只会保存被覆写之后的函数。所以尽管父类的 <code>config()</code> 方法在虚函数表中，但是子类的方法不在，这样在运行时就无法使用子类的实现替代父类的实现。</p>
+<p>既然第一条路走不通，那么第二条路呢？比如下面这样：</p>
+<pre><code class="language-swift">open class BaseCollectionViewCell: UICollectionViewCell {
+    ...
+
+    @objc
+    open func config() { ... }
+    
+    ...
+}
+
+class SubCollectionViewCell: BaseCollectionViewCell { }
+
+extension SubCollectionViewCell {
+    override func config() { } // ❌ Cannot override a non-dynamic class declaration from an extension
+}
+</code></pre>
+<p>很好，报错变了，证明有效，但不完全有效。在这个例子中，我们已经使用 <code>@objc</code> 将父类方法暴露给 Objective-C，但是这实际上并不意味着方法派发方式改为了 “Objective-C 消息派发”。</p>
+<p>在 Swift 3 时代存在 <code>@objc</code> 的隐式推断，而在发布 Swift 4 时候，这个隐式推断被取消了。开发者在类的<strong>主要声明</strong>（请先留意这一点，后文中还会提及）中，需要手动添加 <code>dynamic</code> 关键字，才能告诉编译器，将这个方法改为使用 “Objective-C 消息派发”。如果只添加 <code>@objc</code>，那么方法仅仅是被暴露给 Objective-C 而已，实际上还是被添加到虚函数表中，最终使用函数表派发。</p>
+<p>所以正确的做法是为父类的方法定义添加 <code>dynamic</code> 关键字，就像下面这样：</p>
+<pre><code class="language-swift">open class BaseCollectionViewCell: UICollectionViewCell {
+    ...
+
+    @objc dynamic
+    open func config() { ... }
+    
+    ...
+}
+
+class SubCollectionViewCell: BaseCollectionViewCell { }
+
+extension SubCollectionViewCell {
+    override func config() { } // ✅
+}
+</code></pre>
+<p>好奇的你可能会注意到一个小细节：为什么子类方法光秃秃的，既不用添加 <code>@objc</code>，又不用添加 <code>dynamic</code>？</p>
+<p>这是因为尽管 Swift 4 已经取消了 <code>@objc</code> 隐式推断，但是在继承时这一推断被保留了下来，参考：<a href="https://github.com/swiftlang/swift-evolution/blob/main/proposals/0160-objc-inference.md#constructs-that-still-infer-objc">Constructs that (still) infer @objc</a>。所以在这个例子中，为了保持一致性，子类自动继承了父类方法的修饰。</p>
+<h3 id="extension-狂人"><code>extension</code> 狂人</h3>
+<p>好了，现在你跟我说你是 <code>extension</code> 的狂热粉丝，你想将父类的框架方法也移到 <code>extension</code> 去定义，于是你将代码改成了这样：</p>
+<pre><code class="language-swift">open class BaseCollectionViewCell: UICollectionViewCell { }
+
+extension BaseCollectionViewCell {
+    @objc // ⚠️ 因为你的粗心，你遗漏了 `dynamic` 关键字。
+    open func config() {  }
+}
+
+class SubCollectionViewCell: BaseCollectionViewCell { }
+
+extension SubCollectionViewCell {
+    override func config() { } // ✅
+}
+</code></pre>
+<p>让我们假设你是一个粗心的人（<em>对不起</em>），你在移动代码时丢失了 <code>config()</code> 方法上的 <code>dynamic</code> 关键字。此时你会发现子类的 <code>config()</code> 没有报错！等等，先别着急欢呼 “<code>extension</code> 万岁！”，让我们来看看为什么不需要 <code>dynamic</code>？</p>
+<p>答案是因为：在 <code>extension</code> 中定义方法并使用 <code>@objc</code> 修饰时，将自动转换为 Objective-C 消息派发。所以就不需要显式添加 <code>dynamic</code> 了。</p>
+<p>再深入思考一下，“在 <code>extension</code> 中定义方法并使用 <code>@objc</code> 修饰时，将自动转换为 Objective-C 消息派发” 这么设计的原因是什么呢？</p>
+<p>我觉得是因为 “<code>extension</code> 中的方法无法被加入虚函数表”。使用 <code>@objc</code> 修饰后肯定无法使用静态派发，所以最终只能使用 Objective-C 消息派发了。</p>
+<blockquote>
+<p>再再刨根问底一下，为什么 “<code>extension</code> 中的方法无法被加入虚函数表”？根据我目前的知识，这是 Swift 编译器做的硬性规定，并且与 Swift 的设计理念有关。本文就不展开讨论了。</p>
+</blockquote>
+<h3 id="纯-swift-类">纯 Swift 类</h3>
+<p>上面的示例代码中，所有的类都是继承自 <code>NSObject</code>，那么如果是一个纯 Swift 类呢？比如说下面这个类型：</p>
+<pre><code class="language-swift">class Foo {
+    func config() {}
+}
+
+class SubFoo: Foo { }
+
+extension SubFoo {
+    override func config() {} // 🩺 这里会报错吗？报什么错？
+}
+</code></pre>
+<p>结论和上面一样。不论是纯 Swift 类，还是一个继承自 <code>NSObject</code> 的类，在本文所讨论的场景中行为是一致的。</p>
+<blockquote>
+<p>有朋友会提到 Swift 代码跨平台时的表现：添加了 <code>@objc</code> 和 <code>dynamic</code> 的纯 Swift 类在 Windows 或 Linus 平台上可以正常编译吗？答案肯定是否定的，Objective-C 运行时只存在于 Apple 平台，在上面两个平台中是没有的，所以代码无法通过编译。</p>
+</blockquote>
+<h2 id="总结">总结</h2>
+<p>通过本文的讨论，相信你已经掌握了如何利用 <code>extension</code> 正确覆写父类的方法。</p>
+<p>在实际开发中，虽然 Swift 的方法派发常被视作面试“八股文”般的基础知识，但是理解这些细微差别不仅能帮助你在设计类结构和方法定义时做出更明智的选择，还能在保证高效运行的同时，为后续的灵活扩展打下坚实的基础。</p>
+<p>那么留一个课后思考题：</p>
+<pre><code class="language-swift">class Foo {
+    func config() {}
+}
+
+class SubFoo: Foo { }
+
+extension SubFoo {
+    @objc override func config() {} // ❌ Non-@objc instance method 'config()' declared in 'Foo' cannot be overridden from extension
+}
+</code></pre>
+<p>上面这个代码中，父类和子类中的 <code>config()</code> 方法分别是哪种派发方式呢？欢迎在评论区留下你的答案。</p>
+<h2 id="写在最后">写在最后</h2>
+<p>其实本篇文章的场景 “<code>extension</code> 的设计初衷是为类添加新的功能，而非修改已有方法” 是不符合 Swift 语言的设计初衷的。<a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/extensions/">官方文档</a>中是这么说的：</p>
+<blockquote>
+<p>Extensions can add new functionality to a type, but they can’t override existing functionality.</p>
+</blockquote>
+<p>所以你可能会在看到文章开头时就说：“根本就不应该在 <code>extension</code> 中覆写方法！”。这也确实，Apple 并不推荐我们借助 ObjC 的方式在 <code>extension</code> 中覆写方法。</p>
+<p>但是既然 Apple 允许开发者借助 ObjC 运行时的特性来实现这一功能，那么我们就姑且允许它存在吧，相信你有能力把握一个度，什么时候可以用这个功能，什么时候应尽量避免。</p>
+]]></content>
+    </entry>
+</feed>
