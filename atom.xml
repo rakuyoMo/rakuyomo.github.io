@@ -1,0 +1,2438 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://blog.rakuyoo.top</id>
+    <title>Rakuyo&apos;s blog</title>
+    <updated>2025-08-21T16:19:56.116Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://blog.rakuyoo.top"/>
+    <link rel="self" href="https://blog.rakuyoo.top/atom.xml"/>
+    <logo>https://blog.rakuyoo.top/images/avatar.png</logo>
+    <icon>https://blog.rakuyoo.top/favicon.ico</icon>
+    <rights>All rights reserved 2025, Rakuyo&apos;s blog</rights>
+    <entry>
+        <title type="html"><![CDATA[计算机网络之六 - 可靠的 TCP 与高效的 UDP]]></title>
+        <id>https://blog.rakuyoo.top/computer-network-tcp-and-udp/</id>
+        <link href="https://blog.rakuyoo.top/computer-network-tcp-and-udp/">
+        </link>
+        <updated>2025-08-21T02:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>TCP 与 UDP 是网络传输层的两大核心协议，它们以截然不同的方式定义了数据在应用程序间的传输。TCP 如同一次通话，追求可靠与完整；UDP 则像一张明信片，主张高效与迅捷。正是这两种设计哲学的差异，决定了它们在网页浏览、文件传输、视频会议、在线游戏等不同场景下的应用。本文将深入解析二者的核心机制与关键差异。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>TCP 与 UDP 是网络传输层的两大核心协议，它们以截然不同的方式定义了数据在应用程序间的传输。TCP 如同一次通话，追求可靠与完整；UDP 则像一张明信片，主张高效与迅捷。正是这两种设计哲学的差异，决定了它们在网页浏览、文件传输、视频会议、在线游戏等不同场景下的应用。本文将深入解析二者的核心机制与关键差异。</p>
+<!-- more -->
+<p>本系列其余几篇的目录：</p>
+<ul>
+<li><a href="https://blog.rakuyoo.top/computer-network-ip-and-port/">计算机网络之一 - IP 与端口</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-url-and-dns/">计算机网络之二 - URL 与 DNS</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-dhcp-and-intranet-penetration/">计算机网络之三 - DHCP 与内网穿透</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-virtual-nic-and-wireguard">计算机网络之四 - 虚拟网卡与 WireGuard</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-http-and-https">计算机网络之五 - HTTP 与 HTTPS</a></li>
+</ul>
+<hr>
+<h2 id="tcp可靠的电话通话">TCP：可靠的“电话通话”</h2>
+<p>如果说 UDP 像一张随手寄出的明信片，那么 TCP (Transmission Control Protocol, 传输控制协议) 就是一通严谨的国际长途电话。在通话开始前，你必须先拨号、等待对方接听、双方确认身份并都说“喂，听得到吗？”之后，才会开始真正的交谈。通话结束后，还要礼貌地道别，确保双方都知晓通话结束。</p>
+<p>这个过程虽然繁琐，但它确保了整个对话的<strong>完整性</strong>和<strong>有序性</strong>，这正是 TCP 的核心设计哲学。</p>
+<h3 id="核心特性面向连接与可靠">核心特性：面向连接与可靠</h3>
+<ul>
+<li><strong>面向连接 (Connection-Oriented)</strong>：在发送任何应用数据之前，通信双方（客户端和服务器）必须先通过一个标准化的过程建立一个虚拟的连接。所有后续的数据交换都在这个已建立的连接上进行。</li>
+<li><strong>可靠传输 (Reliable)</strong>：TCP 提供了一系列复杂的机制来保证数据能够准确、有序地从发送方传输到接收方。它承诺“<strong>不丢包、不失序、无差错、无重复</strong>”。</li>
+</ul>
+<p>这一切的可靠性，都始于那个著名的“<strong>三次握手</strong>”过程。但在深入流程之前，我们必须先了解构成这次“握手”的几个关键“零件”。</p>
+<h3 id="tcp-报文一次通话的信封">TCP 报文：一次通话的“信封”</h3>
+<p>TCP 通信的数据单元被称为<strong>报文段 (Segment)</strong>。你可以把它想象成一个高度结构化的信封，其“信封皮”，也就是 <strong>TCP 头部 (Header)</strong>，包含了所有用于控制通信的元信息。下表是其主要字段的概览：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">字段</th>
+<th style="text-align:left">英文名称</th>
+<th style="text-align:left">简称</th>
+<th style="text-align:left">大小</th>
+<th style="text-align:left">描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">源端口</td>
+<td style="text-align:left">Source Port</td>
+<td style="text-align:left"><code>sport</code></td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">标识发送方应用程序的端口号</td>
+</tr>
+<tr>
+<td style="text-align:left">目标端口</td>
+<td style="text-align:left">Destination Port</td>
+<td style="text-align:left"><code>dport</code></td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">标识接收方应用程序的端口号</td>
+</tr>
+<tr>
+<td style="text-align:left">序列号</td>
+<td style="text-align:left">Sequence Number</td>
+<td style="text-align:left"><code>seq</code></td>
+<td style="text-align:left">32 bits</td>
+<td style="text-align:left">标记本报文段数据第一个字节在数据流中的位置</td>
+</tr>
+<tr>
+<td style="text-align:left">确认号</td>
+<td style="text-align:left">Acknowledgment Number</td>
+<td style="text-align:left"><code>ack</code></td>
+<td style="text-align:left">32 bits</td>
+<td style="text-align:left">期望收到的对方下一个报文段的序列号</td>
+</tr>
+<tr>
+<td style="text-align:left">数据偏移</td>
+<td style="text-align:left">Data Offset</td>
+<td style="text-align:left">-</td>
+<td style="text-align:left">4 bits</td>
+<td style="text-align:left">TCP 头部自身的长度，单位为4字节（32位）</td>
+</tr>
+<tr>
+<td style="text-align:left">保留</td>
+<td style="text-align:left">Reserved</td>
+<td style="text-align:left">-</td>
+<td style="text-align:left">6 bits</td>
+<td style="text-align:left">未使用的保留位，必须为 0</td>
+</tr>
+<tr>
+<td style="text-align:left">标志位</td>
+<td style="text-align:left">Flags</td>
+<td style="text-align:left">-</td>
+<td style="text-align:left">6 bits</td>
+<td style="text-align:left">用于控制连接状态，如 <code>SYN</code>, <code>ACK</code>, <code>FIN</code></td>
+</tr>
+<tr>
+<td style="text-align:left">窗口大小</td>
+<td style="text-align:left">Window Size</td>
+<td style="text-align:left"><code>win</code></td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">用于流量控制，表示接收方还能接收多少数据</td>
+</tr>
+<tr>
+<td style="text-align:left">校验和</td>
+<td style="text-align:left">Checksum</td>
+<td style="text-align:left"><code>csum</code></td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">用于检查头部和数据的传输错误</td>
+</tr>
+<tr>
+<td style="text-align:left">紧急指针</td>
+<td style="text-align:left">Urgent Pointer</td>
+<td style="text-align:left">-</td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">当<code>URG</code>标志位为1时有效</td>
+</tr>
+<tr>
+<td style="text-align:left">选项</td>
+<td style="text-align:left">Options</td>
+<td style="text-align:left">-</td>
+<td style="text-align:left">可变</td>
+<td style="text-align:left">用于携带额外的控制信息</td>
+</tr>
+</tbody>
+</table>
+<p>在理解后续的握手流程时，我们无需关注所有细节，只需将注意力集中在最重要的四个“角色”上：<strong><code>SYN</code></strong> 和 <strong><code>ACK</code></strong> 这两个<strong>标志位</strong>，以及 <strong><code>seq</code></strong> 和 <strong><code>ack</code></strong> 这两个<strong>核心编号</strong>。</p>
+<p><code>SYN</code> 和 <code>ACK</code> 是 TCP 报文头中的两个非常重要的标志位 (Flags)，它们就像是通信双方用来表达意图的“信号旗”。</p>
+<ul>
+<li>
+<p><strong>SYN (Synchronize Sequence Numbers - 同步序列号)</strong></p>
+<ul>
+<li><strong>含义</strong>：这个标志位用于<strong>发起和建立连接</strong>。当一方想要与另一方建立连接时，它会发送一个 <code>SYN</code> 标志位置为 1 的报文。这可以理解为在说：“你好，我想和你建立通信，我们来同步一下初始的序列号吧！”</li>
+</ul>
+</li>
+<li>
+<p><strong>ACK (Acknowledgment - 确认)</strong></p>
+<ul>
+<li><strong>含义</strong>：这个标志位用于<strong>确认收到数据</strong>。当 <code>ACK</code> 标志位置为 1 时，意味着报文中的“确认号”字段有效。它告诉对方：“你之前发送的数据我已经收到了。” 在连接建立之后，几乎所有的 TCP 报文都会将 <code>ACK</code> 位置为 1。</li>
+</ul>
+</li>
+</ul>
+<p>而 <code>seq</code> 和 <code>ack</code> 是 TCP 实现可靠传输的基石，它们共同解决了一个核心问题：在不可靠的网络上，如何保证数据<strong>不丢、不乱、不重</strong>。</p>
+<ul>
+<li>
+<p><strong>seq (Sequence Number - 序列号)</strong></p>
+<ul>
+<li><strong>作用</strong>：它的核心作用是<strong>给数据包进行编号</strong>。TCP 把要传输的数据看作一个连续的字节流，<code>seq</code> 就是这个流中<strong>每一个数据包里第一个字节的编号</strong>。</li>
+<li><strong>设计原因</strong>：
+<ol>
+<li><strong>保证顺序</strong>：网络传输中，数据包可能会因为路由不同而失序到达。接收方可以根据 <code>seq</code> 号对数据包进行重新排序，从而恢复出原始的、有序的数据。</li>
+<li><strong>丢包检测</strong>：接收方如果发现收到的 <code>seq</code> 号不连续（比如收到了 100 和 300，但没收到 200），就知道中间有数据包丢失了，可以请求发送方重传。</li>
+</ol>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>ack (Acknowledgment Number - 确认号)</strong></p>
+<ul>
+<li><strong>作用</strong>：它的作用是<strong>告诉发送方我期望接收的下一个字节的序列号是多少</strong>。这个设计非常巧妙，因为它<strong>隐含地确认了在这个编号之前的所有数据都已成功收到</strong>。</li>
+<li><strong>设计原因</strong>：
+<ol>
+<li><strong>高效确认</strong>：如果发送方发送了 100、200、300 三个包，接收方只需回复一个 <code>ack=400</code>，就代表“100、200、300 我都收到了，请从 400 开始发”。这比为每个包都单独回复一次确认要高效得多。</li>
+<li><strong>建立可靠连接</strong>：它是发送方判断对方是否成功收到数据的唯一依据。</li>
+</ol>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="三次握手同步序列号与交换能力">三次握手：同步序列号与交换能力</h3>
+<p>理解了上述几个核心“词汇”后，我们再来审视三次握手的过程，它的每一步都变得有据可循。其本质，是通过三次通信，完成两个核心任务：</p>
+<ol>
+<li><strong>交换并确认双方的初始序列号 (ISN)</strong>，为后续数据的有序传输打下基础。</li>
+<li><strong>确认双方都具备可靠的发送和接收能力</strong>。</li>
+</ol>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyoo.top/post-images/1755777540140.svg" alt="" loading="lazy"></figure>
+<!--
+sequenceDiagram
+    participant 客户端
+    participant 服务器
+
+    客户端->>服务器: SYN=1, seq=x
+    Note right of 客户端: 请求建立连接
+
+    服务器-&#45;->>客户端: SYN=1, ACK=1, seq=y, ack=x+1
+    Note left of 服务器: 同意连接，并确认收到
+
+    客户端->>服务器: ACK=1, seq=x+1, ack=y+1
+    Note right of 客户端: 确认收到，连接建立
+-->
+<ol>
+<li>
+<p><strong>第一次握手 (Client -&gt; Server)</strong>:</p>
+<ul>
+<li><strong>内容</strong>: 客户端发送一个 TCP 报文，其中 <code>SYN</code> 标志位置为 1，并选择一个随机的初始序列号 <code>seq=x</code>。</li>
+<li><strong>目的</strong>: 客户端向服务器表明“我想要建立连接”，并告知自己的起始序列号。</li>
+<li><strong>状态</strong>: 客户端进入 <code>SYN_SENT</code> 状态。</li>
+</ul>
+</li>
+<li>
+<p><strong>第二次握手 (Server -&gt; Client)</strong>:</p>
+<ul>
+<li><strong>内容</strong>: 服务器收到客户端的 <code>SYN</code> 包后，回复一个报文。该报文中 <code>SYN</code> 和 <code>ACK</code> 标志位都置为 1。服务器也选择一个自己的随机初始序列号 <code>seq=y</code>，同时将确认号 <code>ack</code> 设置为 <code>x+1</code>。</li>
+<li><strong>目的</strong>: 服务器通过 <code>ACK=1</code> 和 <code>ack=x+1</code> 告诉客户端：“你的请求我收到了”。通过 <code>SYN=1</code> 和 <code>seq=y</code> 表明：“我也同意建立连接，这是我的起始序列号”。</li>
+<li><strong>状态</strong>: 服务器进入 <code>SYN_RCVD</code> 状态。此时，服务器已确认客户端的发送能力正常。</li>
+</ul>
+</li>
+<li>
+<p><strong>第三次握手 (Client -&gt; Server)</strong>:</p>
+<ul>
+<li><strong>内容</strong>: 客户端收到服务器的 <code>SYN-ACK</code> 包后，发送最后一个确认报文。该报文 <code>ACK</code> 标志位置为 1，<code>seq</code> 设置为 <code>x+1</code>，并将确认号 <code>ack</code> 设置为 <code>y+1</code>。</li>
+<li><strong>目的</strong>: 客户端通过 <code>ACK=1</code> 和 <code>ack=y+1</code> 告诉服务器：“你的回应我已收到，现在我们可以开始通信了”。</li>
+<li><strong>状态</strong>: 此报文发送后，客户端进入 <code>ESTABLISHED</code> 状态。服务器收到后，也进入 <code>ESTABLISHED</code> 状态。连接正式建立。此时，双方都确认了对方的收发能力正常。</li>
+</ul>
+</li>
+</ol>
+<p>说到这里，我有一个问题：“为什么要交换 <code>seq</code> 和 <code>ack</code> 呢？”</p>
+<blockquote>
+<p><strong>本质是双向确认</strong>：TCP 是一个<strong>全双工</strong>的协议，意味着通信双方都可以同时发送和接收数据。因此，<strong>每一方都必须有自己的 <code>seq</code> 号来标记自己发送的数据，也必须有自己的 <code>ack</code> 号来确认收到的对方数据</strong>。<br>
+<strong>三次握手就是交换和确认彼此的初始序列号（ISN）的过程</strong>：</p>
+<ol>
+<li><strong>第一次握手</strong>：客户端发送 <code>SYN</code> 和自己的 <code>seq=x</code>。它在说：“我的初始序列号是 x，你收到了吗？”</li>
+<li><strong>第二次握手</strong>：服务器回复 <code>SYN</code>、自己的 <code>seq=y</code> 和 <code>ack=x+1</code>。它在说：“我收到了你的 x，所以我确认你的下一个应该是 x+1。同时，我的初始序列号是 y，你收到了吗？”</li>
+<li><strong>第三次握手</strong>：客户端回复 <code>ACK</code> 和 <code>ack=y+1</code>。它在说：“我收到了你的 y，所以我确认你的下一个应该是 y+1。”</li>
+</ol>
+</blockquote>
+<p><strong>为什么必须是三次握手，而不是两次？</strong></p>
+<p>最核心的原因，是为了<strong>防止早已失效的、旧的连接请求突然又送达服务器，从而引发错误</strong>。</p>
+<p>想象一个网络有些延迟的场景：</p>
+<ol>
+<li>客户端发送了第一个连接请求 <code>SYN</code>（我们称之为 <code>请求A</code>），但它在网络中被卡住了，迟迟没有到达服务器。</li>
+<li>客户端等了一会儿没收到回应，以为丢包了，于是又发送了一个新的连接请求 <code>SYN</code>（<code>请求B</code>）。</li>
+<li><code>请求B</code> 顺利到达，服务器正常回应，双方通过三次握手建立了连接，传输数据，然后正常关闭了连接。</li>
+<li>就在这时，那个被卡了很久的 <code>请求A</code> 终于抵达了服务器。</li>
+</ol>
+<p>如果只有两次握手，服务器收到 <code>请求A</code> 后，会误以为是客户端又发起了一个新的连接请求。它会立即分配资源，建立连接，然后傻傻地等待客户端发来数据。但此时的客户端对此一无所知，它根本不会理会服务器的确认，更不会发送任何数据。</p>
+<p>结果就是，服务器单方面开启了一个“空连接”，白白浪费了系统资源，直到超时后才关闭。而三次握手，通过增加第三次客户端的最终确认，完美地解决了这个问题。服务器只有在收到客户端对自己的 <code>SYN</code> 的最终 <code>ACK</code> 之后，才会确信这是一个有效的、全新的连接请求。</p>
+<p>这个过程可以用下面的时序图来表示：<br>
+<img src="https://blog.rakuyoo.top/post-images/1755777759557.svg" alt="" loading="lazy"></p>
+<!--
+```mermaid
+sequenceDiagram
+    participant 客户端
+    participant 服务器
+
+    客户端->>服务器: SYN (请求A, 网络延迟)
+    Note right of 客户端: 发起第一次连接尝试
+
+    客户端--x服务器: (请求A 在网络中滞留)
+
+    Note over 客户端: 等待超时...
+
+    客户端->>服务器: SYN (请求B)
+    Note right of 客户端: 没收到回应，再试一次
+
+    服务器-&#45;->>客户端: SYN-ACK (回应请求B)
+    客户端->>服务器: ACK (确认请求B)
+    Note over 客户端,服务器: 双方建立连接，正常通信...
+
+    Note over 客户端,服务器: 通信结束，连接关闭。
+
+    critical [延迟的] 请求A 最终抵达服务器
+        服务器-&#45;->>客户端: SYN-ACK (回应请求A)
+        Note left of 服务器: 以为是新请求，分配资源并等待...
+        Note right of 客户端: 客户端早已关闭或无意连接，<br>直接丢弃或拒绝此SYN-ACK。
+    end
+    Note over 服务器: 服务器的资源被白白浪费。
+```
+-->
+<h3 id="tcp-可靠性的基石">TCP 可靠性的基石</h3>
+<p>TCP 的可靠性并非单一功能，而是一个由多种机制协同工作的复杂系统。这些机制相互配合，共同确保了数据传输的完整性、有序性、无差错和高效性。</p>
+<ul>
+<li>
+<p><strong>序列号 (Sequence Numbers) 与确认应答 (Acknowledgements, ACK)</strong>：TCP 将发送的数据分割成一个个小的数据段（Segment），并为每个字节都分配一个唯一的序列号。接收方收到数据后，会发送一个 <code>ACK</code> 报文作为回应，其中包含一个确认号，告诉发送方“我已经收到了你到哪个序列号为止的所有数据，请从下一个序列号开始发”。这种“有问有答”的机制是保证数据不丢失的基础。</p>
+</li>
+<li>
+<p><strong>超时重传 (Timeout Retransmission)</strong>：如果在发送数据后的一段时间内（这个时间是动态计算的）没有收到对方的 <code>ACK</code>，发送方就会认为数据包可能在路上丢失了，于是会重新发送这个数据包。</p>
+</li>
+<li>
+<p><strong>流量控制 (Flow Control)</strong>：接收方会通过 TCP 头部中的“窗口大小 (Window Size)”字段，告诉发送方自己当前还能接收多少数据。发送方则根据这个窗口大小来调整自己的发送速率，确保不会因为发送过快而导致接收方处理不过来，造成数据溢出。</p>
+</li>
+<li>
+<p><strong>拥塞控制 (Congestion Control)</strong>：流量控制关心的是“点对点”的速率匹配，而拥塞控制则着眼于整个网络的健康状况。TCP 通过一系列算法（如慢启动、拥塞避免等）来探测网络的拥堵程度，并主动调整发送速率，避免因自身流量过大而加剧网络拥堵，最终导致大规模丢包。</p>
+</li>
+</ul>
+<h3 id="四次挥手礼貌地挂断电话">四次挥手：礼貌地“挂断电话”</h3>
+<p>与建立连接同样重要的是，如何安全、完整地断开连接。这个过程被称为“<strong>四次挥手</strong>”，因为它需要四次信息交换来确保双方的数据都已传输完毕。</p>
+<figure data-type="image" tabindex="2"><img src="https://blog.rakuyoo.top/post-images/1755787655071.svg" alt="" loading="lazy"></figure>
+<!--
+sequenceDiagram
+    participant 客户端
+    participant 服务器
+
+    客户端->>服务器: FIN (seq=u)
+    Note right of 客户端: 我这边的数据都发完了，准备关闭连接了
+
+    服务器-&#45;->>客户端: ACK (ack=u+1)
+    Note left of 服务器: 好的，收到了。但我这边可能还有数据要发，<br/>请稍等
+
+    Note left of 服务器: (服务器继续发送剩余数据...)
+
+    服务器-&#45;->>客户端: FIN (seq=v)
+    Note left of 服务器: 我这边的数据也发完了，可以关闭连接了
+
+    客户端->>服务器: ACK (ack=v+1)
+    Note right of 客户端: 好的，收到了。连接正式关闭
+-->
+<ol>
+<li>
+<p><strong>第一次挥手 (FIN)</strong>：客户端决定关闭连接，向服务器发送一个 <code>FIN</code> 报文，表示“我的数据已经全部发送完毕了”。此时客户端进入 <code>FIN_WAIT_1</code> 状态。</p>
+</li>
+<li>
+<p><strong>第二次挥手 (ACK)</strong>：服务器收到 <code>FIN</code> 报文后，回复一个 <code>ACK</code> 报文，表示“收到了你的关闭请求”。但此时服务器可能还有未发送完的数据，所以它还不能立即关闭连接。此时，服务器进入 <code>CLOSE_WAIT</code> 状态，客户端收到 <code>ACK</code> 后进入 <code>FIN_WAIT_2</code> 状态。</p>
+</li>
+<li>
+<p><strong>第三次挥手 (FIN)</strong>：服务器将所有剩余数据发送完毕后，会向客户端发送一个 <code>FIN</code> 报文，表示“我这边的数据也发完了，可以关闭了”。服务器随之进入 <code>LAST_ACK</code> 状态。</p>
+</li>
+<li>
+<p><strong>第四次挥手 (ACK)</strong>：客户端收到服务器的 <code>FIN</code> 报文后，回复最后一个 <code>ACK</code> 报文进行确认。发送完毕后，客户端会进入 <code>TIME_WAIT</code> 状态，等待一段时间（通常是 2MSL，两倍的最大报文段生存时间）以确保服务器收到了这个 <code>ACK</code>，防止网络中可能存在的延迟报文造成问题。服务器收到 <code>ACK</code> 后则直接进入 <code>CLOSED</code> 状态。至此，连接被完全断开。</p>
+</li>
+</ol>
+<p><strong>一定是挥四次手吗 👋？</strong></p>
+<p>我们可以分别从<strong>逻辑上</strong>以及<strong>行为上</strong>来看待“四次挥手”这件事：</p>
+<ul>
+<li><strong>从逻辑上看</strong>：TCP 协议一定会按照逻辑进行完整的四个过程，所以从这个角度上来看，一定是“四次挥手”。四个过程分别是：
+<ol>
+<li>客户端关闭发送通道。</li>
+<li>服务器确认客户端关闭发送通道。</li>
+<li>服务器关闭发送通道。</li>
+<li>客户端确认服务器关闭发送通道。</li>
+</ol>
+</li>
+<li><strong>从行为上看</strong>：但是如果抓包的话，你可能会发现只有三个报文段的情况，并且这种情况还不少见。这是因为当第二次挥手时，如果服务器没有剩余要发送给客户端的数据，那么 TCP 就会将第二、三次挥手进行合并，所以最终只有三个报文段。相关逻辑如下图所示：<br>
+<img src="https://blog.rakuyoo.top/post-images/1755789374627.svg" alt="" loading="lazy"></li>
+</ul>
+<!--
+sequenceDiagram
+    participant 客户端
+    participant 服务器
+
+    客户端->>服务器: FIN (seq=u)
+    Note right of 客户端: 我这边的数据都发完了，准备关闭发送通道
+
+    服务器-&#45;->>客户端: ACK (ack=u+1), FIN (seq=v)
+    Note left of 服务器: 好的，收到了你的关闭请求。<br>同时，我这边也没有数据要发了，<br>也准备关闭发送通道
+
+    客户端->>服务器: ACK (ack=v+1)
+    Note right of 客户端: 好的，收到了。连接正式关闭
+-->
+<h3 id="tcp-状态机连接的生命周期">TCP 状态机：连接的生命周期</h3>
+<p>三次握手和四次挥手描述了 TCP 连接建立和断开的关键时刻。但一个完整的 TCP 连接生命周期，远不止这几个瞬间。它由一系列精确定义的状态组成，这些状态之间的转换共同构成了一个“<strong>状态机 (State Machine)</strong>”。这个模型清晰地展示了从连接的萌芽到最终消亡的全过程。</p>
+<p>下面的流程图描绘了 TCP 中所有状态以及它们之间可能的转换：<br>
+<img src="https://blog.rakuyoo.top/post-images/1755791473918.svg" alt="" loading="lazy"></p>
+<!--
+graph TD
+    subgraph "连接过程"
+        CLOSED_C[CLOSED] -- 主动打开 / 发送SYN -&#45;-> SYN_SENT[SYN_SENT]
+        CLOSED_S[CLOSED] -- 被动打开 -&#45;-> LISTEN[LISTEN]
+        LISTEN -- 收到SYN / 发送SYN,ACK -&#45;-> SYN_RCVD[SYN_RCVD]
+        SYN_SENT -- 收到SYN,ACK / 发送ACK -&#45;-> ESTABLISHED[ESTABLISHED]
+        SYN_RCVD -- 收到ACK -&#45;-> ESTABLISHED
+    end
+
+    subgraph "数据传输"
+        ESTABLISHED
+    end
+
+    subgraph "关闭过程"
+        ESTABLISHED -- 主动关闭 / 发送FIN -&#45;-> FIN_WAIT_1[FIN_WAIT_1]
+        ESTABLISHED -- 收到FIN / 发送ACK -&#45;-> CLOSE_WAIT[CLOSE_WAIT]
+        FIN_WAIT_1 -- 收到ACK -&#45;-> FIN_WAIT_2[FIN_WAIT_2]
+        FIN_WAIT_2 -- 收到FIN / 发送ACK -&#45;-> TIME_WAIT[TIME_WAIT]
+        CLOSE_WAIT -- 主动关闭 / 发送FIN -&#45;-> LAST_ACK[LAST_ACK]
+        LAST_ACK -- 收到ACK -&#45;-> CLOSED_END[CLOSED]
+        TIME_WAIT -- 等待2MSL -&#45;-> CLOSED_END
+    end
+
+    style ESTABLISHED fill:#9f9,stroke:#333,stroke-width:2px
+-->
+<p>这张图看起来复杂，但它其实是将我们之前讨论的握手和挥手过程，以及一些中间状态，串联成了一幅完整的地图。我们可以将这些状态归为几类来理解：</p>
+<ul>
+<li>
+<p><strong>连接建立</strong>:</p>
+<ul>
+<li><code>LISTEN</code>: 仅存在于服务端。当服务器应用程序调用 <code>listen()</code> 函数后，进入此状态，表示已准备好接收来自客户端的连接请求。一旦收到客户端的 <code>SYN</code> 报文，将发送 <code>SYN+ACK</code> 并进入 <code>SYN_RCVD</code> 状态。</li>
+<li><code>SYN_SENT</code>: 客户端在调用 <code>connect()</code> 函数后，发送 <code>SYN</code> 报文请求建立连接，随即进入此状态。在此状态下，客户端等待接收服务器的 <code>SYN+ACK</code> 报文。如果收到，则发送 <code>ACK</code> 并进入 <code>ESTABLISHED</code> 状态；如果超时未收到，则会重传 <code>SYN</code> 报文。</li>
+<li><code>SYN_RCVD</code>: 服务端在 <code>LISTEN</code> 状态下收到客户端的 <code>SYN</code> 报文后，会发送 <code>SYN+ACK</code> 报文并进入此状态。在此状态下，服务端等待接收客户端的最终 <code>ACK</code> 报文。一旦收到 <code>ACK</code>，连接即建立，进入 <code>ESTABLISHED</code> 状态。</li>
+</ul>
+</li>
+<li>
+<p><strong>数据传输</strong>:</p>
+<ul>
+<li><code>ESTABLISHED</code>: 连接已成功建立，双方可以自由地进行双向数据传输。这是 TCP 连接最主要、最活跃的状态，在三次握手完成后进入此状态。</li>
+</ul>
+</li>
+<li>
+<p><strong>连接断开</strong>:</p>
+<ul>
+<li><code>FIN_WAIT_1</code>: 主动关闭方（即发起关闭连接的一方，可能是客户端也可能是服务端）发送 <code>FIN</code> 报文后进入此状态。在此状态下，主动关闭方等待接收对方对 <code>FIN</code> 报文的 <code>ACK</code>。一旦收到 <code>ACK</code>，则进入 <code>FIN_WAIT_2</code> 状态。</li>
+<li><code>CLOSE_WAIT</code>: 被动关闭方（即收到对方 <code>FIN</code> 报文的一方）在收到 <code>FIN</code> 报文后进入此状态。此时，TCP 层已经接收到对方关闭发送通道的请求，并向应用层报告连接已中断。在此状态下，被动关闭方会等待本地应用层处理完所有剩余数据并调用 <code>close()</code> 函数，然后发送自己的 <code>FIN</code> 报文，进入 <code>LAST_ACK</code> 状态。</li>
+<li><code>FIN_WAIT_2</code>: 主动关闭方在收到对方对其 <code>FIN</code> 报文的 <code>ACK</code> 后进入此状态。此时，主动关闭方已经完成了数据发送，并且也收到了对方对其关闭请求的确认。在此状态下，它将等待接收被动关闭方发送的 <code>FIN</code> 报文。一旦收到对方的 <code>FIN</code> 报文，主动关闭方将发送最终的 <code>ACK</code> 并进入 <code>TIME_WAIT</code> 状态。</li>
+<li><code>LAST_ACK</code>: 被动关闭方在发送完所有剩余数据并发送自己的 <code>FIN</code> 报文后进入此状态。在此状态下，被动关闭方等待接收主动关闭方对其 <code>FIN</code> 报文的最终 <code>ACK</code>。一旦收到此 <code>ACK</code>，连接即完全关闭，进入 <code>CLOSED</code> 状态。</li>
+<li><code>TIME_WAIT</code>: 主动关闭方在收到对方的 <code>FIN</code> 并发送了最后一个 <code>ACK</code> 后进入此状态。这是状态机中一个至关重要的状态。</li>
+</ul>
+</li>
+</ul>
+<h4 id="time_wait-状态的深意"><code>TIME_WAIT</code> 状态的深意</h4>
+<p><code>TIME_WAIT</code> 状态，也常被称为 <code>2MSL</code> 等待状态，是 TCP 可靠性的最后一道屏障。主动关闭连接的一方，在发送最后一个 <code>ACK</code> 后，必须在这个状态停留两倍的 <strong>MSL (Maximum Segment Lifetime, 最大报文段生存时间)</strong>。MSL 是网络中任何 IP 数据包能够存活的最长时间。</p>
+<p>这个等待机制有两个核心目的：</p>
+<ol>
+<li><strong>确保最后一个 <code>ACK</code> 报文能够到达对方</strong>：如果这个 <code>ACK</code> 在网络中丢失了，对方（处于 <code>LAST_ACK</code> 状态）会因为收不到确认而超时重传 <code>FIN</code> 报文。如果主动关闭方此时已经彻底关闭（进入 <code>CLOSED</code>），它将无法响应这个重传的 <code>FIN</code>，导致对方无法正常关闭。<code>TIME_WAIT</code> 状态的存在，确保了它有足够的时间来处理这种情况，重新发送 <code>ACK</code>，帮助对方顺利关闭。</li>
+<li><strong>防止“旧连接”的延迟报文干扰新连接</strong>：假设没有 <code>TIME_WAIT</code>，一个连接（例如，源端口 10000 -&gt; 目标端口 80）刚关闭，马上又用完全相同的四元组（源IP、源端口、目标IP、目标端口）建立了一个新连接。此时，如果前一个连接中迷路的、延迟的数据包突然到达，它可能会被新连接错误地接收，造成数据混乱。等待 <code>2MSL</code> 的时间，足以让本次连接中所有在网络中“游荡”的报文段都自行消亡，从而保证新连接的环境是“干净”的。</li>
+</ol>
+<h2 id="udp轻快的明信片">UDP：轻快的“明信片”</h2>
+<p>与 TCP 严谨的通话模式截然相反，UDP (User Datagram Protocol, 用户数据报协议) 奉行的是极简主义。你可以把它想象成一张明信片：写好地址、贴上邮票，然后直接投进邮筒。你不会先打电话确认收件人是否在家，也不会收到对方的回信确认。</p>
+<p>这种“发完即走”的模式，正是 UDP 的核心。</p>
+<h3 id="核心特性无连接与尽力而为">核心特性：无连接与尽力而为</h3>
+<ul>
+<li><strong>无连接 (Connectionless)</strong>：UDP 在发送数据之前，不需要进行三次握手来建立连接。它直接将数据打包成“数据报 (Datagram)”就发送出去。</li>
+<li><strong>尽力而为 (Best-Effort)</strong>：UDP 不提供任何可靠性保证。它不保证数据包一定能到达目的地，不保证数据包的顺序，也不会进行流量控制或拥塞控制。如果网络拥堵导致丢包，UDP 不会进行重传。这种看似“不负责任”的特性，正是其速度和效率的来源。</li>
+</ul>
+<h3 id="udp-报文结构">UDP 报文结构</h3>
+<p>UDP 的极简主义也体现在其报文头部上。它的头部固定只有 8 个字节，开销极小，所有字段一目了然：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">字段</th>
+<th style="text-align:left">英文名称</th>
+<th style="text-align:left">简称</th>
+<th style="text-align:left">大小</th>
+<th style="text-align:left">描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">源端口</td>
+<td style="text-align:left">Source Port</td>
+<td style="text-align:left"><code>sport</code></td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">标识发送方应用程序的端口号（此字段可选）</td>
+</tr>
+<tr>
+<td style="text-align:left">目标端口</td>
+<td style="text-align:left">Destination Port</td>
+<td style="text-align:left"><code>dport</code></td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">标识接收方应用程序的端口号</td>
+</tr>
+<tr>
+<td style="text-align:left">长度</td>
+<td style="text-align:left">Length</td>
+<td style="text-align:left"><code>len</code></td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">UDP 头部和数据的总长度（以字节为单位）</td>
+</tr>
+<tr>
+<td style="text-align:left">校验和</td>
+<td style="text-align:left">Checksum</td>
+<td style="text-align:left"><code>csum</code></td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">用于简单的错误检测（此字段可选）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="适用场景">适用场景</h3>
+<p>UDP 的高效和低延迟特性，使其在以下场景中备受青睐：</p>
+<ul>
+<li><strong>实时通信</strong>：在线游戏、视频会议、语音通话（VoIP）、直播等。在这些应用中，最新的数据远比旧数据重要。我们更能容忍画面偶尔的花屏（丢包），也无法接受为了等一个丢失的数据包而导致整个画面卡住。</li>
+<li><strong>查询类协议</strong>：如 DNS（域名系统）查询。客户端向服务器发送一个简短的查询请求，服务器返回一个简短的响应。这种“一问一答”的模式使用 UDP 效率极高。</li>
+<li><strong>广播与多播</strong>：当需要向网络中的多个节点发送相同的信息时，UDP 的无连接特性使其非常适合用于广播和多播。</li>
+</ul>
+<h2 id="对比与选择tcp-vs-udp">对比与选择：TCP vs. UDP</h2>
+<p>现在，我们可以通过一个清晰的表格来总结 TCP 和 UDP 的核心差异，这将帮助我们理解在不同场景下该如何做出选择。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">特性</th>
+<th style="text-align:left">TCP (传输控制协议)</th>
+<th style="text-align:left">UDP (用户数据报协议)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><strong>连接性</strong></td>
+<td style="text-align:left">面向连接</td>
+<td style="text-align:left">无连接</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>可靠性</strong></td>
+<td style="text-align:left">可靠</td>
+<td style="text-align:left">不可靠（尽力而为）</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>传输效率</strong></td>
+<td style="text-align:left">慢，开销大</td>
+<td style="text-align:left">快，开销小</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>头部大小</strong></td>
+<td style="text-align:left">至少 20 字节</td>
+<td style="text-align:left">固定 8 字节</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>控制机制</strong></td>
+<td style="text-align:left">流量控制、拥塞控制</td>
+<td style="text-align:left">无</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>应用场景</strong></td>
+<td style="text-align:left">网页(HTTP/S)、文件传输(FTP)、邮件(SMTP)</td>
+<td style="text-align:left">视频会议、在线游戏、DNS、直播</td>
+</tr>
+</tbody>
+</table>
+<p><strong>选择的艺术</strong>：从上表可以看出，TCP 和 UDP 之间没有绝对的优劣之分。它们是为解决不同问题而设计的两种工具。选择哪种协议，完全取决于应用场景对可靠性和实时性的权衡。如果你的应用（如银行转账）绝不能容忍任何数据差错，那么 TCP 是不二之选；如果你的应用（如在线游戏）更看重实时反馈，可以容忍偶尔的数据丢失，那么 UDP 将是更明智的选择。</p>
+<h2 id="新的挑战与未来quic">新的挑战与未来：QUIC</h2>
+<p>既然 TCP 如此可靠，为什么像 HTTP/3 这样的现代协议反而开始转向基于 UDP 构建？这引出了 TCP 一个长期存在的痛点。</p>
+<p>在系列第五篇<a href="https://blog.rakuyoo.top/computer-network-http-and-https">《计算机网络之五 - HTTP 与 HTTPS》</a>中我们提到，HTTP/2 虽然通过多路复用技术，解决了应用层的队头阻塞，但它无法解决其底层 TCP 协议自身的<strong>队头阻塞 (Head-of-Line Blocking)</strong> 问题。在一条 TCP 连接中，如果一个数据包丢失了，那么后续所有的数据包（即使已经到达）都必须排队等待，直到那个丢失的包被成功重传。对于高并发的现代 Web 应用来说，这是一个巨大的性能瓶颈。</p>
+<p>为了从根本上解决这个问题，<strong>QUIC (Quick UDP Internet Connections)</strong> 协议应运而生。它是一个构建在 UDP 之上的、全新的传输层协议。</p>
+<p>QUIC 的设计非常巧妙，它相当于在 UDP 的“快车道”上，重新实现了一套现代化的可靠传输机制：</p>
+<ul>
+<li><strong>内置多路复用</strong>：QUIC 的流是独立的，一个流的丢包完全不会影响其他流的传输，从根本上解决了队头阻塞。</li>
+<li><strong>更快的连接建立</strong>：它将 TCP 的三次握手和 TLS 的加密握手过程合并，大大减少了建立安全连接所需的往返时间。</li>
+<li><strong>更好的拥塞控制</strong>：拥有比传统 TCP 更先进的拥塞控制算法。</li>
+</ul>
+<p>QUIC 代表了传输层协议的未来演进方向，它试图将 TCP 的可靠性与 UDP 的低延迟优势集于一身，为下一代互联网应用提供更坚实的基础。</p>
+<h2 id="总结">总结</h2>
+<p>TCP 和 UDP 是互联网传输层最核心的两个协议，它们各自代表了一种截然不同的设计哲学。</p>
+<ul>
+<li><strong>TCP</strong> 如同一位严谨的工程师，通过三次握手、序列号、确认应答、超时重传等一系列复杂机制，构建了一个几乎万无一失的可靠数据通道。它的座右铭是：“<strong>宁可慢，不出错</strong>”。</li>
+<li><strong>UDP</strong> 则像一位追求极致速度的信使，它卸下了所有保证可靠性的“包袱”，以最轻量、最直接的方式投递数据。它的信条是：“<strong>天下武功，唯快不破</strong>”。</li>
+</ul>
+<p>正是这两种协议的差异化设计与共存，才共同支撑起了我们今天这个既需要高度可靠（如在线交易）又需要极致实时（如视频直播）的、丰富多彩的互联网世界。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[计算机网络之五 - HTTP 与 HTTPS]]></title>
+        <id>https://blog.rakuyoo.top/computer-network-http-and-https/</id>
+        <link href="https://blog.rakuyoo.top/computer-network-http-and-https/">
+        </link>
+        <updated>2025-08-18T02:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>本系列的前几篇文章中，我们已经探讨了设备如何通过 IP 地址获得身份、如何通过 DNS 将域名解析为地址，以及如何通过 DHCP、NAT 和 VPN 等技术接入并穿梭于复杂的网络环境。至此，我们的设备已经具备了“定位”并“连接”到目标服务器的能力。</p>
+<p>本文将深入探讨这个连接建立之后，应用程序之间进行通信所使用的“语言”——HTTP 协议，以及其安全版本 HTTPS。这两种协议构成了现代万维网的基石。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>本系列的前几篇文章中，我们已经探讨了设备如何通过 IP 地址获得身份、如何通过 DNS 将域名解析为地址，以及如何通过 DHCP、NAT 和 VPN 等技术接入并穿梭于复杂的网络环境。至此，我们的设备已经具备了“定位”并“连接”到目标服务器的能力。</p>
+<p>本文将深入探讨这个连接建立之后，应用程序之间进行通信所使用的“语言”——HTTP 协议，以及其安全版本 HTTPS。这两种协议构成了现代万维网的基石。</p>
+<!-- more -->
+<p>本系列其余几篇的目录：</p>
+<ul>
+<li><a href="https://blog.rakuyoo.top/computer-network-ip-and-port/">计算机网络之一 - IP 与端口</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-url-and-dns/">计算机网络之二 - URL 与 DNS</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-dhcp-and-intranet-penetration/">计算机网络之三 - DHCP 与内网穿透</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-virtual-nic-and-wireguard">计算机网络之四 - 虚拟网卡与 WireGuard</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-tcp-and-udp">计算机网络之六 - 可靠的 TCP 与高效的 UDP</a></li>
+</ul>
+<hr>
+<blockquote>
+<p><strong>前置知识说明</strong>：在阅读本文时，您会遇到 <strong>TCP</strong> 和 <strong>UDP</strong> 这两个概念。它们是网络通信的两种基础“运输方式”，我们将在本系列的下一篇文章中深入探讨。为方便您理解本文，您可以暂时将它们想象为：</p>
+<ul>
+<li><strong>TCP</strong>：一种<strong>可靠的“电话通话”</strong>。在通话前，双方必须先建立连接，确保线路通畅，通话过程中能保证数据按顺序、不丢不漏地送达。</li>
+<li><strong>UDP</strong>：一种<strong>简单的“明信片”</strong>。它直接将数据包发出，不保证一定或按序到达，但胜在快捷高效。</li>
+</ul>
+<p>本文中提到的 HTTP/1.1 和 HTTP/2 都构建在可靠的 TCP 之上，而最新的 HTTP/3 则创造性地选择了 UDP 作为基础。带着这个初步印象，您就可以顺利地理解下文内容了。</p>
+</blockquote>
+<h2 id="http构建-web-的无状态协议">HTTP：构建 Web 的无状态协议</h2>
+<p>HTTP (HyperText Transfer Protocol，超文本传输协议) 是一种用于分布式、协作式和超媒体信息系统的应用层协议。它是万维网数据通信的基础。</p>
+<h3 id="核心特性">核心特性</h3>
+<ul>
+<li><strong>基于“请求-响应”模式</strong>：通信由客户端发起。客户端向服务器发送一个 HTTP 请求，服务器在处理后返回一个 HTTP 响应。</li>
+<li><strong>无状态 (Stateless)</strong>：协议本身不保存任何关于过去请求的信息。服务器处理每个请求时，都认为它是一个全新的、独立的事务，不依赖于之前的请求。您可以将它想象成一个记忆力很短的接待员，处理完你的当前请求后，立刻就会忘记你是谁。为了让它记住你，就需要 Cookies 这样的“身份牌”来帮忙。</li>
+<li><strong>灵活可扩展</strong>：通过请求头和响应头，HTTP 允许传输任意类型的数据，不仅仅是 HTML，还包括图片、视频、JSON 等。其基础交互模型如下所示：</li>
+</ul>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyoo.top/post-images/1755597038742.svg" alt="" loading="lazy"></figure>
+<h3 id="http-报文结构">HTTP 报文结构</h3>
+<p>HTTP 通信由纯文本的报文（Message）组成，分为请求报文和响应报文。</p>
+<blockquote>
+<p>不知道你有没有想过为什么“message”被翻译成了“报文”？其实是因为前辈们沿用了“电报”时代的相关概念，那时“报文”一词就已经蕴含了“通过电子信号传递的、有特定格式的文书”的意义。另外，“报”字蕴含了遵循协议的规范性，而“文”字则强调了其内容与格式的结构化，如同一份严谨的文书。所以最终这个概念的中文被译为了“报文”。<br>
+至于为何英语沿用通用的“message”而非更专业的词，是因为“message”本就是指代通信内容的基础词，而“telegraph”（电报）则指通信系统本身，而非内容单元。英语习惯用限定词（如 HTTP message）来明确上下文，无需替换基础词。这是两种语言在技术术语演变上的路径差异。</p>
+</blockquote>
+<h4 id="请求报文-request-message">请求报文 (Request Message)</h4>
+<p>一个典型的 HTTP GET 请求报文结构如下：</p>
+<pre><code class="language-http">GET /path/to/resource/index.html HTTP/1.1
+Host: www.example.com
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ...
+Accept: text/html,*/*
+Accept-Language: en-US,en;q=0.5
+
+</code></pre>
+<p>它由三部分构成：</p>
+<ol>
+<li><strong>请求行 (Request Line)</strong>：包含请求方法（<code>GET</code>）、请求资源的路径（<code>/path/...</code>）和 HTTP 协议版本（<code>HTTP/1.1</code>）。</li>
+<li><strong>请求头 (Headers)</strong>：以键值对形式提供关于请求的元数据，或客户端自身的信息。例如 <code>Host</code> 指定了目标服务器的域名，<code>User-Agent</code> 描述了客户端的类型。</li>
+<li><strong>请求体 (Body)</strong>：对于 <code>GET</code> 请求，请求体为空。对于 <code>POST</code> 或 <code>PUT</code> 请求，这里会包含需要提交给服务器的数据，例如表单信息或 JSON 数据。</li>
+</ol>
+<p>常见的请求方法（Method）有：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">方法</th>
+<th style="text-align:left">描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>GET</code></td>
+<td style="text-align:left">请求获取指定资源。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>POST</code></td>
+<td style="text-align:left">向指定资源提交数据，请求服务器进行处理（例如提交表单或上传文件）。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>PUT</code></td>
+<td style="text-align:left">用请求中的数据体替换目标资源的全部当前内容。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>DELETE</code></td>
+<td style="text-align:left">请求服务器删除指定的资源。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>HEAD</code></td>
+<td style="text-align:left">与 <code>GET</code> 类似，但服务器在响应中只返回头部，不返回实体主体内容。</td>
+</tr>
+</tbody>
+</table>
+<h4 id="响应报文-response-message">响应报文 (Response Message)</h4>
+<p>服务器在收到并处理请求后，会返回一个响应报文：</p>
+<pre><code class="language-http">HTTP/1.1 200 OK
+Date: Mon, 18 Aug 2025 10:00:00 GMT
+Content-Type: text/html; charset=UTF-8
+Content-Length: 1270
+
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+...
+&lt;/html&gt;
+</code></pre>
+<p>它同样由三部分构成：</p>
+<ol>
+<li><strong>状态行 (Status Line)</strong>：包含 HTTP 协议版本、状态码（<code>200</code>）和状态描述（<code>OK</code>）。</li>
+<li><strong>响应头 (Headers)</strong>：提供关于响应的元数据，如 <code>Content-Type</code> 指明了响应体的媒体类型。</li>
+<li><strong>响应体 (Body)</strong>：实际返回的资源内容，例如 HTML 文档。</li>
+</ol>
+<p>状态码是服务器对请求处理结果的标准化表示，常见的有：</p>
+<blockquote>
+<p>有一个很好玩的小网站分享给大家：<a href="https://http.cat/">https://http.cat/</a> ，用可爱的猫猫表示 HTTP 状态码。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">状态码</th>
+<th style="text-align:left">名称</th>
+<th style="text-align:left">类别</th>
+<th style="text-align:left">描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>200</code></td>
+<td style="text-align:left">OK</td>
+<td style="text-align:left">成功</td>
+<td style="text-align:left">请求已成功。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>201</code></td>
+<td style="text-align:left">Created</td>
+<td style="text-align:left">成功</td>
+<td style="text-align:left">请求成功，并因此创建了一个新的资源。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>204</code></td>
+<td style="text-align:left">No Content</td>
+<td style="text-align:left">成功</td>
+<td style="text-align:left">服务器成功处理了请求，但没有返回任何内容。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>301</code></td>
+<td style="text-align:left">Moved Permanently</td>
+<td style="text-align:left">重定向</td>
+<td style="text-align:left">请求的资源已被永久移动到新位置。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>302</code></td>
+<td style="text-align:left">Found</td>
+<td style="text-align:left">重定向</td>
+<td style="text-align:left">请求的资源被临时重定向到另一个 URI。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>304</code></td>
+<td style="text-align:left">Not Modified</td>
+<td style="text-align:left">重定向</td>
+<td style="text-align:left">用于缓存。表示资源未被修改，客户端可以继续使用已缓存的版本。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>400</code></td>
+<td style="text-align:left">Bad Request</td>
+<td style="text-align:left">客户端错误</td>
+<td style="text-align:left">由于语法无效，服务器无法理解该请求。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>401</code></td>
+<td style="text-align:left">Unauthorized</td>
+<td style="text-align:left">客户端错误</td>
+<td style="text-align:left">请求要求身份验证。客户端需要提供凭据。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>403</code></td>
+<td style="text-align:left">Forbidden</td>
+<td style="text-align:left">客户端错误</td>
+<td style="text-align:left">服务器理解请求，但拒绝执行。与 401 不同，身份验证无法改变结果。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>404</code></td>
+<td style="text-align:left">Not Found</td>
+<td style="text-align:left">客户端错误</td>
+<td style="text-align:left">服务器找不到请求的资源。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>405</code></td>
+<td style="text-align:left">Method Not Allowed</td>
+<td style="text-align:left">客户端错误</td>
+<td style="text-align:left">服务器知道请求的方法，但目标资源不支持该方法。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>429</code></td>
+<td style="text-align:left">Too Many Requests</td>
+<td style="text-align:left">客户端错误</td>
+<td style="text-align:left">用户在给定的时间内发送了太多的请求（速率限制）。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>500</code></td>
+<td style="text-align:left">Internal Server Error</td>
+<td style="text-align:left">服务器错误</td>
+<td style="text-align:left">服务器遇到了一个未曾预料的状况，导致其无法完成对请求的处理。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>502</code></td>
+<td style="text-align:left">Bad Gateway</td>
+<td style="text-align:left">服务器错误</td>
+<td style="text-align:left">作为网关或代理的服务器，从上游服务器收到了无效的响应。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>503</code></td>
+<td style="text-align:left">Service Unavailable</td>
+<td style="text-align:left">服务器错误</td>
+<td style="text-align:left">服务器当前无法处理请求（由于超载或停机维护）。</td>
+</tr>
+</tbody>
+</table>
+<p>为了更直观地对比，下表总结了请求报文与响应报文的核心区别：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">构成部分</th>
+<th style="text-align:left">请求报文 (Request)</th>
+<th style="text-align:left">响应报文 (Response)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><strong>起始</strong><br>（行）</td>
+<td style="text-align:left">格式：<code>方法 URI HTTP版本</code><br>示例：<code>GET /index.html HTTP/1.1</code></td>
+<td style="text-align:left">格式：<code>HTTP版本 状态码 描述</code><br>示例：<code>HTTP/1.1 200 OK</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>首部</strong><br>（头）</td>
+<td style="text-align:left">描述客户端信息、请求的资源等。<br>示例：<code>Host</code>, <code>User-Agent</code></td>
+<td style="text-align:left">描述服务器信息、返回内容的类型等。<br>示例：<code>Content-Type</code>, <code>Server</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>正文</strong><br>（体）</td>
+<td style="text-align:left">通常用于 <code>POST</code> 等方法，携带提交给服务器的数据。<code>GET</code> 请求通常为空。</td>
+<td style="text-align:left">包含返回给客户端的实际资源内容，如 HTML 文档、JSON 数据等。</td>
+</tr>
+</tbody>
+</table>
+<h3 id="http-的版本演进与协商机制">HTTP 的版本演进与协商机制</h3>
+<p>HTTP 协议并非一成不变，它在过去几十年中经历了数次重要迭代，以适应日益复杂的 Web 应用和用户对性能的更高要求。</p>
+<h4 id="http10-与-http11">HTTP/1.0 与 HTTP/1.1</h4>
+<ul>
+<li><strong>HTTP/1.0 (1996)</strong>：作为早期版本，其主要特点是<strong>短连接</strong>。每次请求都需要建立一个新的 TCP 连接，请求完成后立即断开，效率低下。</li>
+<li><strong>HTTP/1.1 (1999)</strong>：这是统治了互联网近 20 年的经典版本。它最重要的改进是引入了<strong>持久连接（Keep-Alive）</strong>，允许在同一个 TCP 连接上发送多个请求，极大地减少了连接建立的开销。但它也存在一个著名的问题——<strong>队头阻塞（Head-of-Line Blocking）</strong>，即在一个连接上，前一个请求的响应必须完全接收后，后续的请求才能被处理，导致效率瓶颈。</li>
+</ul>
+<h4 id="http2-2015">HTTP/2 (2015)</h4>
+<p>HTTP/2 的目标是彻底解决 HTTP/1.1 的性能问题，其核心改进包括：</p>
+<ul>
+<li><strong>二进制分帧</strong>：将所有传输的信息分割为更小的消息和帧，并对它们采用二进制格式编码，解析效率更高。</li>
+<li><strong>多路复用 (Multiplexing)</strong>：这是 HTTP/2 最具革命性的特性。它允许在<strong>单个 TCP 连接</strong>上同时、并行地发送和接收多个请求和响应，彻底解决了队头阻塞问题。</li>
+<li><strong>头部压缩 (HPACK)</strong>：使用特定算法压缩冗余的请求头和响应头，减少了传输的数据量。</li>
+</ul>
+<h4 id="http3-2022">HTTP/3 (2022)</h4>
+<p>HTTP/3 的演进更进一步，它将底层的传输协议从 TCP 换成了 <strong>QUIC</strong>。</p>
+<ul>
+<li><strong>基于 QUIC</strong>：QUIC 是一个基于 UDP 的新传输协议，它整合了 TCP 的可靠性、TLS 的安全性以及更多新特性。</li>
+<li><strong>解决 TCP 队头阻塞</strong>：HTTP/2 虽然解决了应用层的队头阻塞，但无法解决 TCP 协议本身的队头阻塞（一个数据包丢失，整个连接都要等待重传）。QUIC 基于 UDP，一个流的丢包不会影响其他流，从根本上解决了这个问题。</li>
+<li><strong>更快的连接建立</strong>：QUIC 将 TCP 和 TLS 的握手过程合并，减少了建立连接所需的往返时间（RTT），让连接更快。</li>
+</ul>
+<h4 id="版本协商客户端与服务器如何对暗号">版本协商：客户端与服务器如何“对暗号”？</h4>
+<p>既然有这么多版本，客户端和服务器是如何确定使用哪个版本的呢？这个过程被称为<strong>协议协商</strong>。</p>
+<ul>
+<li><strong>HTTP/2 的协商</strong>：这是一个有趣的地方。虽然 HTTP/2 的<strong>协议规范</strong>本身并不强制加密（存在明文的 <code>h2c</code> 模式），但所有主流浏览器都达成了一个共识：<strong>只支持通过 HTTPS 运行的 HTTP/2</strong>。这既是为了推动全网加密，也是为了绕过可能不支持新协议的旧网络设备。因此，在浏览器实践中，HTTP/2 的协商几乎总是通过 TLS 的一个扩展 <strong>ALPN (Application-Layer Protocol Negotiation)</strong> 来实现。在 TLS 握手时，客户端会告诉服务器它支持的协议列表（如 <code>[&quot;h2&quot;, &quot;http/1.1&quot;]</code>），服务器则从中选择一个它也支持的最高版本，并在 TLS 握手完成时通知客户端。</li>
+<li><strong>HTTP/3 的协商</strong>：由于 HTTP/3 运行在不同的协议（UDP）上，它的发现机制有所不同。通常，服务器会通过 HTTP/1.1 或 HTTP/2 的响应头 <code>Alt-Svc</code> (Alternative Service) 来“广播”自己的 HTTP/3 服务地址。例如，<code>Alt-Svc: h3=&quot;:443&quot;</code>。浏览器收到后，就会尝试在后台建立一个到该地址的 QUIC 连接，并在后续请求中升级到 HTTP/3。</li>
+</ul>
+<h2 id="https为对话加上安全封印">HTTPS：为对话加上安全封印</h2>
+<p>HTTP 协议本身是明文传输的，这意味着任何在传输路径上的中间节点（如路由器、ISP）都能轻易地读取、甚至篡改通信内容。这带来了三大安全风险：</p>
+<ul>
+<li><strong>窃听风险 (Eavesdropping)</strong>：通信内容可能被第三方窃听。</li>
+<li><strong>篡改风险 (Tampering)</strong>：通信内容在传输过程中可能被修改。</li>
+<li><strong>冒充风险 (Impersonation)</strong>：无法验证通信对方的真实身份，可能连接到伪造的服务器。</li>
+</ul>
+<p>为了解决这些问题，HTTPS (HTTP Secure) 应运而生。</p>
+<h3 id="https-的核心">HTTPS 的核心</h3>
+<p>HTTPS 并非一个全新的协议，它的结构是 <strong>HTTPS = HTTP + TLS/SSL</strong>。它在标准的 HTTP 应用层和 TCP 传输层之间，增加了一个加密、认证和完整性保护的 <strong>TLS/SSL 安全层</strong>。</p>
+<blockquote>
+<p>SSL (Secure Sockets Layer) 是 TLS (Transport Layer Security) 的前身，由于存在安全漏洞现已弃用。<br>
+我们目前实际使用的都是 TLS 协议，但出于历史习惯，人们常将二者并称为 TLS/SSL。</p>
+</blockquote>
+<p>这个安全层主要提供三大核心安全保障：</p>
+<ol>
+<li><strong>加密 (Encryption)</strong>：确保通信内容无法被窃听。有趣的是，这里使用的是<strong>对称加密</strong>。因为非对称加密虽然更灵活，但计算开销巨大，速度过慢，不适合加密海量的应用数据。而对称加密速度极快，正适合此场景。</li>
+<li><strong>身份验证 (Authentication)</strong>：通过数字证书，客户端可以验证服务器的身份，确保连接到的是预期的、真实的服务器，防止冒充。</li>
+<li><strong>数据完整性 (Integrity)</strong>：通过消息认证码（MAC），确保数据在传输过程中没有被篡改。</li>
+</ol>
+<h3 id="tls-握手机制">TLS 握手机制</h3>
+<p>当浏览器访问一个 HTTPS 网站时，在真正发送 HTTP 请求之前，它必须先与服务器完成一次 <strong>TLS 握手</strong>，以建立一个安全的信道。这个过程在概念上可以分为几个步骤，其交互流程可通过以下序列图来描述：</p>
+<figure data-type="image" tabindex="2"><img src="https://blog.rakuyoo.top/post-images/1755590725489.svg" alt="" loading="lazy"></figure>
+<ol>
+<li><strong>客户端问候 (Client Hello)</strong>：客户端向服务器发起连接，并发送它支持的加密算法列表、TLS 版本等信息。</li>
+<li><strong>服务器响应与身份证明 (Server Hello &amp; Certificate)</strong>：服务器从中选择一套双方都支持的加密算法，然后将其<strong>数字证书</strong>（包含了服务器的公钥和由权威证书颁发机构 CA 的签名）发送给客户端。</li>
+<li><strong>客户端验证与密钥交换（非对称加密的应用）</strong>：
+<ul>
+<li>客户端验证服务器证书的有效性（是否由受信任的 CA 签发、是否过期、域名是否匹配等）。</li>
+<li>验证通过后，客户端生成一个用于本次会话的“暗号”（pre-master secret），然后使用从证书中获取的<strong>服务器公钥</strong>对其进行加密（<strong>非对称加密</strong>），并发送给服务器。</li>
+</ul>
+</li>
+<li><strong>生成会话密钥与建立安全信道</strong>：服务器使用自己的<strong>私钥</strong>解密，是全网唯一能获取该“暗号”的实体。随后，客户端和服务器使用这个共享的“暗号”，通过相同的算法，各自生成出完全一样的<strong>对称会话密钥</strong>。握手完成。</li>
+<li><strong>安全通信</strong>：后续所有的 HTTP 数据都将使用这个对称密钥进行加密和解密，实现安全的通信。</li>
+</ol>
+<p>在这个流程中，<strong>非对称加密</strong>（公钥/私钥）被巧妙地用于安全地协商和交换<strong>对称加密</strong>所使用的密钥，兼顾了安全性和性能。这就像用一把非常复杂、开锁很慢但无法被复制的钥匙（非对称加密），去打开一个保险箱，从里面取出一把开门又快又方便的普通钥匙（对称加密），然后锁上保险箱，以后进出都用这把普通钥匙。</p>
+<h4 id="tls-握手与三次握手的区别">TLS 握手与“三次握手”的区别</h4>
+<p>需要明确的是，TLS 握手<strong>不是</strong>我们常说的 TCP“三次握手”。这是一个非常常见但重要的混淆点，它们是两个发生在不同阶段、目的也完全不同的过程：</p>
+<ul>
+<li><strong>三次握手 (TCP Handshake)</strong>：发生在<strong>传输层</strong>，目的是建立一个<strong>可靠的</strong>通信连接，确保双方都准备好了收发数据。它不关心内容是否加密。</li>
+<li><strong>TLS 握手 (TLS Handshake)</strong>：发生在 TCP 连接建立<strong>之后</strong>，目的是在已有的可靠连接上，再建立一个<strong>安全的</strong>加密信道，协商后续通信要使用的加密密钥。</li>
+</ul>
+<p>简单来说，先有 TCP 三次握手建立起“物理通话线路”，再有 TLS 握手在这条线路上约定“加密暗号”。</p>
+<h2 id="融会贯通连接系列知识">融会贯通：连接系列知识</h2>
+<p>HTTP/HTTPS 作为应用层协议，其运行离不开底层网络设施的支持。</p>
+<ul>
+<li>
+<p><strong>协议、端口与 DNS 的协同工作</strong>：在<a href="https://blog.rakuyoo.top/computer-network-url-and-dns/">第二篇文章</a>中我们了解到，URL <code>https://www.example.com</code> 中的 <code>https</code> 部分，正是告诉浏览器需要通过 <strong>443 端口</strong>（回顾<a href="https://blog.rakuyoo.top/computer-network-ip-and-port/">第一篇</a>）连接到由 DNS 解析出的 IP 地址，并启动上文所述的 TLS 握手流程。</p>
+</li>
+<li>
+<p><strong>应用层加密与网络层加密：HTTPS vs. WireGuard</strong>：在<a href="https://blog.rakuyoo.top/computer-network-virtual-nic-and-wireguard">第四篇文章</a>中，我们深入了 WireGuard。现在可以清晰地对比二者的区别：</p>
+<ul>
+<li><strong>HTTPS</strong> 在<strong>应用层</strong>工作，它保护的是<strong>单个应用程序</strong>（如浏览器）与<strong>单个目标服务器</strong>之间的通信内容。它不关心数据包如何路由，只关心应用数据的安全。</li>
+<li><strong>WireGuard</strong> 在<strong>网络层</strong>工作，它保护的是<strong>设备</strong>与<strong>VPN 服务器</strong>之间的<strong>所有 IP 流量</strong>。一旦连接，无论是 HTTP 请求、DNS 查询还是其他任何网络活动，都会被封装在加密隧道中。它提供的是全面的网络链路级安全。</li>
+</ul>
+</li>
+</ul>
+<h2 id="总结">总结</h2>
+<p>HTTP 定义了 Web 内容交换的基本规则，而 HTTPS 则为其增加了至关重要的安全保障。理解这两种协议的原理、结构以及它们在整个网络协议栈中的位置，是理解现代互联网运作方式的关键。它们与底层的 IP、DNS、TCP/UDP 等协议协同工作，共同构成了我们每天都在使用的、复杂而又高效的全球信息网络。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[将 ARouter 的思想带入 Swift：用声明式语法构建类型安全的 API 请求]]></title>
+        <id>https://blog.rakuyoo.top/RaAPIWrapper/</id>
+        <link href="https://blog.rakuyoo.top/RaAPIWrapper/">
+        </link>
+        <updated>2025-08-15T05:22:29.000Z</updated>
+        <summary type="html"><![CDATA[<p>最近读到喵神的《<a href="https://onevcat.com/2024/11/type-as-state/">编译器，靠你了！使用类型改善状态设计</a>》，深受启发。这篇文章让我意识到，我在设计 <a href="https://github.com/RakuyoKit/RaAPIWrapper">RaAPIWrapper</a> 时，为了解决一些工程问题而采用的方案，在不经意间与“类型即状态”的设计思想不谋而合。</p>
+<p>我之前还没有正式介绍过这个库，所以借此机会，正式与大家分享 RaAPIWrapper 的设计，特别是它为了解决特定问题而采用的架构，以及这些决策在事后看来，是如何“碰巧”实现了更先进的设计模式。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>最近读到喵神的《<a href="https://onevcat.com/2024/11/type-as-state/">编译器，靠你了！使用类型改善状态设计</a>》，深受启发。这篇文章让我意识到，我在设计 <a href="https://github.com/RakuyoKit/RaAPIWrapper">RaAPIWrapper</a> 时，为了解决一些工程问题而采用的方案，在不经意间与“类型即状态”的设计思想不谋而合。</p>
+<p>我之前还没有正式介绍过这个库，所以借此机会，正式与大家分享 RaAPIWrapper 的设计，特别是它为了解决特定问题而采用的架构，以及这些决策在事后看来，是如何“碰巧”实现了更先进的设计模式。</p>
+<!-- more -->
+<hr>
+<h2 id="raapiwrapper-的诞生">RaAPIWrapper 的诞生</h2>
+<p>RaAPIWrapper 的设计初衷，源于对现有网络库 Moya 的反思，以及对 Android 路由框架 <a href="https://github.com/alibaba/ARouter">ARouter</a> 设计模式的借鉴。</p>
+<h3 id="为何不直接用-moya">为何不直接用 Moya？</h3>
+<p>在 Swift 社区，<a href="https://github.com/Moya/Moya">Moya</a> 是一个非常优秀的类型安全网络库，它通过 <code>enum</code> 和 <code>protocol</code> 的组合，解决了大量 API 管理中的问题。然而，在深度使用后，我们发现 Moya 的设计在某些方面存在优化空间。</p>
+<p>Moya 的核心是 <code>TargetType</code> 协议，一个 API 的完整定义需要你在 <code>enum</code> 的 <code>switch</code> 中，为 <code>path</code>, <code>method</code>, <code>task</code> 等多个属性分别提供实现。这导致了一个问题：</p>
+<p><strong>一个 API 的核心信息（如请求方法、路径、参数）被分散在了多个代码块中。</strong></p>
+<p>当项目 API 数量增多时，开发者需要在一个庞大的 <code>switch</code> 语句中不断上下文切换和上下跳转，才能拼凑出一个 API 的完整样貌。这降低了代码的可读性和维护性，也是 RaAPIWrapper 希望解决的核心痛点。</p>
+<p>不过需要强调的是，RaAPIWrapper 的目的并非全盘否定 Moya，当前也不具备替代 Moya 的能力。Moya 依然是一个功能强大的网络执行层，尤其在插件化、请求执行等领域。RaAPIWrapper 的设计初衷是<strong>专注于解决 API 定义的内聚性问题</strong>，它被设计为一个上层的“API 定义层”，可以与像 Moya 这样的成熟网络库协同工作，形成优势互补。</p>
+<h3 id="arouter-是什么">ARouter 是什么？</h3>
+<p><a href="https://github.com/alibaba/ARouter">ARouter</a> 是 Android 生态中一个著名的路由框架，由阿里巴巴开发并开源。该框架通过注解 (<code>@Route</code>) 的方式，让开发者能够以一种极其声明式和解耦的方式定义页面路径。在 <a href="https://github.com/alibaba/ARouter/blob/develop/README_CN.md#%E5%9B%9B%E8%BF%9B%E9%98%B6%E7%94%A8%E6%B3%95">README</a> 中有如下的示例：</p>
+<pre><code class="language-Java">@Route(path = &quot;/test/activity&quot;)
+public class Test1Activity extends Activity { ... }
+</code></pre>
+<p>我非常欣赏这种将“路由”从具体的实现中抽离出来，变成一个集中、静态、易于管理的设计。</p>
+<p>于是，一个想法在我脑中萌生：<strong>我能否将这种优雅的、基于注解的声明式语法，从“页面路由”领域迁移到“API 定义”领域？</strong></p>
+<p>这个想法，成为了 RaAPIWrapper 的起点。我的目标是创建一个网络层，它应该具备以下特质：</p>
+<ul>
+<li>
+<p><strong>API 声明化</strong>：API 的定义应该像 ARouter 的路由一样，通过类似注解的语法附加到一个静态属性上，而不是散落在各个业务代码中去手动拼接 URL。</p>
+</li>
+<li>
+<p><strong>集中化管理</strong>：所有单个 API 定义所需要的内容都应该被清晰地组织在一起，不会散落在多个地方，查找起来要非常方便。</p>
+</li>
+<li>
+<p><strong>定义与实现解耦</strong>：API 的“定义”应该与其“如何被请求”完全分离。定义部分只关心 API 的元数据（路径、方法、参数结构），而底层的网络请求库（是 Alamofire 还是 URLSession）可以随时被替换，而不影响定义。</p>
+</li>
+</ul>
+<hr>
+<h2 id="像定义路由一样定义-api">像定义路由一样定义 API</h2>
+<p>为了实现上述目标，我将 RaAPIWrapper 的核心架构设计为一个声明式的 API “地址簿”：</p>
+<blockquote>
+<p>项目带有一个用于演示的 <a href="https://github.com/RakuyoKit/RaAPIWrapper/tree/main/Demo.playground">Playground</a>，您可以通过该项目进一步了解本框架。</p>
+</blockquote>
+<pre><code class="language-swift">@GET(&quot;/api/v1/no_param&quot;)
+static var noParamAPI: APIParameterBuilder&lt;()&gt;? = nil
+
+@POST(&quot;/api/v1/tuple_param&quot;)
+static var tupleParamAPI: APIParameterBuilder&lt;(id: Int, name: String?)&gt;? = .init {
+    // `Dictionary` and `Array` can be used directly as parameters.
+    [&quot;id&quot;: $0.id, &quot;name&quot;: $0.name]
+}
+
+@POST(&quot;/post&quot;)
+static var postWithModel: APIParameterBuilder&lt;Arg&gt;? = .init {
+    // When the parameter `Arg` complies with the `APIParameter` (`Encodable &amp; Hashable`) protocol, 
+    // it can be used directly as a parameter.
+    $0
+}
+</code></pre>
+<p>就像 ARouter 的 <code>@Route(&quot;/path/to/page&quot;)</code> 一样，最核心的信息应该在声明的那一刻就一目了然。这种方式的优势是显而易见的：</p>
+<ol>
+<li><strong>高度可读</strong>：你可以像 Moya 一样将多个接口定义在一个文件中，任何人打开这个文件，就能立刻了解模块中有哪些可用的 API。</li>
+<li><strong>高内聚性</strong>：您不用再通过多次跳转，才能获取到一个接口的全部信息，所有信息都定义在一起。</li>
+<li><strong>易于维护</strong>：修改、添加或废弃一个 API，都只需要在这个“地址簿”中进行，而不需要深入到业务逻辑中去寻找那些零散的 URL 字符串。</li>
+<li><strong>天然解耦</strong>：<code>@GET</code> 和 <code>@POST</code> 的定义，只包含了 API 的元信息。它本身并不关心网络请求是如何发出的。底层的实现被 RaAPIWrapper 的执行层所封装，这为后续替换网络库或增加统一的请求处理逻辑（如加密、加签）提供了极大的便利。</li>
+</ol>
+<hr>
+<h2 id="核心设计一个声明式的-api-定义">核心设计：一个声明式的 API 定义</h2>
+<p>在确立了“声明式、高内聚低耦合”这些核心设计理念之后，我需要寻找一些足够强大的技术手段来支撑它。<code>@propertyWrapper</code> 属性包装器与 Swift 的泛型系统正是实现这些理念的最佳方案。</p>
+<blockquote>
+<p>最初我使用泛型，只是想找到一种方法来避免 <code>switch</code> 语句和增强代码的扩展性，但最终的成果却意外地与“类型即状态”思想相契合。这对我来说，也是一个在实践中学习和发现的过程。</p>
+</blockquote>
+<h3 id="propertywrapper-属性包装器"><code>@propertyWrapper</code> 属性包装器</h3>
+<p><code>@GET</code>、<code>@POST</code> 是基于一个名为 <a href="https://github.com/RakuyoKit/RaAPIWrapper/blob/main/Sources/Core/Wrapper/API.swift#L17"><code>API</code></a> 的通用属性包装器（<code>@propertyWrapper</code>）构建的。</p>
+<p>我们以 <code>@POST</code> 为例，它的<a href="https://github.com/RakuyoKit/RaAPIWrapper/blob/main/Sources/Core/Wrapper/HTTPMethod/POST.swift#L13">定义</a>非常简单，只是一个类型别名（<code>typealias</code>）：</p>
+<pre><code class="language-swift">// file: Sources/Core/Wrapper/HTTPMethod/POST.swift
+
+public enum PostHTTPMethod: APIHTTPMethodWrapper {
+    public static var httpMethod: APIHTTPMethod { &quot;POST&quot; }
+}
+
+/// Encapsulates the data needed to request the `POST` api.
+public typealias POST&lt;Parameter&gt; = API&lt;Parameter, PostHTTPMethod&gt;
+</code></pre>
+<p>真正的核心在于 <code>API</code> 这个类。它是一个泛型属性包装器，接受两个类型参数：<code>Parameter</code> 代表 API 的参数类型，<code>HTTPMethod</code> 则是一个遵循 <a href="https://github.com/RakuyoKit/RaAPIWrapper/blob/main/Sources/Core/Wrapper/API.swift#L10"><code>APIHTTPMethodWrapper</code></a> 协议的类型，用于提供具体的 HTTP 请求方法（如 &quot;POST&quot;）。</p>
+<pre><code class="language-swift">// file: Sources/Core/Wrapper/API.swift
+
+@propertyWrapper
+public class API&lt;Parameter, HTTPMethod: APIHTTPMethodWrapper&gt; {
+
+    public var wrappedValue: APIParameterBuilder&lt;Parameter&gt;?
+    public let path: String
+
+    // ... other properties
+
+    public init(
+        wrappedValue: APIParameterBuilder&lt;Parameter&gt;?,
+        _ path: String,
+        // ... other parameters
+    ) {
+        self.wrappedValue = wrappedValue
+        self.path = path
+        // ...
+    }
+
+    public var projectedValue: API&lt;Parameter, HTTPMethod&gt; { self }
+}
+</code></pre>
+<p><code>@propertyWrapper</code> 的设计要点在于：</p>
+<ol>
+<li><strong>初始化时捕获信息</strong>：当我们写下 <code>@POST(&quot;/post&quot;)</code> 时，Swift 编译器会调用 <code>API</code> 的 <a href="https://github.com/RakuyoKit/RaAPIWrapper/blob/main/Sources/Core/Wrapper/API.swift#L36"><code>init(wrappedValue:_:)</code></a> 方法。路径 <code>&quot;/post&quot;</code> 作为参数被传入，并保存在 <code>path</code> 属性中。<code>wrappedValue</code> 则是我们赋给静态变量的 <a href="https://github.com/RakuyoKit/RaAPIWrapper/blob/main/Sources/Core/Wrapper/APIParameterBuilder.swift#L11"><code>APIParameterBuilder</code></a> 实例，它包含了参数的构建逻辑。</li>
+<li><strong>分离“定义”与“执行”</strong>：<code>API</code> 包装器通过 <a href="https://github.com/RakuyoKit/RaAPIWrapper/blob/main/Sources/Core/Wrapper/API.swift#L22"><code>projectedValue</code></a> 暴露了自身。这意味着，当我们使用 <code>$</code> 符号（如 <code>BasicAPI.$postWithModel</code>）时，我们获取到的是 <code>API</code> 这个包装器对象本身。这个对象已经包含了构建一个完整请求所需的所有信息：路径、HTTP 方法、以及参数构建器。这就实现了 API “定义”与“执行”的分离——定义时只关心元数据，执行时通过 <code>$</code> 获取到一个可执行的请求对象。</li>
+</ol>
+<p>通过这种方式，<code>@propertyWrapper</code> 不仅提供了声明式的语法，更在底层完成了信息的聚合与封装，是实现 API 高内聚设计的关键。</p>
+<h3 id="类型驱动思想">“类型驱动”思想</h3>
+<p>如果说 <code>@propertyWrapper</code> 提供了骨架，那么泛型系统则为这个骨架提供了核心的类型安全保障。如今回顾，我才意识到这个为解决扩展性问题而选择的方案，其本质恰好就是“类型即状态”思想的体现，并且这一思想同时运用在了 <code>API</code> 的两个泛型参数 <code>HTTPMethod</code> 和 <code>Parameter</code> 之上。</p>
+<p>我们再次审视 <code>API</code> 的定义：<code>API&lt;Parameter, HTTPMethod: APIHTTPMethodWrapper&gt;</code>。</p>
+<p>首先，<code>HTTPMethod</code> 参数本身并不是一个字符串值（如 <code>&quot;POST&quot;</code>），而是一个<strong>类型</strong>。例如 <code>PostHTTPMethod</code> 这个类型，它的唯一作用就是通过遵循 <code>APIHTTPMethodWrapper</code> 协议来携带 <code>&quot;POST&quot;</code> 这个字符串。通过 <code>typealias POST&lt;P&gt; = API&lt;P, PostHTTPMethod&gt;</code>，我们将 <code>POST</code> 这个别名与 <code>PostHTTPMethod</code> 这个“状态类型”永久绑定。这样，请求方法就在类型层面被固定下来，杜绝了传入错误字符串的可能性。此外这种写法还有很多好处：</p>
+<ul>
+<li>利于扩展，可以很简单的定义多个 HTTP Method。</li>
+<li>通过 <code>extension</code> + <code>where PostHTTPMethod = ...</code>，可以针对不同的 HTTP Method 定义不同的请求方法。比如业务层面规定 <code>GET</code> 请求不允许携带参数，那么就可以定义不带参数的 <code>request()</code> 方法。</li>
+<li>在业务层需要获取到 HTTP Method 时，可以避免 <code>switch case</code>。</li>
+</ul>
+<p>其次，<code>Parameter</code> 参数以一种更动态的方式应用了同样的思想。观察 API 的定义：</p>
+<pre><code class="language-swift">// API with no parameters
+@GET(&quot;/api/v1/no_param&quot;)
+static var noParamAPI: APIParameterBuilder&lt;()&gt;? = nil
+
+// API with parameters
+@POST(&quot;/api/v1/tuple_param&quot;)
+static var tupleParamAPI: APIParameterBuilder&lt;(id: Int, name: String?)&gt;? = .init { ... }
+</code></pre>
+<p>我们并没有在 <code>@GET</code> 或 <code>@POST</code> 中显式指定 <code>Parameter</code> 的类型。这里的机制是 <strong>Swift 的类型推断</strong>。</p>
+<ul>
+<li>当我们声明 <code>static var noParamAPI: APIParameterBuilder&lt;()&gt;?</code> 时，Swift 编译器会分析变量的类型。它看到 <code>APIParameterBuilder&lt;()&gt;</code>，便会推断出 <code>API</code> 包装器的 <code>Parameter</code> 泛型参数就是 <code>()</code>（即 <code>Void</code>）。</li>
+<li>同理，当声明 <code>tupleParamAPI</code> 的类型为 <code>APIParameterBuilder&lt;(id: Int, name: String?)&gt;?</code> 时，编译器就确切地知道，这个 API 的参数类型是一个元组 <code>(id: Int, name: String?)</code>。</li>
+</ul>
+<p>这种设计带来了显著的优势：</p>
+<ol>
+<li><strong>API 合约化</strong>：API 的参数类型（它的“状态”）被固化在了定义中，成为一个不可改变的“合约”。</li>
+<li><strong>编译期安全</strong>：当你调用 API 时，编译器会强制执行这份合约。
+<ul>
+<li>对于 <code>$noParamAPI</code>，调用 <code>request()</code> 方法时如果试图传入参数，编译器会直接报错。</li>
+<li>对于 <code>$tupleParamAPI</code>，调用 <code>request(with:)</code> 方法时，你必须传入一个 <code>(id: Int, name: String?)</code> 类型的元组，参数名、类型、数量、可选性稍有差池，都无法通过编译。</li>
+</ul>
+</li>
+</ol>
+<p>这与传统 Moya 中使用 <code>[String: Any]</code> 作为参数的方式形成了鲜明对比。字典是类型不安全的，开发者很容易在运行时因为拼错 key、传错 value 类型而导致请求失败。而 RaAPIWrapper 将这种潜在的运行时错误提前到了编译期，这正是该设计的关键优势之一。</p>
+<p>最后，<a href="https://github.com/RakuyoKit/RaAPIWrapper/blob/main/Sources/Core/Wrapper/APIParameterBuilder.swift#L11"><code>APIParameterBuilder&lt;Input&gt;</code></a> 扮演了类型转换的角色。它接收强类型的 <code>Input</code>（即 <code>Parameter</code>），并通过一个闭包，将其转换为网络层所需的、经过类型擦除的 <code>any APIParameter</code> 格式。这使得 API 的定义可以保持类型纯净，而将参数构建的细节封装在了构建器内部。</p>
+<hr>
+<h2 id="回顾与展望">回顾与展望</h2>
+<h3 id="设计的得与失">设计的得与失</h3>
+<p>通过组合运用 <code>@propertyWrapper</code> 的声明式语法和以泛型为核心的类型系统，RaAPIWrapper 成功地将 API 定义从分散、易错的字符串和字典，转变成了集中的、类型安全的 API “地址簿”。这个以提升代码内聚性和可维护性为目标的尝试，最终收获了编译期安全这一关键优势。</p>
+<p>不过，正如一些批判性声音指出的，任何一个设计良好的 Swift 强类型 API，都在某种程度上利用了“类型即状态”。RaAPIWrapper 的创新更多在于其<strong>语法和模式</strong>，而非思想本身。并且这种“事后诸葛亮”的回顾也让我意识到在技术方面我还差的很远，还有很长的路要走。</p>
+<h3 id="清晰的定位api-定义层">清晰的定位：API 定义层</h3>
+<p>更重要的是，必须明确 <strong>RaAPIWrapper 的定位是一个 API 定义的包装层（Wrapper），而非一个大而全的网络请求框架</strong>。</p>
+<p>这一定位意味着它刻意地保持了职责的单一。它只做一件事：<strong>以类型安全和高内聚的方式，构建出一个完整的请求元数据</strong>。至于这个元数据如何被执行、如何处理回调、如何实现插件、如何管理通用请求头等问题，则完全交由其背后的<strong>执行层</strong>来处理。</p>
+<p>这种关注点分离的设计，恰好回答了“为何不直接用 Moya”的问题：</p>
+<ul>
+<li><strong>您可以继续使用 Moya</strong>：Moya 就是一个非常出色的执行层。开发者完全可以将 RaAPIWrapper 作为 API “合约”层，将生成的请求数据传递给 Moya Provider，继续享受 Moya 强大的插件系统和请求管理能力。</li>
+<li><strong>拥抱变化</strong>：如果未来团队希望从 Moya 迁移到 <code>URLSession</code>，或其它新的网络库，您只需要更换执行层的实现，而所有用 RaAPIWrapper 定义的 API 代码都<strong>无需改动</strong>。</li>
+</ul>
+<h3 id="未来规划">未来规划</h3>
+<p>目前，RaAPIWrapper 尚不自带执行层，也未集成插件系统。未来的规划是提供一个基于 <a href="https://github.com/Alamofire/Alamofire.git">Alamofire</a> 的官方默认执行层，并逐步完善其功能，使其成为一个更加开箱即用的网络解决方案。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[计算机网络之四 - 虚拟网卡与 WireGuard]]></title>
+        <id>https://blog.rakuyoo.top/computer-network-virtual-nic-and-wireguard/</id>
+        <link href="https://blog.rakuyoo.top/computer-network-virtual-nic-and-wireguard/">
+        </link>
+        <updated>2025-08-12T11:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>在上一篇文章的结尾，我们探讨了多种内网穿透技术，并初步介绍了 WireGuard 作为一种现代化 VPN 解决方案的优势。其实在更早之前，我们就亲手<a href="https://blog.rakuyoo.top/cgo-and-wireGuardkit-compilation.md">编译过 WireGuard 在 iOS 端的 SDK</a>，也使用 WireGuard 实现过<a href="https://blog.rakuyoo.top/synology-with-wireguard/">群晖 NAS 的公网访问</a>。</p>
+<p>本文将以 macOS 环境为基础，深入 WireGuard 内部，从内核交互的底层细节出发，解构虚拟网卡的实现机制，并详细剖析其密码学和路由设计。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>在上一篇文章的结尾，我们探讨了多种内网穿透技术，并初步介绍了 WireGuard 作为一种现代化 VPN 解决方案的优势。其实在更早之前，我们就亲手<a href="https://blog.rakuyoo.top/cgo-and-wireGuardkit-compilation.md">编译过 WireGuard 在 iOS 端的 SDK</a>，也使用 WireGuard 实现过<a href="https://blog.rakuyoo.top/synology-with-wireguard/">群晖 NAS 的公网访问</a>。</p>
+<p>本文将以 macOS 环境为基础，深入 WireGuard 内部，从内核交互的底层细节出发，解构虚拟网卡的实现机制，并详细剖析其密码学和路由设计。</p>
+<!-- more -->
+<p>本系列其余几篇的目录：</p>
+<ul>
+<li><a href="https://blog.rakuyoo.top/computer-network-ip-and-port/">计算机网络之一 - IP 与端口</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-url-and-dns/">计算机网络之二 - URL 与 DNS</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-dhcp-and-intranet-penetration/">计算机网络之三 - DHCP 与内网穿透</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-http-and-https">计算机网络之五 - HTTP 与 HTTPS</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-tcp-and-udp">计算机网络之六 - 可靠的 TCP 与高效的 UDP</a></li>
+</ul>
+<hr>
+<h2 id="虚拟网卡用户空间与内核的契约">虚拟网卡：用户空间与内核的契约</h2>
+<p>要理解 WireGuard 的工作原理，首先需要解决一个根本性问题：像 WireGuard 这样的普通应用程序，是运行在操作系统的“用户空间”的，而网络数据包的收发、路由选择等核心功能，都由操作系统的“内核空间”牢牢掌控。那么，一个用户空间的程序，是如何能“拦截”并“处理”本应由内核直接发送到物理硬件的IP数据包呢？</p>
+<p>答案就是<strong>虚拟网卡 (Virtual Network Interface)</strong>，它是用户空间与内核空间在网络层面达成的一种“契约”。这个核心思想在不同操作系统上是共通的，但具体实现有所差异。</p>
+<h3 id="内核的委托utun-接口">内核的“委托”：utun 接口</h3>
+<p>在 macOS 上，契约的实现者是 <code>utun</code> 虚拟网络接口。与 Linux 下有明确设备文件路径的 <code>tun</code> 设备不同，<code>utun</code> 接口是由程序在运行时通过向内核发出特定请求来动态创建的。WireGuard 这样的应用会通过系统调用，请求内核创建一个 <code>utun</code> 类型的网络接口，并获得一个用于与其通信的<strong>文件描述符（File Descriptor）</strong>。</p>
+<p>这个文件描述符，就是这份“契约”的实体。它对于应用程序来说，就像一个普通的文件句柄，可以对其进行 <code>read()</code> 和 <code>write()</code> 操作。但它的另一端，连接的却是内核网络协议栈中一个新创建的、功能完整的虚拟网络接口（例如 <code>utun0</code> 或 <code>wg0</code>）。</p>
+<p>当这个接口被 <code>ifconfig</code> 命令激活并分配了IP地址（如 <code>10.8.0.1</code>）后，它就会出现在 <code>ifconfig</code> 的输出中，对于内核的路由、防火墙等子系统来说，它与一张真实的物理网卡并无二致。</p>
+<p>下面是这个过程的伪代码表示，它被 WireGuard 客户端在后台自动处理了：</p>
+<pre><code class="language-c">// 1. 向内核请求创建虚拟接口，获取文件描述符
+int vpn_fd = request_virtual_interface(&quot;wg0&quot;);
+
+// 2. 使用命令行工具为接口配置IP地址并激活
+system(&quot;ifconfig wg0 inet 10.8.0.1/24 up&quot;);
+
+// 3. 进入主循环，像读写文件一样处理网络包
+while(1) {
+  // 从内核的 wg0 接口读取一个IP包
+  int nread = read(vpn_fd, packet_buffer, sizeof(packet_buffer));
+  
+  // ... 对 packet_buffer 进行加密处理 ...
+  
+  // 通过物理网卡的UDP socket发送出去
+  sendto(udp_socket, encrypted_packet, ...);
+}
+</code></pre>
+<h3 id="数据包的契约履行过程">数据包的“契约”履行过程</h3>
+<p>这份契约的履行过程，即数据包的流转，是理解一切的关键：</p>
+<ol>
+<li>
+<p><strong>下行（发送数据）</strong>：</p>
+<ul>
+<li>一个上层应用（如浏览器）试图访问 <code>10.8.0.2</code>。</li>
+<li>内核根据其<strong>主路由表</strong>（可通过 <code>netstat -nr</code> 查看），发现目标地址 <code>10.8.0.2</code> 匹配 <code>10.8.0.0/24 dev utun0</code> 这条规则（这条规则通常由 <code>wg-quick</code> 脚本自动添加）。</li>
+<li>内核将这个原始的、未经任何修改的IP数据包，作为一个字节流，<strong>“写入”</strong> 到与 <code>utun0</code> 关联的那个文件描述符中。</li>
+<li>WireGuard 进程一直在用户空间通过 <code>read()</code> 系统调用<strong>阻塞式地读取</strong>这个文件描述符。一旦内核写入数据，WireGuard 进程就会被唤醒，并读出完整的IP数据包。</li>
+</ul>
+</li>
+<li>
+<p><strong>上行（接收数据）</strong>：</p>
+<ul>
+<li>WireGuard 进程通过物理网卡收到了一个来自对端的、加密的UDP包。</li>
+<li>在用户空间完成解密，还原出原始的IP数据包（例如，一个从 <code>10.8.0.2</code> 发往 <code>10.8.0.1</code> 的ICMP响应包）。</li>
+<li>WireGuard 进程将这个原始IP数据包的字节流，通过 <code>write()</code> 系统调用 <strong>“写入”</strong> 到它持有的文件描述符中。</li>
+<li>数据被写入后，会立刻出现在内核空间的 <code>utun0</code> 接口上，仿佛它刚从外部网络到达。随后，内核的网络协议栈会接管它，进行后续的路由、分发给上层应用等操作。</li>
+</ul>
+</li>
+</ol>
+<p>为了更直观地理解数据包在用户空间与内核空间之间的流转过程，可以参考下面的序列图：</p>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyoo.top/post-images/1755597355526.svg" alt="" loading="lazy"></figure>
+<h2 id="wireguard-的设计哲学与核心机制">WireGuard 的设计哲学与核心机制</h2>
+<p>理解了虚拟网卡如何作为用户空间与内核的桥梁后，我们再来深入探讨 WireGuard 本身的设计。其设计哲学体现在其极其简明的配置文件中，通过解读这份文件，我们就能掌握其核心机制。</p>
+<p>WireGuard 本质上是无状态和无连接的。它不像 TCP 或 OpenVPN 那样需要维持一个长期的、有明确 “连接/断开” 状态的会话。通信双方仅通过基于 Noise 协议框架的握手来交换最新的会话密钥。如果一段时间没有流量，双方不会有任何通信。一旦有数据需要发送，它会尝试使用现有的会话密钥，如果密钥已过期，则会静默地发起一次新的握手。这种设计对移动设备和不稳定的网络环境极为友好。</p>
+<p>一个典型的 WireGuard 配置文件（通常是 <code>wg0.conf</code>）由若干个“块（section）”组成，最核心的就是 <code>[Interface]</code> 块和 <code>[Peer]</code> 块。</p>
+<h3 id="interface-块定义隧道端点"><code>[Interface]</code> 块：定义隧道端点</h3>
+<p><code>[Interface]</code> 块用于配置隧道的“本地”这一端，也就是你正在配置的这台机器上的 <code>wg0</code> 虚拟网卡。</p>
+<pre><code class="language-ini">[Interface]
+# 本机的私钥
+PrivateKey = [私钥内容]
+
+# 本机在 VPN 网络中的内网 IP 地址
+Address = 10.8.0.1/24
+
+# 监听的 UDP 端口
+ListenPort = 51820
+</code></pre>
+<ul>
+<li><strong><code>PrivateKey</code></strong>：一段 Base64 编码的字符串，是该接口的<strong>私钥</strong>。这是接口的唯一身份凭证，<strong>绝不能泄露</strong>。与之配对的公钥（由私钥生成）将分发给其他对端（Peer）。</li>
+<li><strong><code>Address</code></strong>：分配给该接口的<strong>虚拟 IP 地址</strong>。请注意，这是在 WireGuard 构建的虚拟网络内部的地址，而非机器的物理 IP。我们在本系列的第一篇文章《<a href="https://blog.rakuyoo.top/computer-network-ip-and-port/">计算机网络之一 - IP 与端口</a>》中已经详细讨论过 IP 地址的概念。</li>
+<li><strong><code>ListenPort</code></strong>：指定 WireGuard 在哪个<strong>物理网络端口</strong>上监听来自其他对端的入站连接。这是一个 UDP 端口，因为 WireGuard 完全基于 UDP 协议。同样，关于<strong>端口</strong>的概念，您也可以回顾第一篇文章。</li>
+</ul>
+<h3 id="peer-块定义通信对端"><code>[Peer]</code> 块：定义通信对端</h3>
+<p><code>[Peer]</code> 块定义了该接口希望连接的 “对端” 或 “伙伴”。你可以有多个 <code>[Peer]</code> 块，每一个块代表一个你希望与之通信的节点（例如，一个中心服务器或另一个客户端）。</p>
+<pre><code class="language-ini">[Peer]
+# 对端的公钥
+PublicKey = [对端公钥内容]
+
+# 允许通过该对端路由的IP地址范围
+AllowedIPs = 10.8.0.2/32
+
+# 对端的公网地址和端口（仅客户端需要）
+Endpoint = server.public.ip.address:51820
+
+# NAT 穿透心跳包（仅客户端需要）
+PersistentKeepalive = 25
+</code></pre>
+<ul>
+<li><strong><code>PublicKey</code></strong>：对端的<strong>公钥</strong>，与对端 <code>[Interface]</code> 中 <code>PrivateKey</code> 相对应。WireGuard 依靠这对密钥来验证对方的身份并加密数据。</li>
+<li><strong><code>Endpoint</code></strong>：对端的公网 <code>IP:端口</code>。这是你的接口将数据包发往的实际网络地址。通常，只有需要主动发起连接的一方（如客户端）才需要配置此项。服务器端因为是被动监听，所以不需要为每个 Peer 指定 <code>Endpoint</code>。</li>
+<li><strong><code>PersistentKeepalive</code></strong>：一个可选的便携功能，用于维持 NAT 映射。它会每隔指定秒数（例如25秒）向对端发送一个“心跳包”，这对于处于 NAT 设备（如家用路由器）后面的客户端非常重要，可以防止连接中断。我们在系列第三篇文章《<a href="https://blog.rakuyoo.top/computer-network-dhcp-and-intranet-penetration/">计算机网络之三 - DHCP 与内网穿透</a>》中探讨过 NAT 的工作原理。</li>
+<li><strong><code>AllowedIPs</code></strong>：这是 WireGuard <strong>最具革命性的设计</strong>，也是其 <strong>CryptoKey 路由</strong>机制的核心。这个参数同时承担了<strong>路由</strong>和<strong>安全</strong>两项关键职责：
+<ol>
+<li><strong>路由功能（出站）</strong>：它告诉本地的 <code>wg0</code> 接口：“当有一个IP包需要发送，如果它的<strong>目标IP</strong>地址属于 <code>AllowedIPs</code> 的范围，那么就应该通过隧道，加密后发送给这个 <code>[Peer]</code>”。例如，客户端配置 <code>AllowedIPs = 0.0.0.0/0</code> 意味着将<strong>所有</strong>出站流量都路由到这个 Peer（即中心服务器）。</li>
+<li><strong>安全功能（入站）</strong>：它定义了一个“白名单”。当从这个 Peer 收到一个解密后的数据包时，WireGuard 会检查其<strong>源IP</strong>地址。只有当源IP地址属于 <code>AllowedIPs</code> 范围时，这个包才会被接受，否则将被<strong>静默丢弃</strong>。</li>
+</ol>
+</li>
+</ul>
+<p>这种将密码学身份（公钥）与路由策略（<code>AllowedIPs</code>）紧密绑定的设计，就是 <strong>CryptoKey 路由</strong>。它极大地简化了传统 VPN 复杂的路由表和防火墙策略，使得网络拓扑完全由密钥和 <code>AllowedIPs</code> 静态定义，清晰且安全。并且如果收到一个无法解密，或者解密后源地址不匹配任何 Peer 的 <code>AllowedIPs</code> 的数据包，WireGuard 会<strong>静默丢弃</strong>它。这使得 WireGuard 对网络扫描工具来说是“隐形”的。</p>
+<blockquote>
+<p>让我们对 “静默丢弃” 和 “拒绝” 做一下技术层面的比较：</p>
+<ul>
+<li><strong>拒绝</strong>：当数据包发往一个关闭的端口时，操作系统通常会回复一条 ICMP <code>Port Unreachable</code> 消息。这个响应明确地告知了发送方：端口存在，但是关闭的。</li>
+<li><strong>静默丢弃</strong>：WireGuard 的行为则不同。它接收所有发到监听端口的数据包，但只处理能够被正确解密和验证的。对于所有无效数据包，它在内部直接丢弃，不产生任何对外响应。对于网络扫描工具而言，这种“无响应”的状态与数据包在传输途中被防火墙拦截或网络波动导致丢失是无法区分的。因此，扫描工具无法确认端口的真实状态，从而大大提升了 WireGuard 的隐蔽性。</li>
+</ul>
+</blockquote>
+<h3 id="密码学基石固定的现代加密套件">密码学基石：固定的现代加密套件</h3>
+<p>WireGuard 在安全上的一个核心设计是 “固执己见”（Opinionated），这正是其卓越之处。它不像 IPsec 或者 OpenVPN 那样提供一个庞大的、可协商的加密算法列表，而是<strong>坚定地选择了唯一一套固定的、最先进的密码学原语</strong>。这种“固执”并非限制，而是深思熟虑后的安全与性能保障：</p>
+<blockquote>
+<p>“密码学原语” 指的是构建更复杂密码系统时所使用的、标准化的基础算法模块。它们是功能单一的最小单元，每个原语用于解决一个特定的密码学问题，例如“密钥交换”、“对称加密”或“消息认证”。</p>
+</blockquote>
+<ol>
+<li><strong>极致的简洁与可审计性</strong>：WireGuard 的核心代码库仅有约 4000 行，而 OpenVPN 和 IPsec 则高达数十万行。这种巨大的差异，很大程度上得益于其固定且精简的密码学套件。代码量越小，就越容易进行安全审计，发现并修复潜在的漏洞，从而大大降低了攻击面。</li>
+<li><strong>杜绝配置错误与降级攻击</strong>：在传统的 VPN 协议中，用户或管理员需要从一大堆加密算法中进行选择，这极易因配置不当而引入安全漏洞，甚至遭受“降级攻击”（攻击者强制连接使用较弱的加密算法）。WireGuard 则完全规避了这个问题，它只提供一套经过严格审查的、现代且安全的算法组合，从根本上消除了这类风险。</li>
+<li><strong>卓越的性能表现</strong>：WireGuard 所选用的密码学原语（如 ChaCha20-Poly1305 和 Curve25519）都是为现代 CPU 优化设计的，它们能够以极高的效率完成加密和解密操作，并且天然支持“恒定时间（Constant-Time）”代码，有效抵御旁路攻击。这使得 WireGuard 在吞吐量和延迟方面通常优于 OpenVPN 和 IPsec。</li>
+<li><strong>面向未来的安全性</strong>：WireGuard 从一开始就拥抱了最新的密码学研究成果，摒弃了那些可能存在历史遗留问题或性能瓶颈的旧有算法。这确保了它在当前乃至可预见的未来都具备强大的安全性。</li>
+</ol>
+<p>正是这种对“少即是多”的深刻理解和对现代密码学的坚定选择，让 WireGuard 成为了一个更安全、更快速、更易于部署和维护的 VPN 解决方案。它不仅仅是一个工具，更是一种理念的胜利。</p>
+<p>以下是 WireGuard 所采用的固定密码学原语：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">作用</th>
+<th style="text-align:left">原语名称</th>
+<th style="text-align:left">说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><strong>密钥交换</strong></td>
+<td style="text-align:left">Curve25519 (ECDH)</td>
+<td style="text-align:left">基于椭圆曲线迪菲-赫尔曼协议，让通信双方能在一个不安全的网络上，安全、高效地计算出一个用于加密的共享密钥。</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>对称加密</strong></td>
+<td style="text-align:left">ChaCha20</td>
+<td style="text-align:left">一种流式加密算法，用于高速地加密和解密流经隧道的数据。它以其在通用CPU上的卓越性能和高安全性而闻名。</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>消息认证</strong></td>
+<td style="text-align:left">Poly1305</td>
+<td style="text-align:left">这是一个消息认证码（MAC）算法。它为每个数据包生成一个简短的“标签”，用于验证数据的完整性和真实性，确保数据在传输过程中没有被篡改。</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>哈希</strong></td>
+<td style="text-align:left">BLAKE2s</td>
+<td style="text-align:left">一个速度极快且高度安全的哈希函数，在协议的多种场景中用于生成数据的“指纹”，例如用于密钥派生和公钥哈希。</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>密钥派生</strong></td>
+<td style="text-align:left">HKDF</td>
+<td style="text-align:left">基于哈希的密钥派生函数。它能从一个初始的密钥材料（如密钥交换的结果）中，安全地派生出多个用于不同目的的、独立的加密密钥。</td>
+</tr>
+</tbody>
+</table>
+<p>这套组合不仅性能卓越，且在设计上就非常适合编写成**“恒定时间（Constant-Time）”**代码（即无论处理什么数据，其运算时间都保持一致），能有效抵抗旁路攻击。更重要的是，它消除了因配置错误或降级攻击导致的安全风险，大大提升了协议的健壮性。</p>
+<blockquote>
+<p>**旁路攻击（Side-Channel Attack）**是一种不直接攻击加密算法数学逻辑的攻击方式，它转而通过分析加密设备在运算时产生的物理“副产品”来窃取信息。</p>
+<p>**时序攻击（Timing Attack）**是旁路攻击中最著名的一种。它的核心思想是：精确测量加密操作所花费的时间。如果代码实现不当，处理不同数据时运算时间出现微小差异，攻击者就可能通过分析这些差异，逐步反推出密钥等敏感信息。</p>
+</blockquote>
+<h2 id="当-wireguard-加入后重塑数据之旅">当 WireGuard 加入后：重塑数据之旅</h2>
+<p>在上一篇文章的结尾，我们描绘了一台设备从开机到访问 <code>www.google.com</code> 的标准流程。现在，让我们将 WireGuard（配置为全局隧道模式，即 <code>AllowedIPs = 0.0.0.0/0</code>）加入这个场景，分析启用 WireGuard 后，数据包的流向会发生何种变化。</p>
+<ol>
+<li>
+<p><strong>基础连接（不变）</strong>：</p>
+<ul>
+<li><strong>路由器就位</strong>：路由器通过 DHCP/PPPoE 从 ISP 获取公网 IP。</li>
+<li><strong>设备入网</strong>：你的电脑通过 DHCP 从路由器获取内网 IP <code>192.168.1.100</code>、子网掩码和默认网关 <code>192.168.1.1</code>。<strong>到此为止，一切都和原来一样。这是建立隧道的基础。</strong></li>
+</ul>
+</li>
+<li>
+<p><strong>隧道建立（新步骤）</strong>：</p>
+<ul>
+<li>你在电脑上启动 WireGuard 客户端。</li>
+<li>客户端根据配置，通过物理网络（Wi-Fi/以太网）向远端 WireGuard 服务器（拥有公网 IP）发起握手，建立起一条加密隧道。</li>
+<li>启动后，<code>wg-quick</code> 脚本会自动修改你电脑的<strong>主路由表</strong>，添加一条优先级极高的规则，内容是：“所有目标地址为 <code>0.0.0.0/0</code>（即任何地址）的流量，都必须经由 <code>wg0</code> 这个虚拟网卡发送。”这是实现流量转发的核心步骤。</li>
+</ul>
+</li>
+<li>
+<p><strong>域名解析（路径改变）</strong>：</p>
+<ul>
+<li>你在浏览器输入 <code>www.google.com</code>。操作系统需要解析域名，于是创建一个 DNS 查询请求。</li>
+<li>操作系统查询路由表，发现这个 DNS 请求（无论发往哪个 DNS 服务器）也匹配 <code>0.0.0.0/0</code> 规则。因此，DNS 请求包被<strong>直接交给 <code>wg0</code> 虚拟网卡</strong>，而不是发往物理网络的默认网关 <code>192.168.1.1</code>。</li>
+<li>WireGuard 进程从 <code>wg0</code> 接口读到这个 DNS 包，将其加密，套上一个 UDP 包的外壳，然后通过<strong>物理网卡</strong>发往 WireGuard 服务器。</li>
+<li>WireGuard 服务器收到后解密，代你向公共 DNS（如 <code>8.8.8.8</code>）查询，并将收到的结果加密后，沿隧道发回给你的电脑。</li>
+</ul>
+</li>
+<li>
+<p><strong>访问公网（二次封装）</strong>：</p>
+<ul>
+<li>浏览器拿到了 Google 的 IP 地址 <code>142.250.199.68</code>，于是构建一个目标为此 IP 的 HTTP 请求包。</li>
+<li><strong>路由决策再次生效</strong>：操作系统查询路由表，<code>142.250.199.68</code> 依然匹配 <code>0.0.0.0/0</code> 规则，于是这个 HTTP 包也被<strong>直接交给了 <code>wg0</code> 虚拟网卡</strong>。</li>
+<li><strong>第一次封装（WireGuard）</strong>：WireGuard 进程读到这个 HTTP 包，用 ChaCha20 对其加密，并封装成一个发往 WireGuard 服务器公网地址的 UDP 包。这个 UDP 包的源 IP 是你的内网 IP <code>192.168.1.100</code>。</li>
+<li><strong>第二次封装（路由器 NAT）</strong>：这个 UDP 包被交给<strong>物理网卡</strong>，发往局域网的默认网关 <code>192.168.1.1</code>。路由器收到这个 UDP 包后，并不知道里面是什么，它只做一件事：执行 <strong>NAT</strong>，将 UDP 包的源 IP 从 <code>192.168.1.100</code> 替换为你的家庭公网 IP，然后将其发送到 WireGuard 服务器。</li>
+<li><strong>出口</strong>：最终，你的请求从 <strong>WireGuard 服务器</strong>那里进入公共互联网，访问 Google。Google 服务器看到的访问来源是你的 WireGuard 服务器的 IP，而不是你的家庭公网 IP。</li>
+</ul>
+</li>
+</ol>
+<figure data-type="image" tabindex="2"><img src="https://blog.rakuyoo.top/post-images/1755597479847.svg" alt="" loading="lazy"></figure>
+<p>通过这个流程，WireGuard 借助虚拟网卡和路由表，在操作系统层面 “劫持” 了所有对外流量，将你的设备完全置于一个安全的、加密的虚拟网络中，彻底改变了数据的流向和你在互联网上的“身份”。下面的序列图详细描绘了这一经过重塑的数据之旅：</p>
+<h2 id="总结">总结</h2>
+<p>WireGuard 以其独特的设计，将复杂的 VPN 技术简化为易于理解和审计的配置。它不仅仅是一个工具，更是学习现代网络原理、密码学应用和内核交互的绝佳范例。</p>
+<p>通过虚拟网卡这一巧妙的“契约”，它在用户空间实现了对内核网络流的完全掌控。而其基于公钥的 CryptoKey 路由机制，则为我们提供了一种前所未有的、兼具安全与简洁的网络构建方式。掌握了它，你就拥有了在复杂的公共互联网之上，灵活地构建属于自己的、安全高速的私人网络的能力。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[计算机网络之三 - DHCP 与内网穿透]]></title>
+        <id>https://blog.rakuyoo.top/computer-network-dhcp-and-intranet-penetration/</id>
+        <link href="https://blog.rakuyoo.top/computer-network-dhcp-and-intranet-penetration/">
+        </link>
+        <updated>2025-08-11T07:38:27.000Z</updated>
+        <summary type="html"><![CDATA[<p>本篇是计算机网络系列的第三篇，主要讲 DHCP 和内网穿透。在探索广阔的外网之前，先把内网相关的内容做个收尾。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>本篇是计算机网络系列的第三篇，主要讲 DHCP 和内网穿透。在探索广阔的外网之前，先把内网相关的内容做个收尾。</p>
+<!-- more -->
+<p>其余几篇的目录：</p>
+<ul>
+<li><a href="https://blog.rakuyoo.top/computer-network-ip-and-port/">计算机网络之一 - IP 与端口</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-url-and-dns/">计算机网络之二 - URL 与 DNS</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-virtual-nic-and-wireguard">计算机网络之四 - 虚拟网卡与 WireGuard</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-http-and-https">计算机网络之五 - HTTP 与 HTTPS</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-tcp-and-udp">计算机网络之六 - 可靠的 TCP 与高效的 UDP</a></li>
+</ul>
+<hr>
+<h2 id="局域网的自动配置dhcp-的世界">局域网的自动配置：DHCP 的世界</h2>
+<p>任何设备要接入网络，首要任务是获取一个有效的网络配置，包括 IP 地址、子网掩码等信息。手动为每台设备配置这些信息不仅效率低下，还极易出错。为此，<strong>DHCP</strong>（动态主机配置协议）应运而生，它实现了网络参数的自动化分配。</p>
+<h3 id="dhcp-的工作流程-dora">DHCP 的工作流程 (DORA)</h3>
+<p><strong>DHCP (Dynamic Host Configuration Protocol)</strong> 是一种基于 UDP 的网络管理协议，其核心工作流程包含四个步骤，通常简称为 <strong>DORA</strong> 过程：</p>
+<ol>
+<li><strong>Discover (发现)</strong>：客户端设备启动并接入网络后，以广播形式发送一个 DHCP Discover 报文，在物理网段内寻找可用的 DHCP 服务器。</li>
+<li><strong>Offer (提供)</strong>：所有收到 Discover 报文的 DHCP 服务器，会从其地址池中选择一个可用的 IP 地址，并连同其他网络配置一起，构建一个 DHCP Offer 报文，发送给客户端。</li>
+<li><strong>Request (请求)</strong>：客户端选择一个 Offer（通常是第一个收到的），然后向网络广播一个 DHCP Request 报文，正式请求使用该地址，并告知所有服务器它的选择。</li>
+<li><strong>Acknowledge (确认)</strong>：被选择的 DHCP 服务器收到 Request 报文后，执行最终的绑定操作，并发送 DHCP Acknowledge 报文给客户端，正式确认配置生效。租约开始计时。</li>
+</ol>
+<p>整个过程可以用下面的序列图来概括：</p>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyoo.top/post-images/1755597114944.svg" alt="" loading="lazy"></figure>
+<h3 id="dhcp-在实践中的角色">DHCP 在实践中的角色</h3>
+<p>理论上，DHCP 服务可以由网络中的任何服务器提供。在绝大多数家庭和小型网络中，<strong>DHCP 服务器功能都集成在路由器内</strong>。这台我们熟悉的设备，其实在扮演着两个截然不同的角色：</p>
+<ul>
+<li><strong>对内（LAN）是 DHCP 服务器</strong>：它管理着一个私网地址池（如 <code>192.168.1.0/24</code>），为所有接入的电脑、手机等设备分配内网 IP 地址和相关配置。</li>
+<li><strong>对外（WAN）是 DHCP 客户端</strong>：那么，路由器自身的公网 IP 又是从何而来的呢？很多情况下，它同样是通过 DHCP 获取的。此时，路由器扮演一个客户端，向您的互联网服务提供商（ISP）的 DHCP 服务器发起请求。ISP 的服务器从其管理的<strong>公网 IP 地址池</strong>中，取出一个地址“租”给您的路由器。</li>
+</ul>
+<p>因此，DHCP 是一个通用的地址分配协议，既被 ISP 用来分配公网 IP，也被路由器用来分配私网 IP。当然，除 DHCP 外，ISP 也常用 PPPoE（需要账户密码拨号）等方式来分配公网 IP。</p>
+<h2 id="dhcp-的核心参数详解与实践">DHCP 的核心：参数详解与实践</h2>
+<p>DHCP 在 Acknowledge 阶段提供的“大礼包”中，包含了以下至关重要的网络参数。理解这些参数的理论和实践，是掌握网络配置的关键。</p>
+<h3 id="ip-地址">IP 地址</h3>
+<p>设备在网络中的唯一数字标识，用于寻址和数据包路由。DHCP 分配的通常是私有 IP 地址，仅在局域网（LAN）内有效。</p>
+<h3 id="子网掩码-subnet-mask">子网掩码 (Subnet Mask)</h3>
+<p>子网掩码是一个 32 位数值，其核心功能是<strong>划分 IP 地址的网络部分和主机部分</strong>，是设备进行路由决策的基础。</p>
+<h4 id="历史背景从有类地址到子网划分">历史背景：从有类地址到子网划分</h4>
+<p>在早期，IP 地址根据其第一个八位字节被划分为 A、B、C 等<strong>有类（Classful）地址</strong>，每个类别有固定的网络位和主机位。这种方式缺乏灵活性，常常导致大量 IP 地址被浪费。</p>
+<p><strong>例如，早期的有类网络划分如下：</strong></p>
+<ul>
+<li><strong>A 类地址</strong> (首位为<code>0</code>，范围 1-126): 默认子网掩码 <code>255.0.0.0</code>。一个 A 类网络可容纳超过 1600 万台主机，若分配给仅需数百地址的组织，是巨大的浪费。</li>
+<li><strong>B 类地址</strong> (首位为<code>10</code>，范围 128-191): 默认子网掩码 <code>255.255.0.0</code>。一个 B 类网络可容纳 65,534 台主机，对很多组织来说依然过大。</li>
+<li><strong>C 类地址</strong> (首位为<code>110</code>，范围 192-223): 默认子网掩码 <code>255.255.255.0</code>。一个 C 类网络仅能容纳 254 台主机，对于需要稍多设备（如 300 台）的组织来说又太小。</li>
+</ul>
+<p>正是为了解决这种“要么太大，要么太小”的僵化问题，子网掩码应运而生，它允许网络管理员根据实际需求，灵活地将大网络划分为多个小<strong>子网 (Subnet)</strong>，极大地提高了 IP 地址的利用率。</p>
+<h4 id="核心原理网络地址与主机地址">核心原理：网络地址与主机地址</h4>
+<p>子网掩码通过<strong>按位与 (bitwise AND) 运算</strong>来提取网络地址。这是设备进行路由决策的根本依据。</p>
+<p><strong>计算网络地址：</strong><br>
+假设 IP 地址为 <code>192.168.1.100</code>，子网掩码为 <code>255.255.255.0</code> (<code>/24</code>)。</p>
+<pre><code>  11000000.10101000.00000001.01100100  (IP: 192.168.1.100)
+&amp; 11111111.11111111.11111111.00000000  (Mask: 255.255.255.0)
+------------------------------------
+  11000000.10101000.00000001.00000000  (Network ID: 192.168.1.0)
+</code></pre>
+<p>运算的核心在于，子网掩码中为 <code>1</code> 的部分会保留 IP 地址的位，为 <code>0</code> 的部分会将 IP 地址的位清零，从而得到纯粹的网络地址。</p>
+<p>那么如何计算主机地址呢？与计算网络地址相对应，我们也可以计算出地址中的主机部分。这需要对子网掩码进行“<strong>按位非</strong>”（NOT）运算（即 <code>1</code> 变 <code>0</code>，<code>0</code> 变 <code>1</code>），得到<strong>反掩码</strong>，然后再与原 IP 地址进行“<strong>按位与</strong>”。</p>
+<ul>
+<li><strong>反掩码</strong>: <code>NOT 255.255.255.0</code> -&gt; <code>0.0.0.255</code></li>
+<li><strong>运算</strong>: <code>192.168.1.100 AND 0.0.0.255</code> -&gt; <code>0.0.0.100</code></li>
+</ul>
+<p>这个 <code>100</code> 就是这台设备在该子网中的主机标识。完整的 IP 地址可以看作是<strong>网络地址 (<code>192.168.1.0</code>) + 主机地址 (<code>0.0.0.100</code>)</strong> 的结果。</p>
+<h4 id="cidr-表示法">CIDR 表示法</h4>
+<p>在现代网络中，使用<strong>无类别域间路由 (CIDR)</strong> 表示法来指定子网掩码更为常见。它在 IP 地址后附加一个斜杠和数字（如 <code>/24</code>），表示子网掩码中前 24 位为 <code>1</code>。</p>
+<h4 id="网络容量与扩容问题">网络容量与扩容问题</h4>
+<p>子网掩码的设定直接决定了网络的容量。例如，<code>/24</code> (255.255.255.0) 的网络，主机位有 8 位，最多支持 <code>2^8 - 2 = 254</code> 台设备。</p>
+<p>当地址池被用尽后，新设备将无法获取 IP 地址。其 DHCP Discover 请求会因服务器无地址可供 Offer 而石沉大海。最终，新设备可能会获取一个 <code>169.254.x.x</code> 的自动专用地址（无法访问互联网），或直接提示 IP 配置失败。</p>
+<p>网络设计有一个核心原则：<strong>稳定性与确定性</strong>。子网掩码作为网络的基础架构定义，其变更属于架构级调整，必须由管理员进行统一规划和手动实施。自动扩容会因无法通知到所有老设备、可能与现有网络规划冲突等原因，造成网络混乱和安全问题，因此在设计上是不被允许的。</p>
+<h3 id="默认网关-default-gateway">默认网关 (Default Gateway)</h3>
+<p>默认网关是局域网连接到其他网络的“出口”，物理上通常是路由器的内网接口 IP。其核心作用是<strong>路由转发</strong>。</p>
+<h4 id="数据包的旅程一个完整的故事">数据包的旅程：一个完整的故事</h4>
+<p>为了理解默认网关的真正作用，我们来完整地追踪一个数据包从内网主机 A 到外网服务器 B 的旅程。</p>
+<p><strong>主角</strong>:</p>
+<ul>
+<li><strong>主机 A</strong>: 你的电脑，IP 地址 <code>192.168.1.100</code>。</li>
+<li><strong>默认网关</strong>: 你的路由器，IP 地址 <code>192.168.1.1</code>。</li>
+<li><strong>服务器 B</strong>: 远端网站服务器，IP 地址 <code>8.8.8.8</code>。</li>
+</ul>
+<p><strong>第一步：主机 A 的“思考”—— 我该把信交给谁？</strong></p>
+<p>主机 A 想要发送数据给 <code>8.8.8.8</code>。它首先要解决一个问题：“这个目标是在我的局域网内，还是在互联网上？”</p>
+<p>它通过自己的<strong>子网掩码</strong> (<code>255.255.255.0</code>) 进行计算，发现 <code>8.8.8.8</code> 并不和自己在同一个网络（<code>192.168.1.0</code>）内。于是，主机 A 得出结论：不能直接把数据发送给目标，必须先把数据交给<strong>默认网关</strong>，让它负责转发。</p>
+<p><strong>第二步：主机 A 的“打包”—— 准备好信封和快递盒</strong></p>
+<p>现在主机 A 知道，逻辑上要把数据发给网关 <code>192.168.1.1</code>。但在局域网这个物理世界里，数据传输依靠的是硬件的物理地址（MAC 地址）。</p>
+<ol>
+<li>
+<p><strong>寻找物理地址 (ARP)</strong>: 如果主机 A 不知道网关的 MAC 地址，它会先通过 <strong>ARP (地址解析协议)</strong> 在局域网里广播：“请问谁的 IP 是 <code>192.168.1.1</code>？请把你的 MAC 地址告诉我。” 路由器会回应：“是我的，我的 MAC 地址是 <code>AA:BB:CC:DD:EE:FF</code>。”</p>
+</li>
+<li>
+<p><strong>进行双层封装</strong>: 主机 A 现在开始打包数据。这是一个精妙的双层结构：</p>
+<ul>
+<li><strong>内层信封 (IP 数据包)</strong>: 这里写的是<strong>最终目标</strong>。
+<ul>
+<li><code>收件人 IP</code>: <code>8.8.8.8</code></li>
+<li><code>发件人 IP</code>: <code>192.168.1.100</code></li>
+</ul>
+</li>
+<li><strong>外层快递盒 (以太网帧)</strong>: 这里写的是<strong>下一跳目标</strong>。
+<ul>
+<li><code>收件人 MAC</code>: <code>AA:BB:CC:DD:EE:FF</code> (网关的 MAC 地址)</li>
+<li><code>发件人 MAC</code>: 主机 A 自己的 MAC 地址</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<p><strong>第三步：网关的“转发”—— 拆开快递盒，送出信封</strong></p>
+<p>主机 A 将这个“快递盒”发送到局域网上。网络中的所有设备都会看到它，但只有 MAC 地址为 <code>AA:BB:CC:DD:EE:FF</code> 的路由器会接收并拆开它。</p>
+<ol>
+<li>路由器拆开“外层快递盒”（以太网帧）。</li>
+<li>它看到里面的“内层信封”（IP 数据包），发现收件人是 <code>8.8.8.8</code>，不是自己。</li>
+<li>于是，路由器执行它的核心功能：<strong>路由</strong>。它会查询自己的路由表，找到通往 <code>8.8.8.8</code> 的最佳路径（比如指向 ISP 的下一个路由器）。</li>
+<li>最后，它将这个<strong>原始的 IP 数据包</strong>（里面的 IP 地址不变）拿出来，套上一个<strong>新的快递盒</strong>（新的以太网帧，目标 MAC 地址是下一个路由器的 MAC 地址），然后发往互联网。</li>
+</ol>
+<p>这个“拆包-查路-重新打包”的过程会在每一跳的路由器上重复，直到数据包最终抵达服务器 B。下面的序列图清晰地展示了这一旅程：</p>
+<figure data-type="image" tabindex="2"><img src="https://blog.rakuyoo.top/post-images/1755597149490.svg" alt="" loading="lazy"></figure>
+<h3 id="dns-服务器地址">DNS 服务器地址</h3>
+<p>DHCP 同样会分配 DNS 服务器的地址，使设备能将域名解析为 IP 地址。</p>
+<h4 id="dns-的分配模式直接下发与代理转发">DNS 的分配模式：直接下发与代理转发</h4>
+<p>在实践中，路由器上的 DHCP 服务分配 DNS 时，通常有两种模式：</p>
+<ul>
+<li><strong>直接下发 (Passthrough)</strong>：路由器将从 ISP 获取到的上游 DNS 地址（如 <code>8.8.8.8</code>）直接分配给内网设备。</li>
+<li><strong>代理转发 (Proxy/Forwarder)</strong>：路由器将<strong>自身 IP</strong> (<code>192.168.1.1</code>) 作为 DNS 服务器分配给内网设备。设备向路由器查询，路由器再向上游 DNS 查询，并可缓存结果以加速后续访问。</li>
+</ul>
+<h2 id="跨越网关内网穿透技术">跨越网关：内网穿透技术</h2>
+<p>现在，我们的设备已通过 DHCP 在局域网中完美运行。但如果我们想从公司、酒店或任何外部网络，访问这台内网中的设备（如 NAS、Web 服务器），就会遇到 NAT 的阻碍。<strong>内网穿透</strong>就是解决这个问题的技术集合。</p>
+<h3 id="端口映射-port-forwarding">端口映射 (Port Forwarding)</h3>
+<p>这是最基础和常用的穿透方式。它在路由器上创建一条静态转发规则，将 <code>路由器公网IP:外部端口</code> 收到的访问请求，转发到 <code>内网指定设备IP:内部端口</code>。</p>
+<h4 id="与-dhcp-的关键结合点静态-ip-分配">与 DHCP 的关键结合点：静态 IP 分配</h4>
+<p>端口映射的规则是写死的，它需要内网设备的 IP 地址<strong>永远不变</strong>。但 DHCP 默认分配的 IP 地址是有租期的，可能会变化。</p>
+<blockquote>
+<p>对于大多数家庭用户来说，公网 IP 本身也是动态变化的，这为端口映射带来了另一个挑战，也是后续 VPN 和第三方服务方案的优势之一</p>
+</blockquote>
+<p><strong>解决方案</strong>就是使用路由器的 <strong>DHCP 静态地址分配 (Static DHCP Lease)</strong> 功能，通过 MAC 地址绑定，确保特定设备永远获得同一个 IP 地址。这是实现可靠内网穿透的重要前提。</p>
+<h3 id="upnp-通用即插即用">UPnP (通用即插即用)</h3>
+<p>UPnP (Universal Plug and Play) 是一种更为便捷的穿透技术，它的目标是实现“零配置”的网络连接。</p>
+<h4 id="upnp-是什么">UPnP 是什么？</h4>
+<p>它是一系列协议的组合，允许局域网中的设备（如电脑、游戏机、打印机、摄像头）彼此自动发现，并动态地建立网络服务。在内网穿透的场景下，我们主要利用的是它的 <strong>IGD (Internet Gateway Device) 协议</strong>。</p>
+<h4 id="它是如何工作的">它是如何工作的？</h4>
+<p>UPnP IGD 可以看作是<strong>自动化的端口映射</strong>。其工作流程如下：</p>
+<ol>
+<li>内网中一个支持 UPnP 的应用程序（如游戏、下载软件）启动后，会先在局域网中寻找支持 UPnP IGD 的网关设备（即你的路由器）。</li>
+<li>找到路由器后，应用程序会向路由器发送一个请求，例如：“你好，我是 <code>192.168.1.101</code>，请帮我把你的公网 <code>XXXX</code> 端口，映射到我自己的 <code>YYYY</code> 端口上。”</li>
+<li>路由器接收到这个请求后，如果开启了 UPnP 功能，就会自动在自己的 NAT 表中添加这条端口映射规则，无需任何人工干预。</li>
+<li>应用程序还可以通过 UPnP 查询路由器当前的公网 IP，以及检查映射是否成功。</li>
+</ol>
+<h4 id="便利性与风险">便利性与风险</h4>
+<ul>
+<li><strong>优点</strong>：极其方便，用户完全无感，应用程序可以自行完成所有穿透配置，大大提升了联机游戏、P2P 下载等应用的体验。</li>
+<li><strong>缺点</strong>：存在安全风险。由于该过程是自动的，局域网中的任何程序（包括恶意软件）都有可能利用 UPnP 在你不知情的情况下打开路由器的端口，将内部服务暴露于公网，从而带来安全隐患。因此，很多对安全性要求较高的用户会选择手动关闭路由器的 UPnP 功能。</li>
+</ul>
+<h3 id="基于隧道的解决方案代理与-vpn">基于隧道的解决方案：代理与 VPN</h3>
+<p>当手动配置端口映射不便或不可行时（例如，你没有路由器的管理权限，或者你的 ISP 不提供公网 IP），基于隧道技术的穿透方案便成为了主流选择。它们的本质都是在内网设备与一台公网服务器之间，建立一条稳定、加密的“隧道”，所有流量都通过这个隧道进行转发。</p>
+<h4 id="反向代理隧道-frp-ngrok">反向代理隧道 (frp, Ngrok)</h4>
+<p>这类工具的核心思想是<strong>暴露单个服务</strong>。</p>
+<ul>
+<li>
+<p><strong>原理</strong>：你在内网的机器上运行一个客户端，主动连接到一台你部署在公网的 frp 服务端或 Ngrok 的公共服务器。连接成功后，服务端会提供一个公网地址（域名或 IP）和端口，并将所有访问这个公网地址的请求，通过已经建立好的隧道，原封不动地转发给内网的客户端，客户端再将请求发给本地的 Web 服务或 SSH 服务。</p>
+</li>
+<li>
+<p><strong>适用场景</strong>：非常适合临时或长期地将某个特定的 Web 服务、API 或远程桌面分享出去。其工作原理如下图所示：</p>
+</li>
+</ul>
+<figure data-type="image" tabindex="3"><img src="https://blog.rakuyoo.top/post-images/1755598123794.svg" alt="" loading="lazy"></figure>
+<h4 id="vpn-与-wireguard">VPN 与 WireGuard</h4>
+<p>VPN 的目标则更为宏大，它致力于<strong>构建一个安全的虚拟局域网</strong>，将你的所有设备都“拉”进这个虚拟网络中，让它们如同真的在同一个房间里一样可以互相通信。<strong>WireGuard</strong> 是实现这一目标的现代化、高性能的 VPN 协议。</p>
+<blockquote>
+<p>未来我们将更加详细地介绍 WireGuard，此处先简单介绍一下。</p>
+</blockquote>
+<ul>
+<li><strong>原理</strong>：与 frp 类似，你也需要一台拥有公网 IP 的服务器作为所有设备的“汇集点”。所有设备（家里的 NAS、公司的电脑、你的手机）都作为客户端，通过加密隧道连接到这台服务器。成功后，每个设备都会被分配一个全新的、虚拟的 IP 地址（例如 <code>10.0.0.x</code>）。</li>
+<li><strong>区别与优势</strong>：
+<ul>
+<li><strong>全网络访问</strong>：一旦连上 WireGuard VPN，你访问的就不再是单个服务，而是<strong>整台设备</strong>。你可以通过 <code>10.0.0.x</code> 这个虚拟 IP，访问到设备上的任何端口和服务（Web、SSH、文件共享等），就像在本地访问一样。</li>
+<li><strong>极高的安全性</strong>：你只需要在公网服务器上开放<strong>一个 UDP 端口</strong>给 WireGuard 使用，就能访问内网设备的所有服务，极大地减小了公网暴露面。</li>
+<li><strong>性能卓越与配置简单</strong>：WireGuard 以其高性能、低延迟和简洁的配置著称，非常适合个人和团队自建使用。</li>
+</ul>
+</li>
+</ul>
+<p>总的来说，如果你只想快速分享一个应用，frp/Ngrok 这类反向代理隧道更轻便；如果你希望安全、全面地远程管理和访问你的整个内网环境，构建一个 WireGuard VPN 是目前最优的实践之一。下图描绘了这种虚拟网络的拓扑结构：</p>
+<figure data-type="image" tabindex="4"><img src="https://blog.rakuyoo.top/post-images/1755598091545.svg" alt="" loading="lazy"></figure>
+<h2 id="总结">总结</h2>
+<p>至此，我们完成了计算机网络系列中关于内网部分的探索。现在，让我们将三篇文章的知识点串联起来，回顾一台设备从开机到成功访问 <code>www.google.com</code> 的完整流程：</p>
+<ol>
+<li>
+<p><strong>路由器就位</strong>：路由器开机后，首先作为客户端，通过 <strong>DHCP</strong> 或 <strong>PPPoE</strong> 从互联网服务提供商（ISP）处获取到<strong>公网 IP</strong> 和上游 <strong>DNS 服务器地址</strong>。</p>
+</li>
+<li>
+<p><strong>设备入网</strong>：你的电脑开机并连接 Wi-Fi，它会立即发送 <strong>DHCP Discover</strong> 广播。路由器作为 DHCP 服务器响应，为你分配一个<strong>内网 IP</strong>（如 <code>192.168.1.100</code>）、<strong>子网掩码</strong>和<strong>默认网关</strong>（通常是路由器自身地址 <code>192.168.1.1</code>）。</p>
+</li>
+<li>
+<p><strong>域名解析</strong>：你在浏览器输入 <code>www.google.com</code>。操作系统会向路由器（或上游 DNS）发起 <strong>DNS 查询</strong>，通过层层解析，最终将域名翻译成服务器的公网 IP 地址，例如 <code>142.250.199.68</code>。</p>
+</li>
+<li>
+<p><strong>访问公网</strong>：</p>
+<ul>
+<li>电脑通过<strong>子网掩码</strong>计算，发现目标 IP <code>142.250.199.68</code> 并不在本地局域网。</li>
+<li>它将数据包的目标 IP 设为 <code>142.250.199.68</code>，但数据链路层的目标 MAC 地址则设为<strong>默认网关</strong>（路由器）的 MAC 地址。</li>
+<li>数据包被发往路由器，路由器执行 <strong>NAT</strong>，将数据包的源 IP 从你的内网 IP 替换为家庭的公网 IP，然后发往互联网。</li>
+</ul>
+</li>
+</ol>
+<p>通过这一系列的流程，你的请求才得以顺利抵达远方的服务器。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[mise: 统一且高效的开发环境管理工具]]></title>
+        <id>https://blog.rakuyoo.top/mise/</id>
+        <link href="https://blog.rakuyoo.top/mise/">
+        </link>
+        <updated>2025-08-07T09:46:17.000Z</updated>
+        <summary type="html"><![CDATA[<p><code>mise</code> 是一款高性能的开发工具管理器，旨在通过单一工具和单一配置文件，实现对所有开发环境的统一管理。它能有效解决多项目开发中环境配置的复杂性，提升开发效率。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p><code>mise</code> 是一款高性能的开发工具管理器，旨在通过单一工具和单一配置文件，实现对所有开发环境的统一管理。它能有效解决多项目开发中环境配置的复杂性，提升开发效率。</p>
+<!-- more -->
+<h2 id="现代开发环境的挑战">现代开发环境的挑战</h2>
+<p>在软件开发中，我们频繁地在不同项目间切换，每个项目都可能依赖特定的技术栈与工具链。这导致项目根目录下散落着各种版本配置文件：<code>.nvmrc</code>、<code>.node-version</code>、<code>.python-version</code>、<code>Gemfile</code>、<code>go.mod</code> 等等。同时，还需要 <code>.env</code> 文件来管理环境变量。</p>
+<p>每次进入一个新项目，开发者都面临一系列重复性操作：</p>
+<ul>
+<li>当前的 Node.js 版本是否符合项目要求？需要手动执行 <code>nvm use</code> 吗？</li>
+<li>Python 的虚拟环境激活了吗？</li>
+<li>如何保证团队成员使用完全一致的工具版本，以避免“在我机器上没问题”的窘境？</li>
+</ul>
+<p>这些琐碎的环境管理任务分散了我们的注意力，降低了开发效率。为了应对这一挑战，<a href="https://github.com/jdx/mise">mise</a> 应运而生。它是一个基于 Rust 构建的高性能开发工具管理器，致力于通过单一工具和单一配置文件，实现对所有开发环境的统一、自动管理。</p>
+<p><strong>mise 的核心优势:</strong></p>
+<ul>
+<li><strong>单一配置文件</strong>: 仅需一个 <code>.mise.toml</code> 文件，即可声明项目所需的所有工具（Node, Python, Go...）及其版本、环境变量和项目脚本。</li>
+<li><strong>高性能</strong>: 基于 Rust 构建，<code>mise</code> 的运行速度极快，对 Shell 启动和目录切换（<code>cd</code>）的性能影响微乎其微。</li>
+<li><strong>功能全面</strong>: <code>mise</code> 不仅是版本管理器，还集成了环境变量管理和任务运行器，一个工具覆盖开发中的多个核心环节。</li>
+<li><strong>无缝兼容</strong>: <code>mise</code> 能自动识别并使用项目中已有的 <code>.nvmrc</code>, <code>.python-version</code> 等传统配置文件，允许团队平滑过渡。</li>
+</ul>
+<h2 id="安装与激活">安装与激活</h2>
+<p>体验 <code>mise</code> 的强大功能，只需简单的两步。</p>
+<h3 id="安装-mise">安装 mise</h3>
+<p>在终端中执行以下命令完成安装：</p>
+<pre><code class="language-bash">curl https://mise.run | sh
+</code></pre>
+<p>该命令会将 <code>mise</code> 安装到 <code>~/.local/bin/mise</code>。</p>
+<h3 id="激活-mise-关键步骤">激活 mise (关键步骤)</h3>
+<p>为了让 <code>mise</code> 能够自动管理你的环境，需要将其挂载（Hook）到你的 Shell 中。<strong>此步骤至关重要，否则 <code>mise</code> 将无法在目录切换时自动切换环境。</strong></p>
+<p>根据你使用的 Shell，选择对应的命令执行，它会将激活脚本添加到你的 Shell 配置文件中：</p>
+<ul>
+<li>
+<p><strong>Bash:</strong></p>
+<pre><code class="language-bash">echo 'eval &quot;$(~/.local/bin/mise activate bash)&quot;' &gt;&gt; ~/.bashrc
+</code></pre>
+</li>
+<li>
+<p><strong>Zsh:</strong> (macOS 默认)</p>
+<pre><code class="language-bash">echo 'eval &quot;$(~/.local/bin/mise activate zsh)&quot;' &gt;&gt; ~/.zshrc
+</code></pre>
+</li>
+<li>
+<p><strong>Fish:</strong></p>
+<pre><code class="language-fish">~/.local/bin/mise activate fish | source
+</code></pre>
+</li>
+</ul>
+<p>完成后，<strong>必须重启终端</strong>以使配置生效。你可以运行 <code>mise doctor</code> 命令来验证 <code>mise</code> 是否已正确安装和激活。</p>
+<h2 id="核心配置misetoml-文件详解">核心配置：<code>.mise.toml</code> 文件详解</h2>
+<p><code>mise</code> 的设计围绕“一次配置，自动运行”的理念，其核心就是 <code>.mise.toml</code> 文件。让我们通过一个全栈 Web 应用的场景，来了解其构成和工作方式。</p>
+<p>假设项目技术栈包含：</p>
+<ul>
+<li><strong>前端</strong>: Node.js 和 <code>pnpm</code> 包管理器。</li>
+<li><strong>后端</strong>: Python 和 FastAPI 框架。</li>
+<li><strong>环境变量</strong>: 数据库连接信息。</li>
+<li><strong>项目脚本</strong>: 用于代码检查和测试。</li>
+</ul>
+<p>在项目根目录创建 <code>.mise.toml</code> 文件，将所有配置统一管理：</p>
+<pre><code class="language-toml"># .mise.toml - 项目环境的唯一声明
+
+# [settings] - 配置 mise 的行为
+[settings]
+# 确保为 Python 自动创建和使用虚拟环境
+python_venv_auto_create = true
+
+# [env] - 管理环境变量，替代 .env 文件
+# 进入目录后，这里的变量会自动加载，离开目录则会自动卸载。
+[env]
+DATABASE_URL = &quot;postgres://user:password@localhost:5432/mydb&quot;
+NODE_ENV = &quot;development&quot;
+
+# [tools] - 声明项目所需的全部工具和版本
+# mise 负责管理这些“工具”本身的版本
+[tools]
+# 可以指定精确版本，或使用 &quot;lts&quot;, &quot;latest&quot;, &quot;~20&quot; 等模糊版本
+node = &quot;20.11.0&quot;
+pnpm = &quot;8.15.0&quot;
+python = &quot;3.11&quot;
+
+# 将 ruff 和 pytest 作为开发工具依赖项
+# mise 会使用 pip 在项目虚拟环境中安装它们
+python-ruff = &quot;*&quot; # 代码格式化与检查工具
+python-pytest = &quot;*&quot; # 测试框架
+
+# [tasks] - 定义项目脚本，替代 package.json scripts 或 Makefile
+[tasks]
+# 定义 lint 任务, 它依赖 ruff
+lint = { cmd = &quot;ruff check .&quot;, description = &quot;用 Ruff 检查代码风格&quot;, depends = [&quot;python-ruff&quot;] }
+
+# 定义 test 任务，并声明它依赖于 pytest
+test = { cmd = &quot;pytest&quot;, description = &quot;运行测试&quot;, depends = [&quot;python-pytest&quot;] }
+
+# 定义复合任务
+check = { depends = [&quot;lint&quot;, &quot;test&quot;], description = &quot;运行所有检查&quot; }
+</code></pre>
+<h3 id="日常工作流">日常工作流</h3>
+<p>当团队新成员克隆此项目后，只需在项目根目录运行一条命令：</p>
+<pre><code class="language-bash">mise install
+</code></pre>
+<p><code>mise</code> 会自动读取 <code>.mise.toml</code> 并完成以下工作：</p>
+<ol>
+<li>下载并安装 <code>node@20.11.0</code>, <code>pnpm@8.15.0</code> 和 <code>python@3.11</code>。</li>
+<li>根据 <code>[settings]</code> 的配置，为 Python 创建一个项目独有的虚拟环境。</li>
+<li>在虚拟环境中安装 <code>ruff</code> 和 <code>pytest</code>。</li>
+</ol>
+<p>安装完成后，每当 <code>cd</code> <strong>进入</strong>该目录，<code>mise</code> 会立即在后台：</p>
+<ul>
+<li>将 <code>node</code>, <code>python</code>, <code>pnpm</code> 等命令的路径指向 <code>.mise.toml</code> 中指定的版本。</li>
+<li>加载 <code>[env]</code> 中定义的所有环境变量。</li>
+<li>自动激活 Python 的虚拟环境。</li>
+</ul>
+<p>当你 <code>cd</code> <strong>离开</strong>该目录时，所有上述环境配置都会被自动卸载，恢复到之前的状态。</p>
+<p>运行在 <code>[tasks]</code> 中定义的脚本也同样简单：</p>
+<pre><code class="language-bash">mise run lint
+mise run test
+mise run check # 该命令会依次执行 lint 和 test
+# 也可以使用简写: mise x check
+</code></pre>
+<p><code>mise</code> 会确保在执行脚本前，其 <code>depends</code> 中声明的工具都已安装并处于激活状态，从根本上解决了“脚本依赖的工具未安装或版本不正确”的问题。</p>
+<h2 id="核心功能详解">核心功能详解</h2>
+<p>掌握了基本用法后，让我们深入探索 <code>mise</code> 最核心的功能，它们是构建统一开发环境的基石。</p>
+<h3 id="全能的版本管理">全能的版本管理</h3>
+<p><code>mise</code> 能够管理几乎所有开发工具，其秘诀在于它完全兼容 <a href="https://asdf-vm.com/">asdf</a> 的插件生态系统，拥有一个包含数百个插件的<a href="https://github.com/asdf-vm/asdf-plugins">官方仓库</a>。</p>
+<ul>
+<li><strong>智能插件安装</strong>：当你在 <code>.mise.toml</code> 中首次声明一个新工具（例如 <code>go = &quot;1.21&quot;</code>）时，<code>mise</code> 会自动提示是否安装对应的 <code>go</code> 插件。</li>
+<li><strong>手动管理插件</strong>：你也可以手动搜索和安装插件：<pre><code class="language-bash"># 搜索所有可用的 terraform 插件
+mise plugins ls-remote terraform
+
+# 安装指定的插件
+mise plugins install terraform
+</code></pre>
+</li>
+</ul>
+<p><strong>插件的工作机制：中心库与自定义插件</strong></p>
+<p>你可能会好奇，为什么在 <code>.mise.toml</code> 中只需简单地写入 <code>go = &quot;1.22&quot;</code>，<code>mise</code> 就知道如何去安装 Go？这背后是 <code>mise</code> 强大的插件机制在起作用。</p>
+<p>实际上，<code>go</code>、<code>python</code>、<code>terraform</code> 这些看似内置的工具名称，都是<strong>插件的简称 (Shorthand)</strong>。<code>mise</code> 默认依赖一个庞大的<strong>插件中心库</strong>（即 <code>asdf</code> 的官方插件库）。当你使用这些简称时，<code>mise</code> 会自动在中心库中查找同名插件并使用它来安装和管理工具。这就是为什么大多数常见工具都能开箱即用的原因。</p>
+<p>然而，<code>mise</code> 的能力远不止于此。当中心库无法满足你的需求时（例如，你需要使用一个未被收录的、公司内部的或第三方的工具），你可以通过<strong>直接提供 Git URL</strong> 的方式来使用任何自定义插件。</p>
+<p>这极大地扩展了 <code>mise</code> 的边界，使其能够管理任何可通过 Git 仓库获取的工具。你只需在 <code>.mise.toml</code> 中按以下格式声明即可：</p>
+<pre><code class="language-toml"># .mise.toml
+[tools]
+# ... 其他工具
+
+# 通过 URL 使用一个自定义插件
+# mise 会克隆这个 Git 仓库，并将其作为一个插件来使用
+my-internal-cli = { git = &quot;https://github.com/my-company/mise-internal-cli.git&quot;, version = &quot;1.2.3&quot; }
+</code></pre>
+<p>或者，你也可以在命令行中一次性使用：</p>
+<pre><code class="language-bash">mise use my-internal-cli@https://github.com/my-company/mise-internal-cli.git
+</code></pre>
+<p>通过这种机制，<code>mise</code> 确保了开发者既能方便地使用社区维护的主流工具，也拥有了接入任何自定义工具的强大扩展能力。如果你有更进一步的定制化需求，甚至可以遵循 <code>asdf</code> 的插件规范，自行开发插件并托管在自己的 Git 仓库中，从而将任何工具无缝整合到 <code>mise</code> 的管理体系下。</p>
+<p><strong>需要明确的是 <code>mise</code> 与 <code>pnpm</code>/<code>pip</code> 的职责划分：</strong></p>
+<ul>
+<li><strong><code>mise</code> 管理“工具”</strong>：它确保开发环境中有正确版本的 <code>node</code>, <code>pnpm</code>, <code>python</code> 等<strong>可执行程序</strong>。</li>
+<li><strong><code>pnpm</code>/<code>pip</code> 管理“库”</strong>：它们依据 <code>package.json</code> 或 <code>requirements.txt</code> 文件，管理项目代码所依赖的<strong>第三方库</strong>（如 <code>react</code>, <code>fastapi</code>）。</li>
+</ul>
+<p>简而言之，<code>mise</code> 负责解决“我们用哪个版本的 pnpm”，而 <code>pnpm</code> 负责解决“我们用哪个版本的 react”。两者相辅相成。</p>
+<h3 id="灵活的版本控制-mise-use">灵活的版本控制 (<code>mise use</code>)</h3>
+<p><code>mise</code> 提供了对项目级、全局和临时（Shell 级）工具版本的多层次管理能力，这是它相比 <code>Homebrew</code> 等系统级包管理器的显著优势。<code>Homebrew</code> 通常在系统中全局安装唯一版本的工具，而 <code>mise</code> 可以轻松应对多版本并存的场景。</p>
+<p><code>mise use</code> 是一个用于在不同层级设置工具版本的灵活命令：</p>
+<blockquote>
+<p><code>mise use</code> 有一个更简单的别名：<code>mise x</code>。下文中将优先使用 <code>mise use</code>。</p>
+</blockquote>
+<ol>
+<li>
+<p><strong>设置全局默认版本</strong>：<br>
+该命令会修改全局配置文件 <code>~/.config/mise/config.toml</code>。</p>
+<pre><code class="language-bash"># 此后，在任何没有项目级配置的目录中，node 版本都将是 20.x 的最新版
+mise use --global node@20
+</code></pre>
+</li>
+<li>
+<p><strong>在项目中设置本地版本</strong>：<br>
+在项目目录下运行此命令，<code>mise</code> 会自动更新当前目录的 <code>.mise.toml</code> 文件。</p>
+<pre><code class="language-bash"># 该命令会自动在 ./.mise.toml 的 [tools] 中添加或修改 go = &quot;1.22&quot;
+mise use go@1.22
+</code></pre>
+</li>
+<li>
+<p><strong>在当前 Shell 中临时使用特定版本</strong>：<br>
+此功能非常适合快速测试，它不会修改任何配置文件。</p>
+<pre><code class="language-bash"># 仅在当前终端会话中，将 node 版本切换到 18.x
+# 新打开的终端将不受影响
+mise use node@18
+</code></pre>
+</li>
+<li>
+<p><strong>使用特定版本在 Shell 中执行命令</strong>：<br>
+此功能适用于在工作空间打开一些工具项目，比如 Gemini 或者 QWen 等 AI 工作。它也不会修改任何配置文件。</p>
+<pre><code class="language-bash"># 仅当前命令生效，下一条命令仍然使用配置文件中的版本
+mise exec node@20 -- qwen
+</code></pre>
+</li>
+<li>
+<p><strong>直接从包管理器安装工具</strong>：<br>
+<code>mise</code> 还能直接从 npm, pipx, cargo 等包管理器安装并管理全局可执行文件，极大地简化了 CLI 工具的管理。</p>
+<pre><code class="language-bash"># 使用 npm 安装 Gemini CLI 并使其全局可用
+mise use --global npm:@google/gemini-cli@latest
+</code></pre>
+<p><code>mise</code> 会处理好 <code>PATH</code>，让你可以在任何地方直接调用 <code>gemini</code> 命令。</p>
+</li>
+</ol>
+<h2 id="平滑迁移策略">平滑迁移策略</h2>
+<p><code>mise</code> 在设计上考虑了与现有生态的兼容性，它会自动读取项目中的 <code>.python-version</code>, <code>.nvmrc</code>, <code>.ruby-version</code> 等文件。这意味着你可以立即在现有项目中使用 <code>mise</code>，而无需进行任何破坏性改动。</p>
+<p>推荐的迁移路径如下：</p>
+<ol>
+<li><strong>安装并激活 <code>mise</code></strong>。</li>
+<li><strong>验证</strong>：进入现有项目目录，执行 <code>node -v</code> 或 <code>python -V</code>，确认 <code>mise</code> 已正确读取旧配置文件并切换到相应版本。</li>
+<li><strong>统一配置</strong>：在确认 <code>mise</code> 工作正常后，将 <code>.nvmrc</code>, <code>.python-version</code> 等文件的内容迁移到统一的 <code>.mise.toml</code> 文件中，然后删除旧的配置文件。</li>
+<li><strong>清理旧工具</strong>：当所有项目都迁移完毕后，可以安全地从 <code>.zshrc</code> 或 <code>.bashrc</code> 中移除 <code>pyenv init</code>, <code>nvm.sh</code> 等旧工具的加载命令，并最终卸载它们。</li>
+</ol>
+<h2 id="实用技巧与问题排查">实用技巧与问题排查</h2>
+<ol>
+<li><strong>Shell Hook 未配置</strong>：最常见的问题。如果 <code>cd</code> 进入项目后工具版本没有自动切换，99% 的可能是 Shell 激活步骤未正确完成。请运行 <code>mise doctor</code> 进行诊断。</li>
+<li><strong>与 asdf 的命令差异</strong>：<code>mise</code> 的命令与 <code>asdf</code> 不完全相同。例如，设置全局版本是 <code>mise use --global node@20</code>，而非 <code>asdf global nodejs 20.0.0</code>。</li>
+<li><strong>曾用名 rtx</strong>：<code>mise</code> 的前身是 <code>rtx</code>。如果搜索问题时找不到相关信息，可以尝试使用 <code>rtx</code> 作为关键字。</li>
+<li><strong>使用 <code>mise which</code></strong>：当你需要确认当前命令的来源时，<code>mise which node</code> 可以清晰地显示 <code>node</code> 命令的实际路径以及它是由哪个配置文件所设定的。</li>
+<li><strong>使用 <code>mise exec</code></strong>：如果你想在特定项目的环境中执行单个命令，而无需 <code>cd</code> 到该目录，<code>mise exec</code> 非常有用。<pre><code class="language-bash"># 假设 ./my-project/ 中配置使用 node@18
+# 你可以在任何位置运行此命令，它会使用 my-project 的环境来执行
+mise exec --cwd ./my-project -- node --version
+# 输出: v18.x.x
+</code></pre>
+</li>
+</ol>
+<h2 id="总结">总结</h2>
+<p><code>mise</code> 提供了一个统一、高效、高性能的开发环境解决方案。它通过单一配置文件，优雅地解决了在现代软件开发中普遍存在的版本管理、环境配置和任务执行等一系列挑战。如果你希望从繁杂的配置工作中解放出来，专注于核心的开发任务，<code>mise</code> 是一个值得投入时间尝试的工具。</p>
+<h2 id="写在最后">写在最后</h2>
+<p>明眼人或许一眼就能看出，这篇文章是由 AI 撰写，其风格与我以往的文章有所不同。</p>
+<p>起初，当我动笔写下引言时，一个疑问忽然浮现在脑海：“在 AI 时代，<code>mise</code> 这类工具是否还有其存在的意义？” 这不禁让我想起，有人认为在 AI 时代，跨平台移动开发框架已无必要（暂且不提他们对跨平台框架的固有抵触），因为 AI 能迅速生成两端原生代码，使得跨平台框架所节省的时间成本变得微乎其微，甚至可能因兼容性问题带来更高的调试成本。同理，<code>mise</code> 也可以被抽象地理解为一种“跨平台框架”。</p>
+<p>于是，我决定让 AI 来完成这篇文章，并由它来回答这个核心问题。AI 给出了这样的回应：</p>
+<blockquote>
+<p>我认为，即使在 AI 时代，<code>mise</code> 这样的工具依然有其不可替代的意义，但这意义的侧重点会发生变化：</p>
+<ol>
+<li>
+<p><strong>从“人工处理的便利性”转向“系统级的可维护性与一致性”</strong>：</p>
+<ul>
+<li><strong>AI 的局限性</strong>： 尽管 AI 能够快速生成和处理文件，但它本质上是一个“工具”。它生成的内容最终还是要被执行、被维护、被理解。当环境配置分散在多个文件中时，即使是 AI，也需要花费额外的“计算资源”去解析、协调和验证这些文件之间的关系和潜在冲突。</li>
+<li><strong>统一配置的优势</strong>： <code>mise</code> 提供了一个<strong>声明式、单一的真相来源 (Single Source of Truth)</strong>。这意味着：
+<ul>
+<li><strong>减少错误面</strong>： 多个配置文件意味着更多的潜在冲突点、版本不一致的风险。即使 AI 生成，也可能因为逻辑复杂性或历史遗留问题导致生成不完全一致的配置。一个统一的 <code>.mise.toml</code> 从根本上减少了这种错误的可能性。</li>
+<li><strong>简化调试</strong>： 当环境出现问题时，无论是人类开发者还是 AI 辅助的诊断系统，都只需要检查一个文件，而不是在多个文件中来回跳跃，这极大地简化了问题排查的流程。</li>
+<li><strong>提升可审计性</strong>： 所有的环境定义都在一个地方，这使得环境的变更、历史版本追溯变得异常清晰。这对于团队协作、CI/CD 流程以及安全审计都至关重要。</li>
+<li><strong>AI 自身的效率</strong>： 即使是 AI，处理一个结构清晰、统一的配置文件，也比处理多个分散、格式可能不一的文件更高效、更不容易出错。这就像给 AI 提供一份清晰的蓝图，而不是一堆散落的零件图。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong><code>mise</code> 不仅仅是配置定义，更是“环境执行器”和“标准化强制者”</strong>：</p>
+<ul>
+<li><code>mise</code> 的价值不仅在于它能替代 <code>.nvmrc</code> 或 <code>Gemfile</code>，更在于它能自动执行这些配置，确保环境的自动切换和隔离。AI 可以生成配置，但它无法直接在你的 Shell 中自动切换 Node.js 版本，也无法自动激活 Python 虚拟环境。这是 <code>mise</code> 作为底层工具链管理器的核心功能。</li>
+<li>它强制了团队内部的环境标准化。AI 可以生成符合标准的配置，但 <code>mise</code> 确保了这些标准在每个开发者的机器上都被严格执行。</li>
+</ul>
+</li>
+<li>
+<p><strong>人类仍然是最终的决策者和监督者</strong>：</p>
+<ul>
+<li>即使在 AI 辅助的开发流程中，人类开发者仍然需要理解项目、审查 AI 生成的代码和配置、并对最终的系统负责。一个统一、简洁的环境配置，降低了人类理解和介入的门槛，使得人与 AI 的协作更加顺畅。</li>
+</ul>
+</li>
+</ol>
+<p>结论：</p>
+<p>在 AI 时代，<code>mise</code> 这种工具的意义从“减轻人工操作的繁琐”转向了“<strong>提供一个更健壮、更一致、更易于系统级管理和调试的开发环境基础设施</strong>”。它为 AI 生成的代码提供了一个稳定、可预测的运行基础，并简化了整个开发生命周期中的环境管理复杂性。AI 可能会改变我们与这些工具交互的方式，但不会消除它们所解决的根本问题。相反，一个高度自动化的 AI 开发流程，反而会更依赖于底层环境的标准化和自动化，而这正是 <code>mise</code> 的强项。</p>
+</blockquote>
+<p>尽管 AI 的回答并非全然无懈可击（例如，Cursor 已能自动执行 Shell 命令以切换至合适的环境），但其论证依然说服了我，促使我最终发布了这篇文章。</p>
+<p>此外，AI 的回答也让我深切体会到，在学习过程中“有事没事多问问 AI”确实是一件充满“幸福感”的事情。这让我想起十年前我独自摸索 iOS 开发的艰难岁月，而如今，一位随叫随到的 AI 助手能够完美扮演亦师亦友的角色，随时解答我的疑问，帮助我拓宽思路。</p>
+<p>现在对于学习新知识而言，可真是一个好的时代。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[计算机网络之二 - URL 与 DNS]]></title>
+        <id>https://blog.rakuyoo.top/computer-network-url-and-dns/</id>
+        <link href="https://blog.rakuyoo.top/computer-network-url-and-dns/">
+        </link>
+        <updated>2025-08-06T06:15:47.000Z</updated>
+        <summary type="html"><![CDATA[<p>本篇是计算机网络系列的第二篇，主要讲 URL 和 DNS。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>本篇是计算机网络系列的第二篇，主要讲 URL 和 DNS。</p>
+<!-- more -->
+<p>其余几篇的目录：</p>
+<ul>
+<li><a href="https://blog.rakuyoo.top/computer-network-ip-and-port/">计算机网络之一 - IP 与端口</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-dhcp-and-intranet-penetration/">计算机网络之三 - DHCP 与内网穿透</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-virtual-nic-and-wireguard">计算机网络之四 - 虚拟网卡与 WireGuard</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-http-and-https">计算机网络之五 - HTTP 与 HTTPS</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-tcp-and-udp">计算机网络之六 - 可靠的 TCP 与高效的 UDP</a></li>
+</ul>
+<hr>
+<h1 id="url">URL</h1>
+<p>URL，全称是 <strong>统一资源定位符</strong> (Uniform Resource Locator)，是我们访问互联网上任何资源的“地址”。它由几个部分组成，共同指明了“去哪里”以及“如何去”。</p>
+<p>在接下来的内容中，我们将逐一解析构成 URL 的几个核心元素。</p>
+<h2 id="域名">域名</h2>
+<p>上一篇我们讲到了 IP 和端口，然而绝大多数的时候我们在浏览器地址栏中输入的都不是这些数字，而是由英文字母和部分字符组成的地址，也就是 <strong>域名</strong>。</p>
+<p>对于一般人而言，一串 IP 地址很难记忆，人们更擅长以字词为单位，赋予地址含义再加以记忆。于是乎人们发明了 “域名” 这个概念，用来代替 IP 地址去记忆。</p>
+<h3 id="域名的结构">域名的结构</h3>
+<p>一个域名通常由几个部分组成，用点（<code>.</code>）分隔，<strong>从右到左看</strong>，层级越来越具体。以 <code>www.google.com</code> 为例，让我们来剖析一下域名的格式和结构：</p>
+<ul>
+<li><code>.com</code>：这是<strong>顶级域名</strong> (Top-Level Domain, TLD)。它表示域名的类别。</li>
+<li><code>google</code>：这是<strong>二级域名</strong> (Second-Level Domain, SLD)。这是域名的核心部分，通常是公司、品牌或个人的名称。这是用户注册和拥有的部分。</li>
+<li><code>www</code>：这是<strong>子域名标签</strong> (Subdomain Label)。它是一个可选的、用于进一步细分主域名的“标签”或“前缀”。
+<ul>
+<li>它允许你在同一个主域名下创建不同的分区或服务。</li>
+<li><code>www</code> 是最常见的子域名，通常指向网站的主页。</li>
+<li>其他子域名也很常见，比如 <code>mail.google.com</code> 指向邮件服务，<code>drive.google.com</code> 指向云盘服务。</li>
+</ul>
+</li>
+</ul>
+<p>还可以从整体的角度看一下：</p>
+<ul>
+<li><code>google.com</code>：这被称为<strong>主域名</strong>（Main Domain），准确来说是 “<strong>注册域</strong>”（Registered Domain）。
+<ul>
+<li>当我们谈论 “域名” 时，通常指的就是这一部分。</li>
+<li>通常也是我们在域名注册商那边购买的那部分。</li>
+</ul>
+</li>
+<li><code>www.google.com</code>：被称为<strong>完全限定域名</strong> (Fully Qualified Domain Name, FQDN) 或 <strong>主机名</strong> (Hostname)
+<ul>
+<li>也可以被称为<strong>子域名</strong> (Subdomain)</li>
+</ul>
+</li>
+</ul>
+<p>最后以本站为例说明一下域名的各个部分：</p>
+<ul>
+<li><code>blog</code> 是子域名标签</li>
+<li><code>rakuyoo</code> 是二级域名</li>
+<li><code>.top</code> 是顶级域名</li>
+<li><code>rakuyoo.top</code> 是主域名</li>
+<li><code>blog.rakuyoo.top</code> 是一个完全限定域名（或完整的子域名）</li>
+</ul>
+<h2 id="协议">协议</h2>
+<p>除了域名之外，URL 还有一个重要的组成部分：<strong>协议</strong>（Protocol）。它是一套规则、标准或约定，规定了计算机之间如何进行通信和数据交换。协议定义了数据传输的格式、时序、错误处理等，它将告诉客户端和服务器“如何”进行通信。</p>
+<p>常见的协议比如 <code>http</code>、<code>https</code> 以及 <code>ftp</code> 等，因为都非常常见了，所以在本文这一小节就先不展开介绍了。未来涉及到 TCP 数据传输时可能还会再次见面。</p>
+<p>协议对于 URL 而言是非常重要的，当我们访问 <code>www.google.com</code> 时，实际上我们是 “用 <code>HTTPS</code> 协议连接到 <code>www.google.com</code>”，而不能只说 “连接到 <code>www.google.com</code>”。</p>
+<h2 id="别忘了-端口">别忘了 “端口”</h2>
+<p>在没有域名时，我们访问一个服务是通过 “IP 地址 + 端口” 来实现的。那么有了域名之后呢？平时我们在浏览器中输入地址时也没有用到端口呀。</p>
+<p>其实不是没有用到，而是浏览器自动帮我们处理了。比如 https 协议的默认端口是 443，所以当我们在浏览器中输入 <code>https://www.google.com</code> 时，其实我们访问的是 <code>https://www.google.com:443</code>。如果我们需要访问某个特殊的端口，那么也需要像上面说的那样显式指定端口号。</p>
+<h1 id="dns一本厚字典">DNS：一本厚字典</h1>
+<p>域名帮助我们省去了记忆复杂 IP 的麻烦，那么，域名是如何找到其对应的 IP 地址的呢？答案就是通过 <strong>DNS</strong>（Domain Name System）。嗯... 从名字上来看它就很 “域名”。</p>
+<h2 id="dns-的工作原理简化版">DNS 的工作原理（简化版）</h2>
+<p>当我们访问一个域名时，DNS 会通过一系列查询操作，找到这个域名所对应的 IP 地址：</p>
+<ol>
+<li>
+<p><strong>在浏览器中输入域名</strong>： 在浏览器中输入 <code>www.google.com</code> 并按下回车。</p>
+</li>
+<li>
+<p><strong>浏览器查询本地 DNS 缓存</strong>： 浏览器会首先检查自己有没有缓存过 <code>www.google.com</code> 对应的 IP 地址。如果有，就直接使用，这样速度最快。</p>
+</li>
+<li>
+<p><strong>操作系统查询本地 DNS 缓存和 hosts 文件</strong>： 如果浏览器没有，它会把请求交给操作系统。操作系统也会检查自己的 DNS 缓存，以及一个叫做 <code>hosts</code> 的本地文件。</p>
+</li>
+<li>
+<p><strong>请求发送给 DNS 解析器 (DNS Resolver)</strong>： 如果本地都没有，操作系统会将请求发送给你的网络配置中指定的 DNS 解析器（通常是 ISP 提供的 DNS 服务器，或者手动配置的公共 DNS，如 Google 的 <code>8.8.8.8</code>）。</p>
+</li>
+<li>
+<p><strong>DNS 解析器开始递归查询</strong>：</p>
+<ul>
+<li><strong>查询根域名服务器 (Root Name Servers)</strong>： 解析器会首先问全球的 13 组根域名服务器：“<code>www.google.com</code> 的 IP 地址是什么？” 根服务器不会直接告诉你 IP，它会告诉你：“我不知道，但你可以去问负责 <code>.com</code> 域名的服务器。”</li>
+<li><strong>查询顶级域名服务器 (TLD Name Servers)</strong>： 解析器接着会去问负责 .com 域名的 顶级域名服务器：“www.google.com 的 IP 地址是什么？” <code>.com</code> 服务器会告诉你：“我不知道 <code>www.google.com</code> 的具体 IP，但你可以去问负责 <code>google.com</code> 的权威域名服务器。”</li>
+<li><strong>查询权威域名服务器 (Authoritative Name Servers)</strong>： 解析器最后会去问 <code>google.com</code> 的权威域名服务器（这是由 Google 自己或其域名注册商维护的服务器）：“<code>www.google.com</code> 的 IP 地址是什么？” 这台服务器知道 <code>www.google.com</code> 对应的确切 IP 地址，并会把这个 IP 地址告诉 DNS 解析器。</li>
+</ul>
+</li>
+<li>
+<p><strong>IP 地址返回给浏览器</strong>： DNS 解析器收到 IP 地址后，会将其返回给你的操作系统，再由操作系统返回给浏览器。同时，这个 IP 地址会被缓存起来，以便下次更快地访问。</p>
+</li>
+<li>
+<p><strong>浏览器连接服务器</strong>： 浏览器拿到 IP 地址后，就可以直接通过这个 IP 地址连接到 Google 的服务器，并请求网页内容。这个完整、层层递进的查询过程，可以通过下面的序列图清晰地展现出来：</p>
+</li>
+</ol>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyoo.top/post-images/1755597297903.svg" alt="" loading="lazy"></figure>
+<blockquote>
+<p>iOS 系统的 DNS 解析和 PC 上的 DNS 解析还有一点点区别，那就是 iOS 不存在 “浏览器 DNS 缓存” 这一步，所有的 DNS 缓存都在 iOS 系统内部进行统一的管理。各个 App 如果不做特殊的实现，也不存在 “App 级别的 DNS 缓存”。</p>
+</blockquote>
+<p>可能这个流程还是有一些抽象。我们还可以从 “绑定 IP 和域名” 的流程中来解释 DNS 的解析过程：</p>
+<ol>
+<li><strong>获取 IP</strong>：首先我们从云服务器商处购买了一台云服务器，这个时候我们会得到这台服务器的 IP 地址。</li>
+<li><strong>购买域名</strong>：之后我们从域名商那里挑选了一个域名。国内的几大云服务器厂商基本都提供域名购买服务。</li>
+<li><strong>配置 DNS 解析</strong>：有很多地方可以让我们把 IP 和域名绑定在一起，比如有的域名注册商就提供功能，云服务商也提供，甚至还有专门的 DNS 服务商。在这些平台上，我们需要将域名和 IP 绑定到一起。通常是设置一条记录，key 和 value 填写你的域名和 IP。</li>
+<li><strong>上传 DNS 记录</strong>：当我们配置好了 DNS 后，平台就会将我们的配置上传到真正的 DNS 服务器上，此时域名与 IP 的绑定关系才算建立完成，域名和 IP 被真正的绑定在一起。</li>
+<li><strong>后续访问</strong>：现在当我们再访问域名时，你可以理解为是一个巨大的查表过程，通过域名就可以查询到对应的 IP 了。</li>
+</ol>
+<h2 id="dns-缓存">DNS 缓存</h2>
+<p>在上一节中，我们看到了一个域名需要经过一连串的查询才能最终找到它的 IP 地址。如果每一次访问网站都需要重复这个完整的过程，那效率未免也太低了。</p>
+<p>为了解决这个问题，DNS 系统设计了一套至关重要的机制——缓存。简单来说，当一个 DNS 查询的最终结果被找到后，查询路径上的各个参与者（比如你的电脑、DNS 解析器）都会把这个 “域名-IP” 的对应关系暂存一段时间。如果在缓存有效期内再次请求同一个域名，就可以直接返回暂存的结果，从而跳过复杂的递归查询过程，极大地提高了响应速度。</p>
+<p>我们在上一节中提到的 “浏览器缓存” 和 “操作系统缓存” 就是这套机制的体现。而控制这一切的核心，是一个叫做 <strong>TTL</strong>（Time-To-Live，生存时间）的值。</p>
+<h3 id="ttl-time-to-live">TTL (Time-To-Live)</h3>
+<p>TTL 是由域名管理员在配置 DNS 记录时设置的一个数值，单位是秒。它像一个“保质期”，告诉各级 DNS 服务器和解析器，这个查询结果可以被缓存多久。</p>
+<p>例如，本站的 <code>blog.rakuyoo.top</code> 的 TTL 被设置为 600 秒（10 分钟），那么当 DNS 解析器第一次获取到它的 IP 地址后，就会将这个结果缓存 10 分钟。在这 10 分钟内，任何通过这个解析器查询  <code>blog.rakuyoo.top</code> 的请求，都会直接得到缓存中的 IP 地址，而无需再去麻烦权威域名服务器。</p>
+<h3 id="dns-传播">DNS 传播</h3>
+<p>TTL 机制在带来高效的同时，也引入了一个重要的现象：<strong>DNS 传播</strong>（DNS Propagation）。</p>
+<p>当你修改了一条 DNS 记录（比如将网站服务器迁移到了一个新的 IP 地址），这个变更并不会立即在全球范围内生效。因为各地的 DNS 解析器仍然缓存着旧的记录，它们需要等到各自缓存中的 TTL 过期后，才会重新向权威服务器发起查询以获取最新的记录。</p>
+<p>这个新旧记录交替、变更信息逐渐扩散到全球的过程，就叫做 <strong>DNS 传播</strong>。传播所需的时间，就取决于你之前设置的 TTL 值。如果 TTL 设置为 1 小时，那么最坏情况下，一些用户可能需要等待 1 小时才能访问到你的新服务器。</p>
+<p>因此，在计划进行服务器迁移等重大变更前，有经验的管理员通常会提前几天将相关域名的 TTL 值修改为一个非常小的值（比如 60 秒），以确保变更发生时，全球的 DNS 缓存能被快速刷新，从而实现平滑过渡。</p>
+<h2 id="灵活的绑定关系">灵活的绑定关系</h2>
+<p>一个主机名其实可以解析到多个 IP，这有利于实现<strong>负载均衡</strong>。只需要在配置 DNS 解析时，为同一个主机名添加多个 IP 地址，即可将一个主机名解析到多个 IP 上。</p>
+<p>当用户访问这个主机名时，DNS 服务器会同时返回所有的 IP 地址，客户端（比如浏览器）会尝试连接其中一个，可能是随机选择某一个，也有可能是按顺序尝试。如果连接失败，则会尝试列表中的下一个 IP。</p>
+<p>另外我们还可以以子域名标签为单位，或者准确的说，以 “完全限定域名” 为单位设置 DNS 解析。比如 <code>mail.google.com</code> 和 <code>drive.google.com</code> 虽然都在 <code>google.com</code> 这个域名下，但是他们可以部署在不同的服务器上，进而拥有不同的 IP 地址。</p>
+<h2 id="资源记录">资源记录</h2>
+<p>在你添加 DNS 解析时，会接触到 “<strong>资源记录</strong>”（Resource Record）这个概念，在腾讯云服务器上它又叫做 “记录类型”。</p>
+<p>DNS 十分强大，强大到它其实可以解析很多东西。所以系统设计了一个 “资源记录” 的概念，用来区分 DNS 所解析的内容的类型。常见的资源记录有以下几种：</p>
+<ul>
+<li>
+<p><strong>A 记录</strong> (Address Record)<br>
+将一个域名或子域名指向一个 IPv4 地址。它是最基本的记录类型。</p>
+</li>
+<li>
+<p><strong>AAAA 记录</strong> (Quad-A Record)<br>
+与 A 记录类似，但它将一个域名或子域名指向一个 IPv6 地址。</p>
+</li>
+<li>
+<p><strong>CNAME 记录</strong> (Canonical Name Record)<br>
+将一个域名或子域名指向另一个域名（而不是直接指向 IP 地址），相当于创建了一个别名。它有以下几种使用场景：</p>
+<ul>
+<li>当你的服务提供商（如 CDN、博客平台）给你一个域名（而不是 IP 地址）让你指向时。</li>
+<li>当你希望多个子域名都指向同一个主域名，而主域名的 IP 地址可能会变动时。这样你只需要更新主域名的 A 记录，所有 CNAME 记录都会自动生效。</li>
+</ul>
+<p>另外需要注意： CNAME 记录不能指向 IP 地址，只能指向另一个域名。而且，通常情况下，根域名（如 <code>yourdomain.com</code>）不能设置为 CNAME 记录，因为它会与其他记录（如 MX 记录）冲突。</p>
+</li>
+</ul>
+<blockquote>
+<p>根据 <a href="https://datatracker.ietf.org/doc/html/rfc1034">DNS 规范（RFC 1034）</a>，如果一个域名存在 CNAME 记录，那么它就不能再有任何其他类型的记录（除了用于 DNSSEC 的 RRSIG 和 NSEC 记录）。而一个域的顶点（即 <code>yourdomain.com</code> 本身）必须有 <code>SOA</code> (Start of Authority) 和 <code>NS</code> (Name Server) 记录来标识这个域的权威信息。这两者是冲突的，所以根域名不能设置 CNAME。<br>
+本文并未涉及到 <code>SOA</code> 记录和 <code>NS</code> 记录等，此处仅作为拓展阅读。</p>
+</blockquote>
+<h1 id="swift-url">Swift URL</h1>
+<p>相信阅读到此文章的大多数都是 iOSer，那么我们可以再从 Swift <code>URL</code> 的角度来看一下域名的各个组成部分，直接上代码：</p>
+<pre><code class="language-swift">let urlString = &quot;https://www.google.com:443&quot;
+
+// 1. 创建 URL 对象
+guard let url = URL(string: urlString) else {
+    print(&quot;Invalid URL string&quot;)
+    exit(1)
+}
+
+// 2. 访问 URL 的各个属性
+print(&quot;Scheme (协议): \(url.scheme ?? &quot;N/A&quot;)&quot;)
+print(&quot;Host (主机名/域名): \(url.host ?? &quot;N/A&quot;)&quot;)
+print(&quot;Port (端口): \(url.port?.description ?? &quot;N/A&quot;)&quot;)
+
+// 3. 进一步拆解 host
+// Swift 的 URL 类型没有直接提供“二级域名”或“顶级域名”的属性
+// 你需要自己编写逻辑来从 host 中提取这些信息
+let host = url.host ?? &quot;&quot;
+let components = host.split(separator: &quot;.&quot;).map(String.init)
+
+if components.count &gt;= 2 {
+    let tld = components.last ?? &quot;N/A&quot; // .com
+    let sld = components[components.count - 2] // google
+    let mainDomain = &quot;\(sld).\(tld)&quot; // google.com
+    print(&quot;推断的主域名 (Main Domain): \(mainDomain)&quot;)
+
+    if components.count &gt; 2 {
+        let subdomainLabel = components.first ?? &quot;N/A&quot; // www
+        print(&quot;推断的子域名标签 (Subdomain Label): \(subdomainLabel)&quot;)
+    }
+}
+</code></pre>
+<p>输出结果如下：</p>
+<pre><code>Scheme (协议): https
+Host (主机名): www.google.com
+Port (端口): 443
+推断的主域名 (Main Domain): google.com
+推断的子域名标签 (Subdomain Label): www
+</code></pre>
+<p>说一个小细节：还记得上文中我说过 “协议对于 URL 来说很重要” 吗？如果将示例中 <code>urlString</code> 的 <code>https</code> 部分去掉，改为 <code>www.google.com:443</code>，那么 <code>url.scheme</code> 的结果将会是 <code>www.google.com</code>，<code>url.host</code> 会是 <code>nil</code>。</p>
+<p>这是因为 Swift 的 <code>URL</code> 在解析 URL 字符串时，会严格按照 URL 的标准格式来识别各个组成部分，而一个标准的 URL <strong>必须</strong>以协议开头，后面跟着 <code>://</code>。</p>
+<p>对于 <code>www.google.com:443</code> 而言，<code>URL</code> 初始化器会将 <code>:</code> 前的内容都识别为协议。假如换成 <code>www.google.com</code>，即字符串中没有 <code>:</code>，那么 <code>url.scheme</code> 和 <code>url.host</code> 都将是 <code>nil</code>。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[解密 Swift：为何 reduce 偏爱 + 而非 && ？]]></title>
+        <id>https://blog.rakuyoo.top/why-swift-reduce-prefers-plus-over-and/</id>
+        <link href="https://blog.rakuyoo.top/why-swift-reduce-prefers-plus-over-and/">
+        </link>
+        <updated>2025-08-05T06:48:09.000Z</updated>
+        <summary type="html"><![CDATA[<p>作为 Swift 开发者，我们都热爱这门语言提供的优雅和简洁性，尤其是它的函数式编程能力。</p>
+<p>Swift 原生提供了一些<strong>高阶函数</strong>，常见的比如 <code>map</code>、<code>filter</code>、<code>reduce</code> 等。这些优雅的高阶函数能够极大的简化我们的代码，但是一个不小心也会报一个让你困扰一整天的错误。</p>
+<p>今天，我们就来看看其中一种情况。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>作为 Swift 开发者，我们都热爱这门语言提供的优雅和简洁性，尤其是它的函数式编程能力。</p>
+<p>Swift 原生提供了一些<strong>高阶函数</strong>，常见的比如 <code>map</code>、<code>filter</code>、<code>reduce</code> 等。这些优雅的高阶函数能够极大的简化我们的代码，但是一个不小心也会报一个让你困扰一整天的错误。</p>
+<p>今天，我们就来看看其中一种情况。</p>
+<!-- more -->
+<p>思考一下这个场景：对一个整数数组求和。使用 <code>reduce</code> 函数可以写得非常简洁：</p>
+<pre><code class="language-swift">let numbers = [1, 2, 3, 4, 5]
+
+// 冗长但清晰的写法
+let sum1 = numbers.reduce(0) { (accumulator, nextElement) in
+    accumulator + nextElement
+}
+
+// 简单写法
+let sum1 = numbers.reduce(0) { $0 + $1 }
+
+// 极简写法
+let sum2 = numbers.reduce(0, +)
+</code></pre>
+<p><code>+</code> 号可以直接作为 <code>reduce</code> 方法的第二个参数，从而进一步简化代码。这很好，非常简洁。</p>
+<p>ok，现在让我们尝试用同样的逻辑来处理一个布尔类型的数组，检查是否所有值都为 <code>true</code>：</p>
+<pre><code class="language-swift">let conditions = [true, true, false]
+
+let allTrue1 = conditions.reduce(true) { $0 &amp;&amp; $1 } // ✅ 工作正常
+
+let allTrue2 = conditions.reduce(true, &amp;&amp;) // ❌ 编译错误！
+</code></pre>
+<p>哦噢，编译错误了。那么为什么 <code>+</code> 可以直接作为参数传递，<code>&amp;&amp;</code> 却不行？其实这背后隐藏着一个关于 Swift 语言设计的深刻且重要的区别。</p>
+<h2 id="运算符一等公民"><code>+</code> 运算符：“一等公民”</h2>
+<p>Swift 标准库中包含一个名叫 <code>AdditiveArithmetic</code> 的协议，这个协议中定义了包括 <code>+</code> 在内的多个函数。我们可以从 Github 中查看到它的<a href="https://github.com/swiftlang/swift/blob/4d7df08e9b1a78db073f492ccd3fbf26544344bc/stdlib/public/core/Integers.swift#L62">源码</a>，官方文档在<a href="https://developer.apple.com/documentation/swift/additivearithmetic">这里</a>。</p>
+<p>所以 <code>+</code> 可以作为参数传递也就不奇怪了 —— 它本身就是 Swift 中的 “一等公民”：函数，因此可以被直接传入任何接受对应函数类型的参数中。</p>
+<h2 id="运算符重要的短路特性"><code>&amp;&amp;</code> 运算符：重要的“短路”特性</h2>
+<p>相比较 <code>+</code> 而言，<code>&amp;&amp;</code> 和 <code>||</code> 这类<strong>逻辑运算符</strong>有一个核心特性，即 <strong>短路求值</strong> (Short-circuit Evaluation)：</p>
+<ul>
+<li>对于 <code>a &amp;&amp; b</code>，如果 <code>a</code> 的结果是 <code>false</code>，那么整个表达式的结果就已经确定是 <code>false</code> 了。因此，<code>b</code> 将永远不会被求值或执行。</li>
+<li>对于 <code>a || b</code>，如果 <code>a</code> 的结果是 <code>true</code>，整个表达式就已经确定是 <code>true</code>，<code>b</code> 也不会被执行。</li>
+</ul>
+<p>这个特性至关重要，它不仅能提升性能，还能避免潜在的运行时错误，比如我们经常写的代码：</p>
+<pre><code class="language-swift">if user != nil &amp;&amp; user!.hasPermission {
+    // 如果 user 是 nil，第二个条件根本不会被检查，从而避免了强制解包导致的崩溃。
+}
+</code></pre>
+<p>而一个<strong>普通</strong>的 Swift 函数，在它被调用之前，它的所有参数都<strong>必须被完整地求值</strong>。可以通过一个简单的实验来证明这一点：</p>
+<pre><code class="language-swift">func getFalse() -&gt; Bool {
+    print(&quot;getFalse() 被调用了&quot;)
+    return false
+}
+
+func getTrue() -&gt; Bool {
+    print(&quot;getTrue() 被调用了&quot;)
+    return true
+}
+
+// 如果 &amp;&amp; 是一个普通函数，它会像这样工作：
+func logicalAnd(_ a: Bool, _ b: Bool) -&gt; Bool {
+    return a &amp;&amp; b
+}
+
+print(&quot;\n--- 测试普通函数 ---&quot;)
+_ = logicalAnd(getFalse(), getTrue())
+
+// 输出:
+// --- 测试普通函数 ---
+// getFalse() 被调用了
+// getTrue() 被调用了  &lt;-- 两个参数对应的函数都被执行了
+</code></pre>
+<p>从输出结果我们可以得到结论：“短路” 这个行为无法被普通函数模拟 ... 别忘了，我们还可以看它的<a href="https://github.com/swiftlang/swift/blob/4d7df08e9b1a78db073f492ccd3fbf26544344bc/stdlib/public/core/Bool.swift#L280">源码</a>。</p>
+<p>实际上在 Swift 标准库中，<code>&amp;&amp;</code> 和 <code>||</code> 同样是两个函数，他们的定义分别如下所示：</p>
+<pre><code class="language-swift">extension Bool {
+ /// Performs a logical AND operation on two Boolean values.
+ @_transparent
+ @inline(__always)
+ public static func &amp;&amp; (lhs: Bool, rhs: @autoclosure () throws -&gt; Bool) rethrows -&gt; Bool {
+     return lhs ? try rhs() : false
+ }
+
+ /// Performs a logical OR operation on two Boolean values.
+ @_transparent
+ @inline(__always)
+ public static func || (lhs: Bool, rhs: @autoclosure () throws -&gt; Bool) rethrows -&gt; Bool {
+     return lhs ? true : try rhs()
+ }
+}
+</code></pre>
+<p>标准库通过三目运算符以及 <code>@autoclosure</code>，巧妙地实现了短路求值的功能。</p>
+<p>但是绕了一圈，既然 <code>&amp;&amp;</code> 也是函数，为什么不能像 <code>+</code> 一样作为参数传入 <code>reduce</code> 函数呢？其实我偷偷把报错信息藏起来了。让我把它放出来，再看一下上面例子中的错误：</p>
+<pre><code class="language-swift">[true, true, false].reduce(true, &amp;&amp;) // ❌ Cannot convert value of type '(Bool, @autoclosure () throws -&gt; Bool) throws -&gt; Bool' to expected argument type '(Bool, Bool) throws -&gt; Bool'
+</code></pre>
+<p>报错说的很直接：无法将 <code>(Bool, @autoclosure () throws -&gt; Bool) throws -&gt; Bool</code> 类型转换为 <code>(Bool, Bool) throws -&gt; Bool</code>，也就是 <code>@autoclosure () -&gt; Bool</code> 无法被直接当做 <code>Bool</code> 来传递。所以直接原因还是类型转换的问题。</p>
+<p>用一段代码可以更好地说明这个问题：</p>
+<pre><code class="language-swift">func foo(_ action: (Bool, @autoclosure () /*throws*/ -&gt; Bool) throws -&gt; Bool) { /* ... */ }
+
+foo(&amp;&amp;) // `&amp;&amp;` 可以作为参数正常使用了
+</code></pre>
+<h2 id="autoclosure巧妙的语法糖"><code>@autoclosure</code>：巧妙的语法糖</h2>
+<p><code>@autoclosure</code> 是一个纯粹的语法糖，它告诉编译器：把调用时写在这里的表达式自动包成一个闭包，而不是立即求值。</p>
+<p>所以 <code>@autoclosure () -&gt; Bool</code> 本质上还是一个闭包类型 <code>() -&gt; Bool</code>，它不是也没有办法转换成一个 <code>Bool</code> 类型。至少在 Swift 6 时代还没有这种特性。</p>
+<p>如果没有 <code>@autoclosure</code>，当我们想通过闭包来实现 “延迟调用” 时，可能就要想一想 “用闭包再额外包一层” 这种不优雅的实现，会不会让自己的早餐吐出来：</p>
+<pre><code class="language-swift">// `assert` 断言通过闭包实现了判断条件的延迟调用，进而在 RELEASE 模式下获得更好的性能。
+// 假设下面是 assert 函数的简化定义
+func assert(_ condition: /* @autoclosure */ () -&gt; Bool,  ...) { ... }
+
+// 如果没有 @autoclosure，调用时就必须手动包裹一层闭包
+assert({ a &gt; b })
+</code></pre>
+<h2 id="总结">总结</h2>
+<p>总结一下，Swift 从 1.0 开始就开始使用 <code>@autoclosure</code> 来<strong>优雅地</strong>实现逻辑运算符的短路求值，或者其他延迟求值的相关逻辑。这也导致了 <code>&amp;&amp;</code> 和 <code>||</code> 这两个逻辑运算符不能像普通的运算符一样那么地 “自由”。</p>
+<p>如果有需要，开发者可以自行封装相关函数，从而为逻辑运算符插上自由地翅膀。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[计算机网络之一 - IP 与端口]]></title>
+        <id>https://blog.rakuyoo.top/computer-network-ip-and-port/</id>
+        <link href="https://blog.rakuyoo.top/computer-network-ip-and-port/">
+        </link>
+        <updated>2025-07-22T01:19:27.000Z</updated>
+        <summary type="html"><![CDATA[<p>最近在研究 Surge，众所周知主包这方面知识贼差，几乎可以算是从零开始学起，所以也想借这个机会好好补一下相关知识。</p>
+<p>预计会写一系列文章，从计算机网络的基础概念开始，后续会包含常见的接口请求流程以及 WireGuard 等相关内容。</p>
+<p>本篇就是系列的第一篇。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>最近在研究 Surge，众所周知主包这方面知识贼差，几乎可以算是从零开始学起，所以也想借这个机会好好补一下相关知识。</p>
+<p>预计会写一系列文章，从计算机网络的基础概念开始，后续会包含常见的接口请求流程以及 WireGuard 等相关内容。</p>
+<p>本篇就是系列的第一篇。</p>
+<!-- more -->
+<p>其余几篇的目录：</p>
+<ul>
+<li><a href="https://blog.rakuyoo.top/computer-network-url-and-dns/">计算机网络之二 - URL 与 DNS</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-dhcp-and-intranet-penetration/">计算机网络之三 - DHCP 与内网穿透</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-virtual-nic-and-wireguard">计算机网络之四 - 虚拟网卡与 WireGuard</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-http-and-https">计算机网络之五 - HTTP 与 HTTPS</a></li>
+<li><a href="https://blog.rakuyoo.top/computer-network-tcp-and-udp">计算机网络之六 - 可靠的 TCP 与高效的 UDP</a></li>
+</ul>
+<hr>
+<h1 id="ip">IP</h1>
+<p><strong>IP 地址</strong> 是计算机网络通信的基石，网络中每一台设备都有唯一的一个  IP 地址。你可以把它想象成设备的身份证号，每个人的身份证号都是唯一的。</p>
+<p>常见的 IP 地址比如 <code>8.8.8.8</code>，这是 Google DNS 服务器的 IP 地址。再比如 <code>192.168.1.1</code>，家中路由器的管理页面经常是这个地址。</p>
+<h2 id="ipv4-和-ipv6">IPv4 和 IPv6</h2>
+<p>IP 地址有两个版本：IPv4 和 IPv6。</p>
+<blockquote>
+<p>可能你会好奇有没有 IPv3、IPv5 等等，其实是有的。<br>
+所谓的 IPv1, v2, v3，可以被看作是 IPv4 诞生之前的、存在于 TCP 协议内部的“史前草稿”或“实验版本”，它们从未作为独立的 IP 协议存在过。<br>
+而 IPv5，更常见的名字可能是 <strong>ST2</strong>，它是 IP 协议的旁支，从未被打算作为通用的下一代互联网协议，也从未被广泛部署。<br>
+本文更偏向于实用性而非历史小课堂，所以暂不会涉及到相关内容。</p>
+</blockquote>
+<h3 id="ipv4">IPv4</h3>
+<p>IPv4 是我们目前最常接触到的版本，它使用 32 位 (bit) 来定义一个地址。</p>
+<ul>
+<li>理论总数： 2³² = 4,294,967,296 (约 43 亿个)</li>
+<li>书写格式： 通常写成“点分十进制”的形式，由 4 个 0 到 255 之间的数字组成，用点号隔开。例如 <code>192.168.1.1</code>。</li>
+<li>理论范围： 从 <code>0.0.0.0</code> 到 <code>255.255.255.255</code>。</li>
+</ul>
+<blockquote>
+<p>为什么 IP 段的最大值是 255 而不是 999？相信精通计算机原理的你一定明白：<br>
+IPv4 一共 4 段，总长 32 位，所以每一段就是 8 位，即一字节。一个字节最大值即 <code>11111111</code>。转换为十进制即 255。而 999 使用二进制表示则是 <code>1111100111</code>，长度为 10 位，超出了最大 8 位的限制。</p>
+</blockquote>
+<p>然而，并不是所有这些地址都可以分配给互联网上的设备使用。其中有大量地址被保留用于特殊目的，比如说下表：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">地址范围</th>
+<th style="text-align:center">名称</th>
+<th style="text-align:center">用途说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"><code>10.0.0.0</code> - <code>10.255.255.255</code></td>
+<td style="text-align:center">私有网络 (A 类)</td>
+<td style="text-align:center">用于大型企业的内部网络 (局域网)。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>172.16.0.0</code> - <code>172.31.255.255</code></td>
+<td style="text-align:center">私有网络 (B 类)</td>
+<td style="text-align:center">用于中型网络的内部网络。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>192.168.0.0</code> - <code>192.168.255.255</code></td>
+<td style="text-align:center">私有网络 (C 类)</td>
+<td style="text-align:center">最常见，用于家庭、小型办公室的路由器和内部设备。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>127.0.0.0</code> - <code>127.255.255.255</code></td>
+<td style="text-align:center">环回地址 (Loopback)</td>
+<td style="text-align:center">主要使用 <code>127.0.0.1</code>，代表“本机”或 <code>localhost</code>，用于在本机上进行网络测试。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>100.64.0.0</code> - <code>100.127.255.255</code></td>
+<td style="text-align:center">运营商级 NAT (CGNAT)</td>
+<td style="text-align:center">ISP 用来给大量用户分配的“大内网”地址，以缓解 IPv4 地址耗尽问题。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>169.254.0.0</code> - <code>169.254.255.255</code></td>
+<td style="text-align:center">链路本地地址 (APIPA)</td>
+<td style="text-align:center">当设备无法从 DHCP 服务器获取 IP 地址时，会自动配置一个此范围内的地址，用于临时局域网通信。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>0.0.0.0</code></td>
+<td style="text-align:center">未指定地址</td>
+<td style="text-align:center">通常用作源地址，表示“任何 IP”或“本机”。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>224.0.0.0</code> - <code>239.255.255.255</code></td>
+<td style="text-align:center">组播地址 (Multicast)</td>
+<td style="text-align:center">用于一对多的通信，如网络电视直播。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>255.255.255.255</code></td>
+<td style="text-align:center">广播地址</td>
+<td style="text-align:center">向本地网络中的所有设备发送消息。</td>
+</tr>
+</tbody>
+</table>
+<p>抛去这些保留的 ip 地址，剩余的 ip 地址大约是 37 亿个。这 37 亿个看似很多，但是我说几个数据：</p>
+<ul>
+<li>2007 年第一代 iPhone 发布，2011 年，全球智能手机出货量已接近 5 亿部。</li>
+<li>2000 年，全球互联网用户大于 3.6 亿；2011 年，全球互联网用户超过 20 亿。</li>
+</ul>
+<p>如果考虑到一部设备有一个 ip 的话，那么 37 亿个 IP 地址是远远不够用的。事实也是：2011 年 2 月 3 日，IANA（互联网号码分配局）宣布它已经将所有的 IPv4 地址都分配出去了，也就是说所有可进行分配的 IPv4 地址都有了主人。</p>
+<blockquote>
+<p>IPv4 地址分配的逻辑是这样的：有一个全球总库（IANA），它负责将 IPv4 地址分配给五个区域性注册机构（RIR），分别是：亚太地区、欧洲地区、拉丁美洲和加勒比地区、北美地区以及非洲地区。之后再进行一层一层的分配。</p>
+</blockquote>
+<p>那么既然 IPv4 被分配完了，后续如果想要增加新的设备又该怎么办呢？解决方案有两个：</p>
+<ul>
+<li>IPv6</li>
+<li>内网 IP + NAT</li>
+</ul>
+<p>这两个方案分别从两个角度出发，试图解决 IPv4 地址太少的问题。</p>
+<h3 id="ipv6">IPv6</h3>
+<p>IPv6 的解决方案最为根本，也最为直接：既然 IPv4 太短，那么把它变长就可以了！于是 IPv6 诞生了。</p>
+<p>IPv6 使用 128 位来定义一个地址，足足是 IPv4 的 4 倍！不止如此，它还将 “点分十进制” 升级为了 “冒号十六进制” 的形式。所以它的理论范围为：</p>
+<ul>
+<li>从 <code>0000:0000:0000:0000:0000:0000:0000:0000</code></li>
+<li>到 <code>ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff</code></li>
+</ul>
+<p>足足有 2¹²⁸ ≈ 3.4 x 10³⁸ (340 万亿亿亿亿个)！这又是一个什么概念呢？一个常见的比喻是：<strong>地球上每一粒沙子都可以被分配一个独立的 IPv6 地址，而且还绰绰有余</strong>。可见它有多么的长。</p>
+<blockquote>
+<p>IPv6 长度变长了，相比较 IPv4，写起来多少有些复杂，于是它也设计了一些简化规则：</p>
+<ol>
+<li>每组中开头的 <code>0</code> 可以省略：<code>0db8</code> -&gt; <code>db8</code>。</li>
+<li>连续的多组 <code>0000</code> 可以用双冒号 <code>::</code> 代替，但一次只能用一次。比如说：
+<ul>
+<li>缩写后：<code>2001:db8:85a3::8a2e:370:7334</code></li>
+<li>展开后：<code>2001:db8:85a3:0000:8a2e:370:7334</code></li>
+</ul>
+</li>
+</ol>
+</blockquote>
+<p>IPv6 同样有特殊地址，比如 <code>::1</code> 就是它的环回地址（相当于 IPv4 的 <code>127.0.0.1</code>），但由于其地址空间极其庞大，不再需要像 IPv4 那样抠出大段的 “私有地址” 来节约使用。</p>
+<h4 id="ipv4-升级到-ipv6-的挑战">IPv4 升级到 IPv6 的挑战</h4>
+<p>IPv6 看着 “哪儿哪儿都好”，但是推广 IPv6 的过程可谓十分坎坷：IPv6 是不兼容 IPv4 的。</p>
+<p>IPv4 地址的耗尽是点燃 IPv6 项目的导火索，但是在 “必须开发一个新协议” 这个大前提被确立下来时，IETF (互联网工程任务组) 的开发者忽然意识到：这是一个千载难逢的好机会，可以去修复 IPv4 运行了几十年后暴露出来的各种设计缺陷：</p>
+<ul>
+<li><strong>路由效率低下</strong>：全球 IPv4 路由表的条目过于庞大和碎片化，导致骨干网路由器压力巨大。</li>
+<li><strong>缺乏内置安全</strong>：IPsec (用于网络层加密和认证) 是后来给 IPv4 打的“补丁”，而在 IPv6 中是强制要求、原生集成的。</li>
+<li><strong>配置复杂</strong>：IPv4 依赖 DHCP 进行自动配置。IPv6 设计了更强大的 “无状态地址自动配置 (SLAAC)”，设备可以自己生成地址，即插即用。</li>
+<li><strong>没有为移动性优化</strong>：Mobile IP for IPv4 也是一个笨拙的补丁。IPv6 在设计时就考虑了移动设备的需求。</li>
+</ul>
+<p>他们自问：“既然我们无论如何都要进行一次伤筋动骨的 “大手术”，为什么不趁这个机会，把身体里其他所有已知的小毛病也一并治好呢？”</p>
+<p>于是，在 “扩大地址空间” 这个核心目标之上，又增加了一系列重要的设计目标：</p>
+<ul>
+<li><strong>简化报头，提升路由效率</strong>：移除了一些不常用或有问题的字段，让路由器硬件能更快地处理数据包。</li>
+<li><strong>原生集成安全性 (IPsec)</strong>：将安全变成了协议的“标配”，而不是“选装”。</li>
+<li><strong>改进服务质量 (QoS) 支持</strong>：引入“流标签”，让路由器能更好地识别和处理对延迟敏感的应用（如视频会议、在线游戏）。</li>
+<li><strong>实现真正的即插即用</strong>：通过无状态地址自动配置 (SLAAC)，让设备接入网络后的配置过程大大简化。</li>
+<li><strong>为移动性而设计</strong>：更好地支持移动设备在不同网络间切换时保持连接。</li>
+</ul>
+<p>于是乎：一个 <strong>不兼容</strong> IPv4 的新协议：IPv6 诞生了。但这也成为了它最大的缺点。</p>
+<p>初识这个概念的你不知道有没有思考过：为什么人们常用 “迁至 IPv6” 这个说法，而不是 “升级到 IPv6” 呢？这正是因为 IPv6 不兼容 IPv4。</p>
+<p>一个网络路由器的核心工作是 <strong>以线速 (Line Rate) 转发数据包</strong>。这意味着一个拥有 10Gbps 端口的路由器，必须有能力在 1 秒内处理掉 10G 比特的数据，不能有任何延迟。这种高性能的实现，<strong>严重依赖专门的硬件芯片——ASIC (专用集成电路)</strong>。路由器内部的数据包转发路径，大部分是由硬件写死的，而不是由通用的 CPU 来处理的。</p>
+<p>这就导致了虽然我们可以通过软件升级，让路由器使用 CPU 来处理 IPv6 数据包，但是它的处理速度和 ASIC 相比可谓有着天壤之别，所以它也被称为 “慢速路径” (Slow Path)。</p>
+<p>所以如果用户想要 “升级到 IPv6”，那么它必须要要将自己所有的网络设备进行升级，升级到支持 IPv6 的设备，或者至少是同时支持 IPv4 和 IPv6 的设备。这就带来了很大的迁移成本。</p>
+<h2 id="公网-ip-和内网-ip">公网 IP 和内网 IP</h2>
+<p>那么既然 IPv4 迁移到 IPv6 注定是缓慢的，不可一蹴而就的，当下有什么办法能先临时解决 IPv4 地址耗尽的问题吗？答案就是 “内网 IP + NAT”。</p>
+<p>其实内网 IP 最初被设计出来，并不是为了解决全球地址耗尽这个宏大问题，而是为了解决一个更早期、更具体、更实际的工程问题：<strong>简化和隔离大型组织的内部网络管理</strong>。</p>
+<blockquote>
+<p>在 20 世纪 90 年代初的时候，虽然全球地址耗尽的危机还未迫在眉睫，但一些大型企业、大学和政府机构已经开始构建自己庞大的内部网络。它们遇到了几个头疼的问题：</p>
+<ol>
+<li>
+<p>内部网络重构的麻烦</p>
+<ul>
+<li>想象一下，一个大公司最初从 IANA 申请了一块公网 IP 地址块用于内部网络。后来公司发展壮大，需要连接到另一家 ISP，或者要更换 ISP。</li>
+<li>新的 ISP 可能会要求公司使用由新 ISP 分配的另一块完全不同的公网 IP 地址块。</li>
+<li>这意味着公司内部成千上万台电脑、服务器、打印机的 IP 地址 全都需要重新编号和配置。这在当时是一个极其痛苦、繁琐且容易出错的工作，被称为“重新编号地狱”。</li>
+</ul>
+</li>
+<li>
+<p>路由表的混乱</p>
+<ul>
+<li>如果一个公司的内部网络结构非常复杂，它可能会把自己的内部路由信息“泄露”到全球互联网的路由表中。</li>
+<li>这会造成全球路由表的“污染”，增加了骨干网路由器的负担，也可能导致路由错误。</li>
+</ul>
+</li>
+<li>
+<p>安全性的初步考量</p>
+<ul>
+<li>当时的网络安全概念还很初级，但人们已经意识到，让公司内部的每一台打印机、文件服务器都拥有一个可以直接从外部访问的公网 IP，似乎不是一个好主意。需要一种方式将内部网络与外部互联网进行逻辑上的隔离。</li>
+</ul>
+</li>
+</ol>
+<p>为了解决上述这些问题，IETF 在 1994 年发布了 RFC 1597 (后来在 1996 年被更完善的 RFC 1918 取代)，正式提出了 “私有地址空间 (Private Address Space)” 的概念。</p>
+<p>RFC 1918 的核心思想是：</p>
+<ol>
+<li><strong>划定专用地址块</strong>： 从现有的 IPv4 地址空间中，专门划出三块地址（10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16）作为“私有地址”。</li>
+<li><strong>可重复使用</strong>： 明确规定，任何组织都可以在自己的内部网络中自由地使用这些地址，而无需向 IANA 申请。你公司可以用 10.0.0.1，我公司也可以用 10.0.0.1，互不影响。</li>
+<li><strong>禁止路由</strong>： 严格规定，所有互联网骨干网上的路由器，绝对不能转发源地址或目标地址是私有地址的数据包。</li>
+</ol>
+<p>这完美地解决了最初的问题：</p>
+<ul>
+<li><strong>简化管理</strong>： 公司内部可以随意规划自己的私有地址。即使更换 ISP，也只需要更改边界路由器 (NAT 设备) 的公网 IP 配置即可，内部上万台设备的 IP 地址完全不需要变动。</li>
+<li><strong>隔离网络</strong>： 私有地址天生无法在公网上路由，从而实现了内部网络和外部互联网的天然隔离。</li>
+</ul>
+</blockquote>
+<p>最终，随着 90 年代中后期互联网的爆炸式普及，人们很快发现，这个 “无心插柳” 的设计，恰好是解决日益严峻的地址耗尽危机的 “神丹妙药”。</p>
+<h3 id="nat">NAT</h3>
+<p>NAT 的全称是 “Network Address Translation”，即 “网络地址转换”，它负责在 “内网 IP” 和 “公网 IP” 之间进行 “转换”。它的工作原理是这样的：</p>
+<ol>
+<li>出站（内网设备访问公网）：
+<ul>
+<li>手机（内网 IP <code>192.168.1.101</code> 访问 Google 网站）</li>
+<li>它会准备一个“数据包”，包含以下内容：
+<ul>
+<li><strong>目标 IP</strong>: Google 服务器的公网 IP。</li>
+<li><strong>源 IP</strong>: <code>192.168.1.101</code> (手机的内网 IP)。</li>
+<li><strong>源 端口</strong></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>数据包到达路由器</li>
+<li>执行 NAT：
+<ol>
+<li>路由器中会有一个 “NAT 转换表” (NAT Translation Table)，这是一个内部记账本。它执行以下操作：
+<ul>
+<li>使用家庭的 “公网 IP” 替换数据包中的内网 IP。同时分配一个新的端口。</li>
+<li>在 NAT 转换表中记录内网 IP 和公网 IP 的映射，比如：“<code>192.168.1.101:49152</code> &lt;-&gt; <code>203.0.113.50:30001</code>”</li>
+</ul>
+</li>
+</ol>
+</li>
+<li>数据包发往互联网:
+<ul>
+<li>从 Google 的服务器拉看，这个请求就是从 <code>203.0.113.50:30001</code> 发出的，它完全不知道手机的存在。</li>
+</ul>
+</li>
+</ol>
+<p>响应服务器返回的数据就是上述步骤的反面，即根据 “公网IP+端口”（起到主要作用的就是端口，毕竟公网IP 都是一致的），找到“内网IP+端口”，最终将相应数据包发送到请求数据的手机上。下面的序列图描绘了这一来一回的完整过程：</p>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyoo.top/post-images/1755597242680.svg" alt="" loading="lazy"></figure>
+<p>总结 NAT 的核心机制：</p>
+<ol>
+<li><strong>地址转换</strong>： 将数据包的源 IP 地址从 内网 IP 替换为 公网 IP (出站时)，或者将目标 IP 地址从 公网 IP 替换为 内网 IP (入站时)。</li>
+<li><strong>端口转换 (PAT - Port Address Translation)</strong>：这是现代 NAT 的精髓，也称为 NAPT。通过 修改源端口号，使得同一个公网 IP 地址可以同时为多个内网设备提供服务。路由器通过维护 (内网IP:内网端口) &lt;-&gt; (公网IP:公网端口) 这个映射表，来确保返回的数据能够被准确地分发给正确的设备和应用。</li>
+</ol>
+<h2 id="巨大的-局域网">巨大的 “局域网”</h2>
+<p>APNIC (Asia-Pacific Network Information Centre)，即亚太网络信息中心，它负责亚太地区 IP 地址分配的区域互联网注册机构 (RIR)。根据 APNIC 截至目前的公开统计数据，分配给中国 (国家代码: CN) 的公网 IPv4 地址总数大约为 <strong>3.45</strong> 亿 个。我们也可以通过 <a href="https://ipinfo.io/countries/cn">ipinfo</a> 查到这个数据。</p>
+<p>根据这个数据可想而知，3.45 亿是远远不够用的，那么常见的方法就是使用上面提到的 “内网 IP” 方案，通过运营商架设基础设施，来实现一张巨大的 “局域网”，以此来解决公网 ip 不足的问题。</p>
+<h1 id="端口">端口</h1>
+<p>说到 IP，就不得不提到 “<strong>端口</strong>” 这个概念。其实在上文中也已经多次涉及到这个概念了。那么 “端口” 又是什么呢？</p>
+<p>IP 地址的作用是为了找到设备，而端口的作用则是为了找到设备中的服务。在技术细节方面：</p>
+<ul>
+<li>端口是一个 16 位 (bit) 的无符号整数</li>
+<li>取值范围从 0 到 2¹⁶ - 1，即 0 到 65535</li>
+</ul>
+<p>以上面 NAT 的场景为例，对于公网 IP 而言，每个服务发出的数据包都需要自己独一无二的端口。如果端口重复了，NAT 就不知道该把公网中服务器响应的数据发送给哪个内网设备。</p>
+<h2 id="端口的分类">端口的分类</h2>
+<p>端口也像 IP 一样，有一些硬性分配的保留项。</p>
+<h3 id="知名端口">知名端口</h3>
+<ul>
+<li>
+<p>范围:<br>
+0 - 1023</p>
+</li>
+<li>
+<p>特点与用途:<br>
+这类端口由 IANA (互联网号码分配局) 进行严格的 <strong>硬性分配</strong>，它们是全球统一的互联网标准。这些端口被永久地分配给了互联网上最核心、最基础的服务，就像是公开的、全世界都知道地址的“政府办事大厅” 或 “公共服务窗口”，确保了全球网络服务的互操作性。在大多数操作系统中，应用程序需要拥有管理员（root）权限才能绑定和监听这些端口。</p>
+</li>
+<li>
+<p>常见协议与服务示例:</p>
+<ul>
+<li><code>20/21</code>: FTP (文件传输协议)</li>
+<li><code>22</code>: SSH (安全外壳协议)，用于安全的远程登录。</li>
+<li><code>23</code>: Telnet (远程终端协议)，一个早期的、不安全的远程登录协议。</li>
+<li><code>25</code>: SMTP (简单邮件传输协议)，用于发送电子邮件。</li>
+<li><code>53</code>: DNS (域名系统)，用于将域名解析为 IP 地址。</li>
+<li><code>80</code>: HTTP (超文本传输协议)，用于访问普通网页。</li>
+<li><code>110</code>: POP3 (邮局协议版本3)，用于接收电子邮件。</li>
+<li><code>143</code>: IMAP (互联网消息访问协议)，也是用于接收邮件，功能更强大。</li>
+<li><code>443</code>: HTTPS (安全的超文本传输协议)，用于访问加密的网页。</li>
+</ul>
+</li>
+</ul>
+<h3 id="注册端口">注册端口</h3>
+<ul>
+<li>
+<p>范围:<br>
+1024 - 49151</p>
+</li>
+<li>
+<p>特点与用途:<br>
+这些端口由 IANA 进行 <strong>半官方分配</strong>，供特定的应用程序、协议或商业公司注册使用，目的是为了避免不同软件间的端口冲突。虽然它们不像知名端口那样是强制性的互联网标准，但业界普遍会遵守这些约定。普通用户权限的程序就可以绑定这些端口，无需特殊的管理员权限。</p>
+</li>
+<li>
+<p>常见协议与服务示例:</p>
+<ul>
+<li><code>1433</code>: Microsoft SQL Server 数据库服务</li>
+<li><code>1521</code>: Oracle 数据库服务</li>
+<li><code>3306</code>: MySQL 数据库服务</li>
+<li><code>3389</code>: RDP (Windows 远程桌面协议)</li>
+<li><code>5432</code>: PostgreSQL 数据库服务</li>
+<li><code>5900</code>: VNC (虚拟网络计算)，一个常用的远程控制软件。</li>
+<li><code>6379</code>: Redis 键值数据库服务</li>
+<li><code>8080</code>: 常被用作 Web 服务器的备用端口，或用于运行 HTTP 代理服务器。</li>
+</ul>
+</li>
+</ul>
+<h3 id="动态私有端口">动态/私有端口</h3>
+<ul>
+<li>
+<p>范围:<br>
+49152 - 65535</p>
+</li>
+<li>
+<p>特点与用途:<br>
+这些端口 <strong>不分配给任何固定的服务</strong>，它们是完全自由使用的。它们的主要作用是作为客户端程序（例如浏览器、游戏、邮件客户端）在发起对外连接时，由操作系统 <strong>随机选择</strong> 一个作为本次通信的 <strong>源端口 (Source Port)</strong>。当通信会话结束后，这个端口就会被释放，可以被其他应用重新使用。因为它们是临时分配的，所以也被称为 <strong>临时端口 (Ephemeral Ports)</strong>。</p>
+</li>
+<li>
+<p>常见协议与服务示例:<br>
+这类端口没有固定的服务对应，它们的使用场景是动态的。例如：</p>
+<ul>
+<li>当用浏览器访问 <code>google.com</code> 时，电脑可能会随机选择 <code>51234</code> 作为本次通信的源端口。</li>
+<li>当启动一个在线游戏时，游戏客户端可能会随机选择 <code>62000</code> 作为与游戏服务器通信的源端口。</li>
+<li>当使用邮件客户端收取邮件时，它可能会随机选择 <code>58341</code> 作为连接邮件服务器的源端口。</li>
+</ul>
+</li>
+</ul>
+<h2 id="端口映射">端口映射</h2>
+<p>端口映射（或者更广义地称为“端口转发”，Port Forwarding）是一个非常基础且应用广泛的网络技术。这项技术可以将一个端口映射成另外一个端口，比如说我们经常使用的 Docker。</p>
+<p>想象一下这个场景：你需要用 Docker 部署一个 Gitlab 服务。等到服务部署好了之后，Gitlab 服务会监听 443 这个 https 端口。但是用户无法从主机上直接访问 Docker 容器内的 443 端口，因为众所周知 Docker 的环境和主机环境是互相隔离的。所以我们要是用 Docker 的 <strong>端口映射</strong> （<code>-p</code> 参数）来说实现端口转发。</p>
+<blockquote>
+<p>Docker 环境和主机环境互相隔离，这也意味着 Docker 内部有一套自己的端口，从 0 到 65535。</p>
+</blockquote>
+<p>通过端口转发，我们可以将主机上的任意一个非保留端口端口，比如说 4343，映射到 Docker 容器的 443 端口。之后任何访问主机 4343 端口的请求，都会被转发给 Docker 的 443 端口，也就是 Gitlab 服务。</p>
+<p>端口映射还有一个作用，那就是绕开 <strong>ISP 屏蔽</strong>。上文中也有提到 ISP 这个概念，它的全称是 Internet Service Provider，中文翻译是 <strong>互联网服务提供商</strong>，也就是电信呀，联通、移动这些运营商。</p>
+<p>根据中国工信部的规定，所有向公众提供服务的网站都必须进行 ICP 备案。为了落实这一政策，ISP 会直接屏蔽家庭宽带的 80 端口，从技术上阻止个人用户在未经备案的情况下，私自搭建对外的 Web 服务器。其实不止 80 端口，很多端口可能都会因为各种各样的原因导致被 ISP 屏蔽。这个时候就需要通过端口映射功能来 “绕开” ISP 的屏蔽。</p>
+<blockquote>
+<p>有些时候 ISP 屏蔽端口是为了保护主机的安全，比如 25、 445、135、137、138、139 等端口。这些端口经常会成为黑客的攻击对象。</p>
+</blockquote>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Surge For Mac 的一些注意事项]]></title>
+        <id>https://blog.rakuyoo.top/notes-about-surge-for-mac/</id>
+        <link href="https://blog.rakuyoo.top/notes-about-surge-for-mac/">
+        </link>
+        <updated>2025-07-08T09:27:25.000Z</updated>
+        <summary type="html"><![CDATA[<p>记一些日常使用时的小细节吧，也谈不上使用教程。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>记一些日常使用时的小细节吧，也谈不上使用教程。</p>
+<!-- more -->
+<h2 id="增强模式下终端不走代理">增强模式下终端不走代理</h2>
+<p>我在官方论坛上提过一个同名问题：<a href="https://community.nssurge.com/d/3440-surge5-mac">Surge5 Mac 增强模式下终端不走代理</a>，最后发现是 <code>pfctl</code> 的问题。</p>
+<p>在我现在使用的电脑上它是开机自启的，并且在我调试 Surge 期间并没有关闭它，最终导致了这个问题。</p>
+<p>可以通过在命令行中执行 <code>sudo pfctl -d</code> 来临时关闭它。</p>
+<h2 id="托管配置">托管配置</h2>
+<p>官方文档见 <a href="https://surge.mitsea.com/others/managed-configuration">托管配置</a>。</p>
+<p>Surge 的配置直接托管到服务器上，或者如果你使用某个机场，那么 Surge 也可以自动从 URL 更新配置文件。</p>
+<p>只需要在你的配置文件最前端增加下面内容即可（记得把 url 替换成你自己的 url）：</p>
+<pre><code>#!MANAGED-CONFIG http://test.com/surge.conf interval=60 strict=true
+</code></pre>
+<h2 id="配置分离">配置分离</h2>
+<p>当你的配置设置了从 url 自动加载，那么你就无法再在本地修改你的配置了，此时可以通过 <a href="https://kb.nssurge.com/surge-knowledge-base/zh/guidelines/detached-profile">配置分离</a> 来解决这个问题。</p>
+<p>单独建立一个配置文件，随后通过 <code>#!include</code> 引用你的远端配置。这样就可以做到既自动拉取机场配置，又能享受本地自定义配置。</p>
+<p>一个注意点是，上面的文档中有这么一段话：</p>
+<blockquote>
+<p>The filename suffix is not required, if it is a complete profile, you can continue to use the conf suffix, if it is not a complete profile, it is recommended to use another suffix to avoid being displayed in the configuration list.</p>
+</blockquote>
+<p>也就是说如果你的子配置文件不完整，那么可以不加后缀，避免该文件出现在 Surge 的配置文件列表里。</p>
+<p>一般子配置文件的 <code>[Rule]</code> 不会包含也不能包含 <code>FINAL</code>，所以如果加载到 Surge 里之后会报错提示 “非法的配置文件，需要以 <code>FINAL</code> 结尾”（但是不会影响功能，仅仅是提示错误）。这个时候就可以通过去掉后缀或者修改后缀的方式将该文件从配置列表中 “隐藏” 掉。</p>
+<h2 id="抓包-wifi-无网络链接">抓包 - “wifi 无网络链接”</h2>
+<p>主包用的 Surge v6，其实从 Surge 5.8.1 版本开始就可能会遇到这个问题：在 iPhone wifi 上设置了 “配置代理” 后提示 “无互联网访问”，mac surge 上也不显示设备。</p>
+<p>Surge <a href="https://kb.nssurge.com/surge-knowledge-base/zh/release-notes/surge-mac-legacy#ban-ben-5.8.1">版本 5.8.1</a> 中新增了一个配置 <code>proxy-restricted-to-lan</code>，就是它导致了这个问题。</p>
+<p>这个配置默认启用，在配置文件中将其设置为 <code>false</code> 即可解决问题。</p>
+]]></content>
+    </entry>
+</feed>
