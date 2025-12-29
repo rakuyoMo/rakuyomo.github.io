@@ -1,0 +1,1258 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>全链路 HTTP 编解码：从客户端到服务端的数据流转 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyoo.top/favicon.ico?v=1766995879467">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyoo.top/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1766995879467"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    全链路 HTTP 编解码：从客户端到服务端的数据流转
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2025-12-24 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyoo.top/tag/android/" class="post-tags">
+                            # android
+                        </a>
+                    
+                        <a href="https://blog.rakuyoo.top/tag/java/" class="post-tags">
+                            # java
+                        </a>
+                    
+                        <a href="https://blog.rakuyoo.top/tag/ji-suan-ji-wang-luo/" class="post-tags">
+                            # 计算机网络
+                        </a>
+                    
+                        <a href="https://blog.rakuyoo.top/tag/FeXshwVXj/" class="post-tags">
+                            # ios
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>作为开发者，我们每天都在和网络请求打交道。但你有没有想过：当 iOS 调用 <code>URLSession</code> 发起一个 GET 请求时，参数里的中文是怎么处理的？后端的 Spring 框架又是如何解析这些参数的？Jackson 在其中扮演了什么角色？</p>
+<p>这篇文章会从 HTTP 协议的编码规范讲起，深入客户端网络层的实现细节，再到服务端的 Jackson 与 Spring 请求处理。希望读完之后，你对「数据是怎么在客户端和服务端之间流转的」能有一个完整的认识。</p>
+<!-- more -->
+<h2 id="1-网络层编解码http-协议视角">1. 网络层编解码：HTTP 协议视角</h2>
+<blockquote>
+<p>本章聚焦 HTTP 的<strong>编码细节</strong>。如果你对 HTTP 协议本身（请求方法、状态码、Header 语义等）还不太熟悉，可以先阅读 <a href="/computer-network-http-and-https">计算机网络之五 - HTTP 与 HTTPS</a>。</p>
+</blockquote>
+<h3 id="11-http-协议本身不做编码">1.1 HTTP 协议本身不做编码</h3>
+<p>先澄清一个常见的误解：<strong>HTTP 协议本身不执行任何编码操作</strong>。</p>
+<p>HTTP 只是一份规范文档（RFC 7230-7235 等），它规定了 “数据应该以什么格式传输”，比如 URL 中的中文要用 Percent-Encoding、Body 的格式由 Content-Type 指定。但它不会帮你把中文变成 <code>%E4%B8%AD%E6%96%87</code>，也不会帮你把对象序列化成 JSON——这些工作由各层软件完成。</p>
+<h3 id="12-编码职责分层">1.2 编码职责分层</h3>
+<p>一个网络请求的编码工作，由多层软件协作完成：</p>
+<table>
+<thead>
+<tr>
+<th>层级</th>
+<th>负责什么</th>
+<th>谁来做</th>
+<th>是否自动</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>应用层</td>
+<td>对象 → JSON 字符串</td>
+<td>你的代码调用 JSONEncoder / Gson</td>
+<td>手动调用</td>
+</tr>
+<tr>
+<td>HTTP 框架层</td>
+<td>URL 编码、HTTP 报文封装</td>
+<td>URLSession / OkHttp / Alamofire</td>
+<td>大部分自动</td>
+</tr>
+<tr>
+<td>传输层</td>
+<td>TCP 分段、校验和</td>
+<td>操作系统网络栈</td>
+<td>完全自动</td>
+</tr>
+<tr>
+<td>网络层</td>
+<td>IP 数据包封装</td>
+<td>操作系统网络栈</td>
+<td>完全自动</td>
+</tr>
+</tbody>
+</table>
+<p>用图来表示：</p>
+<!--
+```mermaid
+flowchart TB
+    A["你的代码：User 对象"] -&#45;>|"JSONEncoder / Gson（手动调用）"| B["JSON 字符串：{&quot;name&quot;:&quot;张三&quot;}"]
+    B -&#45;>|"HTTP 框架（URLSession / OkHttp）"| C["HTTP 报文：POST /api HTTP/1.1..."]
+    C -&#45;>|"操作系统网络栈（自动）"| D["TCP 分段 → IP 数据包 → 字节流"]
+
+    style A fill:#e1f5fe
+    style D fill:#e8f5e9
+```
+-->
+<img src="/post-images/1766573208004.svg" alt="编码职责分层" width=50%>
+<p>关键点：<strong>JSON 序列化不是自动的</strong>。即使你用 Alamofire 这样的高层框架，也需要指定编码器（如 <code>JSONParameterEncoder</code>）。框架只是帮你简化了调用方式，底层仍然是手动触发的序列化。</p>
+<h3 id="13-三个编码场景详解">1.3 三个编码场景详解</h3>
+<p>在一个 HTTP 请求中，数据可以出现在三个位置，每个位置的编码规则和实现方式不同：</p>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>典型场景</th>
+<th>编码规则</th>
+<th>谁来做</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>URL Query</td>
+<td>GET 请求参数</td>
+<td>Percent-Encoding</td>
+<td>HTTP 框架自动，边界情况需手动</td>
+</tr>
+<tr>
+<td>Header</td>
+<td>认证信息、自定义元数据</td>
+<td>ASCII（非 ASCII 需 Base64）</td>
+<td>手动处理</td>
+</tr>
+<tr>
+<td>Body</td>
+<td>POST/PUT 请求体</td>
+<td>取决于 Content-Type</td>
+<td>序列化手动，封装自动</td>
+</tr>
+</tbody>
+</table>
+<p><strong>URL Query 编码</strong></p>
+<p>URL 规范（RFC 3986）规定，Query 中只能包含特定的 ASCII 字符。对于中文、空格等字符，必须进行 Percent-Encoding（关于 URL 的完整结构，可参考 <a href="/computer-network-url-and-dns">计算机网络之二 - URL 与 DNS</a>）：</p>
+<pre><code>原始：name=张三&amp;city=北京
+编码后：name=%E5%BC%A0%E4%B8%89&amp;city=%E5%8C%97%E4%BA%AC
+</code></pre>
+<p>这里有个细节经常被忽略：<strong>空格</strong>的编码。在 Query 中，空格可以编码为 <code>%20</code> 或 <code>+</code>，但两者的语义略有不同。表单提交（<code>application/x-www-form-urlencoded</code>）通常用 <code>+</code>，而标准 URL 编码用 <code>%20</code>。</p>
+<p><em>谁来做？</em> iOS 的 <code>URLComponents</code>、Android 的 <code>Uri.Builder</code> 会自动编码大部分字符，但 <code>+</code> 等边界字符可能需要手动处理。</p>
+<blockquote>
+<p>源码参考：</p>
+<ul>
+<li>iOS Alamofire：<a href="https://github.com/Alamofire/Alamofire/blob/5.9.1/Source/Core/ParameterEncoder.swift#L174-L185">ParameterEncoder.swift#L174-L185</a></li>
+<li>Android：<a href="https://github.com/square/okhttp/blob/parent-5.3.2/okhttp/src/commonJvmAndroid/kotlin/okhttp3/HttpUrl.kt#L1106-L1123">OkHttp - HttpUrl.kt#L1106-L1123</a></li>
+</ul>
+</blockquote>
+<p><strong>Header 编码</strong></p>
+<p>HTTP Header 本质上是 ASCII 文本。如果你想在 Header 里传中文，要么用 Base64 编码，要么用 RFC 5987 定义的扩展语法。实际开发中，建议 Header 只传 ASCII 安全的内容，复杂数据放 Body。</p>
+<p><em>谁来做？</em> 需要你手动处理。框架不会自动帮你把中文 Base64 编码。</p>
+<p><strong>Body 编码</strong></p>
+<p>Body 的编码方式决定了应该设置什么 <code>Content-Type</code>，服务端会根据它来选择解码方式：</p>
+<ul>
+<li><code>application/json</code>：UTF-8 编码的 JSON 文本</li>
+<li><code>application/x-www-form-urlencoded</code>：类似 URL Query 的键值对</li>
+<li><code>multipart/form-data</code>：文件上传常用，每个 part 有独立的编码</li>
+</ul>
+<p><em>谁来做？</em> JSON 序列化需要你手动调用（<code>JSONEncoder</code> / <code>Gson</code>），之后 HTTP 框架会自动设置 <code>Content-Type</code> 并封装到 HTTP 报文中。</p>
+<blockquote>
+<p>源码参考：</p>
+<ul>
+<li>iOS Alamofire：<a href="https://github.com/Alamofire/Alamofire/blob/5.9.1/Source/Core/ParameterEncoder.swift#L186-L193">ParameterEncoder.swift#L186-L193</a></li>
+<li>Android Retrofit：<a href="https://github.com/square/retrofit/blob/parent-2.8.1/retrofit/src/main/java/retrofit2/RequestBuilder.java#L195-L202">RequestBuilder.java#L195-L202</a></li>
+</ul>
+</blockquote>
+<h3 id="14-常见编码陷阱">1.4 常见编码陷阱</h3>
+<p><strong>空值处理</strong></p>
+<p>当参数值为 <code>null</code> 或空字符串时，不同的 HTTP 客户端库和后端框架处理方式差异很大：</p>
+<ul>
+<li>有的框架会省略整个键值对</li>
+<li>有的会保留键但值为空：<code>key=</code></li>
+<li>有的会传字符串 <code>&quot;null&quot;</code></li>
+</ul>
+<p>以 Alamofire 为例，它提供了三种 <code>nil</code> 编码策略：</p>
+<pre><code class="language-swift">public struct NilEncoding {
+    public static let dropKey = NilEncoding { nil }      // 省略整个键值对
+    public static let dropValue = NilEncoding { &quot;&quot; }     // 保留键，值为空
+    public static let null = NilEncoding { &quot;null&quot; }      // 编码为字符串 &quot;null&quot;
+}
+</code></pre>
+<p>而 Gson 默认不序列化 <code>null</code> 字段，需要显式调用 <code>serializeNulls()</code> 才会输出：</p>
+<pre><code class="language-java">// 默认行为：{&quot;name&quot;:&quot;张三&quot;}（age 字段被省略）
+// 调用 serializeNulls() 后：{&quot;name&quot;:&quot;张三&quot;,&quot;age&quot;:null}
+new GsonBuilder().serializeNulls().create();
+</code></pre>
+<p>建议在团队内明确约定，避免联调时踩坑。</p>
+<blockquote>
+<p>源码参考：</p>
+<ul>
+<li>iOS Alamofire：<a href="https://github.com/Alamofire/Alamofire/blob/5.9.1/Source/Features/URLEncodedFormEncoder.swift#L318-L325">URLEncodedFormEncoder.swift#L318-L325</a></li>
+<li>Android Gson：<a href="https://github.com/google/gson/blob/gson-parent-2.13.2/gson/src/main/java/com/google/gson/GsonBuilder.java#L235-L239">GsonBuilder.java#L235-L239</a></li>
+</ul>
+</blockquote>
+<p><strong>数字精度</strong></p>
+<p>JavaScript 的 <code>Number</code> 类型是 IEEE 754 双精度浮点数，最大安全整数是 <code>2^53 - 1</code>（约 9007 万亿）。超过这个范围的 ID，在 JSON 序列化/反序列化过程中会丢失精度。解决方案是用字符串传递大整数。</p>
+<p><strong>时间格式</strong></p>
+<p>ISO 8601（如 <code>2025-12-24T10:30:00Z</code>）是最通用的时间格式，但要注意时区问题。有些后端返回的是 Unix 时间戳（秒或毫秒），有些是带时区的字符串，有些是 UTC 时间——联调前务必确认。</p>
+<h3 id="15-数据链路概览">1.5 数据链路概览</h3>
+<p>一个典型的网络请求，数据会经历这样的链路：</p>
+<!--
+```mermaid
+flowchart TB
+    subgraph 客户端
+        A[业务模型<br/>Swift Struct / Kotlin Data Class] -&#45;>|序列化<br/>Codable / Gson| B[JSON 字符串]
+        B -&#45;>|UTF-8 编码| C[二进制字节流]
+        C -&#45;>|HTTP 协议封装| D[网络请求]
+    end
+
+    D -&#45;>|网络传输| E[服务端接收]
+
+    subgraph 服务端
+        E -&#45;>|HTTP 协议解析| F[二进制字节流]
+        F -&#45;>|UTF-8 解码| G[JSON 字符串]
+        G -&#45;>|反序列化| H[业务模型]
+    end
+
+    style A fill:#e1f5fe
+    style H fill:#e8f5e9
+```
+-->
+<img src="/post-images/1766573208001.svg" alt="HTTP 数据链路" width=50%>
+<p>理解这个链路有助于定位问题：编码问题在哪一层产生，就应该在哪一层解决。</p>
+<h2 id="2-ios-端urlsession-与-alamofire-的编解码逻辑">2. iOS 端：URLSession 与 Alamofire 的编解码逻辑</h2>
+<br>
+<h3 id="21-urlsession-的默认行为">2.1 URLSession 的默认行为</h3>
+<p><strong>URL Query 的组装</strong></p>
+<p>使用 <code>URLComponents</code> 构建 URL 时，系统会自动进行 Percent-Encoding：</p>
+<pre><code class="language-swift">var components = URLComponents(string: &quot;https://api.example.com/users&quot;)!
+components.queryItems = [
+    URLQueryItem(name: &quot;name&quot;, value: &quot;张三&quot;),
+    URLQueryItem(name: &quot;age&quot;, value: &quot;25&quot;)
+]
+// 结果：https://api.example.com/users?name=%E5%BC%A0%E4%B8%89&amp;age=25
+</code></pre>
+<p>但这里有个坑：<code>URLQueryItem</code> 对某些字符的编码可能不符合预期。比如 <code>+</code> 号默认不会被编码，但在某些后端框架中会被解析为空格。如果遇到这类问题，可能需要手动调用 <code>addingPercentEncoding(withAllowedCharacters:)</code>。</p>
+<p><strong>避免二次编码</strong></p>
+<p><code>URLComponents</code> 在设置 <code>queryItems</code> 时会自动进行 Percent-Encoding，所以你传入的值应该是<strong>原始值</strong>，而不是已编码的值：</p>
+<pre><code class="language-swift">// ✅ 正确：传入原始值，URLComponents 自动编码
+components.queryItems = [URLQueryItem(name: &quot;name&quot;, value: &quot;张三&quot;)]
+// 结果：name=%E5%BC%A0%E4%B8%89
+
+// ❌ 错误：传入已编码的值，会导致二次编码
+let encoded = &quot;张三&quot;.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)!
+components.queryItems = [URLQueryItem(name: &quot;name&quot;, value: encoded)]
+// 结果：name=%25E5%25BC%25A0%25E4%25B8%2589（% 被编码成了 %25）
+</code></pre>
+<p>那什么时候需要手动调用 <code>addingPercentEncoding(withAllowedCharacters:)</code>？</p>
+<ol>
+<li><strong>直接拼接 URL 字符串时</strong>：如果你不用 <code>URLComponents</code>，而是手动拼接 URL，就需要自己编码</li>
+<li><strong><code>URLComponents</code> 编码不符合预期时</strong>：比如 <code>+</code> 号默认不编码，但后端会解析为空格，这时需要手动处理</li>
+<li><strong>使用 <code>percentEncodedQuery</code> 属性时</strong>：这个属性接受已编码的字符串，不会再次编码</li>
+</ol>
+<p><strong>处理特殊字符</strong></p>
+<p><code>URLQueryItem</code> 遵循 RFC 3986，但实际开发中有几个字符需要特别注意：</p>
+<table>
+<thead>
+<tr>
+<th>字符</th>
+<th>URLQueryItem 是否编码</th>
+<th>潜在问题</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>+</code></td>
+<td>❌ 不编码</td>
+<td>后端可能解析为空格</td>
+</tr>
+<tr>
+<td><code>&amp;</code></td>
+<td>✅ 编码为 <code>%26</code></td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>=</code></td>
+<td>✅ 编码为 <code>%3D</code></td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>#</code></td>
+<td>✅ 编码为 <code>%23</code></td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>%</code></td>
+<td>❌ 不编码</td>
+<td>如果后面跟的不是有效十六进制，可能解析失败</td>
+</tr>
+<tr>
+<td>空格</td>
+<td>✅ 编码为 <code>%20</code></td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<p>最常踩坑的是 <code>+</code> 号，因为它在 <code>application/x-www-form-urlencoded</code> 规范中代表空格，而 <code>URLQueryItem</code> 不会编码它。如果你的参数值本身包含 <code>+</code>，需要手动处理：</p>
+<pre><code class="language-swift">// 问题场景：value 包含 + 号
+components.queryItems = [URLQueryItem(name: &quot;formula&quot;, value: &quot;1+1=2&quot;)]
+// 结果：formula=1+1=2（+ 未编码，后端可能解析为 &quot;1 1=2&quot;）
+
+// 解决方案：手动替换 + 为 %2B
+let safeValue = &quot;1+1=2&quot;.replacingOccurrences(of: &quot;+&quot;, with: &quot;%2B&quot;)
+components.percentEncodedQuery = &quot;formula=\(safeValue)&quot;
+// 结果：formula=1%2B1=2（后端正确解析为 &quot;1+1=2&quot;）
+</code></pre>
+<p>或者封装一个更通用的方法：</p>
+<pre><code class="language-swift">extension String {
+    var urlQueryEncoded: String {
+        var allowed = CharacterSet.urlQueryAllowed
+        allowed.remove(&quot;+&quot;)  // 将 + 从 &quot;允许字符&quot; 中移除，强制编码
+        return self.addingPercentEncoding(withAllowedCharacters: allowed) ?? self
+    }
+}
+
+// 使用
+components.percentEncodedQuery = &quot;formula=\(&quot;1+1=2&quot;.urlQueryEncoded)&quot;
+</code></pre>
+<p><strong>Body 的 JSON 编码</strong></p>
+<p><code>URLSession</code> 本身不提供 JSON 序列化，需要配合 <code>JSONEncoder</code>：</p>
+<pre><code class="language-swift">struct User: Codable {
+    let name: String
+    let age: Int
+}
+
+let user = User(name: &quot;张三&quot;, age: 25)
+let jsonData = try JSONEncoder().encode(user)
+
+var request = URLRequest(url: url)
+request.httpMethod = &quot;POST&quot;
+request.httpBody = jsonData
+request.setValue(&quot;application/json&quot;, forHTTPHeaderField: &quot;Content-Type&quot;)
+</code></pre>
+<p><code>JSONEncoder</code> 有几个常用配置：</p>
+<ul>
+<li><code>keyEncodingStrategy</code>：驼峰转下划线（<code>.convertToSnakeCase</code>）</li>
+<li><code>dateEncodingStrategy</code>：时间格式</li>
+<li><code>outputFormatting</code>：是否格式化输出（调试用）</li>
+</ul>
+<p><strong>Content-Type 的默认处理</strong></p>
+<p><code>URLSession</code> 不会自动设置 <code>Content-Type</code>，需要手动指定。忘记设置的话，服务端可能无法正确解析请求体。</p>
+<h3 id="22-alamofire-的默认编码行为">2.2 Alamofire 的默认编码行为</h3>
+<p>Alamofire 对参数编码做了很好的封装，根据请求方法自动选择编码方式：</p>
+<table>
+<thead>
+<tr>
+<th>HTTP 方法</th>
+<th>默认编码方式</th>
+<th>参数位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET, HEAD, DELETE</td>
+<td>URL Encoding</td>
+<td>URL Query</td>
+</tr>
+<tr>
+<td>POST, PUT, PATCH</td>
+<td>JSON Encoding</td>
+<td>Request Body</td>
+</tr>
+</tbody>
+</table>
+<p><strong>参数编码策略</strong></p>
+<p>Alamofire 提供了三种内置编码器：</p>
+<pre><code class="language-swift">// URL 编码 - 参数放在 URL Query
+AF.request(url, parameters: params, encoder: URLEncodedFormParameterEncoder.default)
+
+// JSON 编码 - 参数序列化为 JSON Body
+AF.request(url, method: .post, parameters: params, encoder: JSONParameterEncoder.default)
+
+// 表单编码 - multipart/form-data
+AF.upload(multipartFormData: { formData in
+    formData.append(imageData, withName: &quot;avatar&quot;, fileName: &quot;avatar.jpg&quot;, mimeType: &quot;image/jpeg&quot;)
+}, to: url)
+</code></pre>
+<p><strong>常见配置点与易踩坑</strong></p>
+<ol>
+<li><strong>数组编码格式</strong>：<code>items[]=1&amp;items[]=2</code> vs <code>items=1&amp;items=2</code>，不同后端框架有不同偏好</li>
+<li><strong>布尔值编码</strong>：<code>true</code>/<code>false</code> vs <code>1</code>/<code>0</code></li>
+<li><strong>嵌套对象</strong>：<code>user[name]=张三</code> vs <code>user.name=张三</code></li>
+</ol>
+<p>Alamofire 的 <code>URLEncodedFormParameterEncoder</code> 提供了 <code>ArrayEncoding</code> 和 <code>BoolEncoding</code> 选项来处理这些差异。</p>
+<h2 id="3-服务端jackson-与-spring-的编解码">3. 服务端：Jackson 与 Spring 的编解码</h2>
+<p>在看完客户端如何处理编解码之后，让我们看看服务端是如何处理的。理解全链路有助于排查联调问题。</p>
+<blockquote>
+<p>本章基于 Java 17 与 Spring Boot 3.3.6。即使你没有 Java 开发经验，也能读懂核心逻辑。</p>
+</blockquote>
+<h3 id="31-spring-与-jackson谁负责什么">3.1 Spring 与 Jackson：谁负责什么</h3>
+<p>先澄清一个概念：<strong>Spring 本身不处理 JSON 编解码</strong>，这个工作由 <strong>Jackson</strong> 完成。</p>
+<p><strong>Jackson</strong> 是 Java 生态中最流行的 JSON 库，类似于：</p>
+<ul>
+<li>iOS 的 <code>Codable</code> + <code>JSONEncoder</code> / <code>JSONDecoder</code></li>
+<li>Android 的 <code>Gson</code></li>
+<li>JavaScript 的 <code>JSON.stringify</code> / <code>JSON.parse</code></li>
+</ul>
+<p><strong>Spring</strong> 是 Web 框架，它的职责是：</p>
+<ul>
+<li>接收 HTTP 请求，提取参数</li>
+<li>调用 Jackson 进行 JSON 编解码</li>
+<li>调用业务逻辑，返回响应</li>
+</ul>
+<p>用图来表示：</p>
+<!--
+```mermaid
+sequenceDiagram
+    participant Client as 客户端
+    participant Spring as Spring
+    participant Jackson as Jackson
+
+    Client->>Spring: POST /users<br/>{"name":"张三"}
+
+    Note over Spring: 提取 Content-Type<br/>选择 MessageConverter
+
+    Spring->>Jackson: 调用反序列化
+    Note over Jackson: readValue()<br/>JSON → Java 对象
+    Jackson-&#45;>>Spring: User 对象
+
+    Note over Spring: 调用业务逻辑<br/>返回 Java 对象
+
+    Spring->>Jackson: 调用序列化
+    Note over Jackson: writeValueAsString()<br/>Java 对象 → JSON
+    Jackson-&#45;>>Spring: JSON 字符串
+
+    Spring-&#45;>>Client: {"id":1,"name":"张三"}
+```
+-->
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyoo.top/post-images/spring-jackson-flow.svg" alt="Spring 与 Jackson 协作流程" loading="lazy"></figure>
+<p>所以，当你遇到 JSON 相关的问题时，大多数情况下应该去看 Jackson 的文档和配置。</p>
+<h3 id="32-jackson-核心机制">3.2 Jackson 核心机制</h3>
+<p>Jackson 的核心是 <code>ObjectMapper</code> 类，它提供了两个最重要的方法：</p>
+<pre><code class="language-java">ObjectMapper mapper = new ObjectMapper();
+
+// 序列化：Java 对象 → JSON 字符串
+String json = mapper.writeValueAsString(user);
+
+// 反序列化：JSON 字符串 → Java 对象
+User user = mapper.readValue(json, User.class);
+</code></pre>
+<p><strong>序列化流程</strong></p>
+<p>当调用 <code>writeValueAsString()</code> 时，Jackson 内部会：</p>
+<ol>
+<li><strong>查找序列化器</strong>：根据对象类型，找到对应的 <code>JsonSerializer</code></li>
+<li><strong>反射获取字段</strong>：通过 Java 反射机制，获取对象的所有字段和 getter 方法</li>
+<li><strong>逐个序列化</strong>：对每个字段调用对应的序列化器，生成 JSON 片段</li>
+<li><strong>组装输出</strong>：将所有片段组装成完整的 JSON 字符串</li>
+</ol>
+<pre><code class="language-java">// 简化的序列化流程（源码位置：DefaultSerializerProvider.java#L320）
+public void serializeValue(JsonGenerator gen, Object value) {
+    if (value == null) {
+        _serializeNull(gen);
+        return;
+    }
+    // 根据对象类型查找序列化器
+    Class&lt;?&gt; cls = value.getClass();
+    JsonSerializer&lt;Object&gt; ser = findTypedValueSerializer(cls, true, null);
+    // 执行序列化
+    _serialize(gen, value, ser);
+}
+</code></pre>
+<blockquote>
+<p>源码参考：<a href="https://github.com/FasterXML/jackson-databind/blob/jackson-databind-2.17.2/src/main/java/com/fasterxml/jackson/databind/ser/DefaultSerializerProvider.java#L321-L342">DefaultSerializerProvider.java#L321-L342</a></p>
+</blockquote>
+<p><strong>反序列化流程</strong></p>
+<p>当调用 <code>readValue()</code> 时，Jackson 内部会：</p>
+<ol>
+<li><strong>解析 JSON</strong>：将 JSON 字符串解析成 token 流</li>
+<li><strong>查找反序列化器</strong>：根据目标类型，找到对应的 <code>JsonDeserializer</code></li>
+<li><strong>创建对象实例</strong>：调用目标类的无参构造函数（这就是为什么 Jackson 需要无参构造函数）</li>
+<li><strong>填充字段</strong>：根据 JSON 中的 key，找到对应的字段或 setter，设置值</li>
+</ol>
+<pre><code class="language-java">// 简化的反序列化逻辑
+public &lt;T&gt; T readValue(String content, Class&lt;T&gt; valueType) {
+    // 创建 JSON 解析器
+    JsonParser parser = _jsonFactory.createParser(content);
+    // 查找反序列化器并执行
+    return _readMapAndClose(parser, _typeFactory.constructType(valueType));
+}
+</code></pre>
+<p><strong>类型映射</strong></p>
+<p>Jackson 在序列化/反序列化时，会自动进行类型转换：</p>
+<table>
+<thead>
+<tr>
+<th>JSON 类型</th>
+<th>Java 类型</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&quot;string&quot;</code></td>
+<td><code>String</code></td>
+</tr>
+<tr>
+<td><code>123</code></td>
+<td><code>int</code>, <code>long</code>, <code>Integer</code>, <code>Long</code></td>
+</tr>
+<tr>
+<td><code>12.34</code></td>
+<td><code>double</code>, <code>float</code>, <code>Double</code>, <code>Float</code>, <code>BigDecimal</code></td>
+</tr>
+<tr>
+<td><code>true</code>/<code>false</code></td>
+<td><code>boolean</code>, <code>Boolean</code></td>
+</tr>
+<tr>
+<td><code>null</code></td>
+<td><code>null</code>（引用类型）</td>
+</tr>
+<tr>
+<td><code>[...]</code></td>
+<td><code>List</code>, <code>Set</code>, 数组</td>
+</tr>
+<tr>
+<td><code>{...}</code></td>
+<td><code>Map</code>, 自定义对象</td>
+</tr>
+</tbody>
+</table>
+<h3 id="33-spring-如何调用-jackson">3.3 Spring 如何调用 Jackson</h3>
+<p>Spring 通过 <code>HttpMessageConverter</code> 机制来处理请求和响应的转换。对于 JSON，使用的是 <code>MappingJackson2HttpMessageConverter</code>。</p>
+<p><strong><code>@RequestBody </code> 的处理流程</strong></p>
+<p>当 Spring 遇到 <code>@RequestBody</code> 注解时：</p>
+<pre><code class="language-java">@PostMapping(&quot;/users&quot;)
+public User createUser(@RequestBody User user) {
+    return userService.save(user);
+}
+</code></pre>
+<p>内部处理流程：</p>
+<ol>
+<li>Spring 检查请求的 <code>Content-Type</code>，发现是 <code>application/json</code></li>
+<li>选择 <code>MappingJackson2HttpMessageConverter</code> 来处理</li>
+<li>Converter 内部调用 Jackson 的 <code>ObjectMapper.readValue()</code> 进行反序列化</li>
+</ol>
+<pre><code class="language-java">// AbstractJackson2HttpMessageConverter.java（简化）
+@Override
+protected Object readInternal(Class&lt;?&gt; clazz, HttpInputMessage inputMessage) {
+    JavaType javaType = getJavaType(clazz, null);
+    return readJavaType(javaType, inputMessage);
+}
+
+private Object readJavaType(JavaType javaType, HttpInputMessage inputMessage) {
+    ObjectMapper objectMapper = selectObjectMapper(clazz, contentType);
+    ObjectReader objectReader = objectMapper.readerFor(javaType);
+    // 调用 Jackson 进行反序列化
+    return objectReader.readValue(inputMessage.getBody());
+}
+</code></pre>
+<blockquote>
+<p>源码参考：<a href="https://github.com/spring-projects/spring-framework/blob/v6.1.14/spring-web/src/main/java/org/springframework/http/converter/json/AbstractJackson2HttpMessageConverter.java#L357-L408">AbstractJackson2HttpMessageConverter.java#L357-L408</a></p>
+</blockquote>
+<p><strong><code>@ResponseBody</code> 的处理流程</strong></p>
+<p>当方法返回值需要转换为 JSON 时（<code>@RestController</code> 默认包含 <code>@ResponseBody</code>）：</p>
+<ol>
+<li>Spring 检查客户端的 <code>Accept</code> 头，确定返回格式</li>
+<li>选择 <code>MappingJackson2HttpMessageConverter</code> 来处理</li>
+<li>Converter 内部调用 Jackson 的 <code>ObjectMapper.writeValue()</code> 进行序列化</li>
+</ol>
+<pre><code class="language-java">// AbstractJackson2HttpMessageConverter.java（简化）
+@Override
+protected void writeInternal(Object object, HttpOutputMessage outputMessage) {
+    ObjectMapper objectMapper = selectObjectMapper(object.getClass(), contentType);
+    ObjectWriter objectWriter = objectMapper.writer();
+    // 调用 Jackson 进行序列化
+    objectWriter.writeValue(generator, object);
+}
+</code></pre>
+<blockquote>
+<p>源码参考：<a href="https://github.com/spring-projects/spring-framework/blob/v6.1.14/spring-web/src/main/java/org/springframework/http/converter/json/AbstractJackson2HttpMessageConverter.java#L439-L487">AbstractJackson2HttpMessageConverter.java#L439-L487</a></p>
+</blockquote>
+<h3 id="34-jackson-常用配置">3.4 Jackson 常用配置</h3>
+<p>Jackson 是 Spring 默认的 JSON 库，它的行为可以通过注解或全局配置来调整。</p>
+<p><strong>空值处理：<code>@JsonInclude</code></strong></p>
+<p>Jackson 默认会序列化所有字段，包括 <code>null</code>：</p>
+<pre><code class="language-java">public class User {
+    private String name = &quot;张三&quot;;
+    private String email = null;
+}
+// 默认输出：{&quot;name&quot;:&quot;张三&quot;,&quot;email&quot;:null}
+</code></pre>
+<p>如果你想省略 <code>null</code> 字段（和 Gson 默认行为一致），可以使用 <code>@JsonInclude</code>：</p>
+<pre><code class="language-java">@JsonInclude(JsonInclude.Include.NON_NULL)
+public class User {
+    private String name = &quot;张三&quot;;
+    private String email = null;
+}
+// 输出：{&quot;name&quot;:&quot;张三&quot;}
+</code></pre>
+<p><code>@JsonInclude</code> 的常用选项：</p>
+<table>
+<thead>
+<tr>
+<th>选项</th>
+<th>行为</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ALWAYS</code></td>
+<td>始终包含（默认）</td>
+</tr>
+<tr>
+<td><code>NON_NULL</code></td>
+<td>排除 <code>null</code> 值</td>
+</tr>
+<tr>
+<td><code>NON_EMPTY</code></td>
+<td>排除 <code>null</code>、空字符串、空集合</td>
+</tr>
+<tr>
+<td><code>NON_DEFAULT</code></td>
+<td>排除等于默认值的字段</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>源码参考：<a href="https://github.com/FasterXML/jackson-annotations/blob/jackson-annotations-2.17.2/src/main/java/com/fasterxml/jackson/annotation/JsonInclude.java#L113-L241">JsonInclude.java#L113-L241 - Include 枚举</a></p>
+</blockquote>
+<p><strong>命名策略：驼峰 vs 下划线</strong></p>
+<p>Java 习惯用驼峰命名（<code>userName</code>），而很多 API 规范要求下划线（<code>user_name</code>）。Jackson 提供了 <code>PropertyNamingStrategies</code>：</p>
+<pre><code class="language-java">// 全局配置（Spring Boot application.yml）
+spring:
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+
+// 或者单个类配置
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+public class User {
+    private String userName;  // 序列化为 &quot;user_name&quot;
+}
+</code></pre>
+<p><strong>时间格式</strong></p>
+<p>Jackson 默认把 <code>Date</code> 序列化为时间戳（毫秒），如果你想要 ISO 8601 格式：</p>
+<pre><code class="language-java">// 全局配置
+spring:
+  jackson:
+    date-format: yyyy-MM-dd'T'HH:mm:ss.SSSZ
+    time-zone: UTC
+
+// 或者单个字段配置
+@JsonFormat(pattern = &quot;yyyy-MM-dd HH:mm:ss&quot;, timezone = &quot;Asia/Shanghai&quot;)
+private Date createTime;
+</code></pre>
+<h3 id="35-url-query-与字符编码">3.5 URL Query 与字符编码</h3>
+<p>前面讲的都是 JSON Body 的编解码，由 Jackson 负责。但 <strong>URL Query 的解码和 Jackson 无关</strong>，这部分由 Servlet 容器（如 Tomcat）和 Spring 共同完成。</p>
+<p><strong>解码流程概览</strong></p>
+<p>当客户端发送 <code>GET /users?name=%E5%BC%A0%E4%B8%89&amp;age=25</code> 时，解码流程如下：</p>
+<!--
+```mermaid
+flowchart TB
+    A["客户端发送<br/>GET /users?name=%E5%BC%A0%E4%B8%89&age=25"] -&#45;> B
+    B["1. Tomcat 接收请求<br/>解析 Query String，参数值仍是编码状态"] -&#45;> C
+    C["2. CharacterEncodingFilter<br/>设置请求字符编码为 UTF-8"] -&#45;> D
+    D["3. 首次调用 request.getParameter()<br/>Tomcat 触发参数解析<br/>%E5%BC%A0%E4%B8%89 → 字节序列 → UTF-8 解码 → 张三"] -&#45;> E
+    E["4. Spring @RequestParam 绑定<br/>获取已解码的值，进行类型转换"] -&#45;> F
+    F["你的代码收到<br/>name = 张三, age = 25"]
+
+    style A fill:#e3f2fd
+    style F fill:#e8f5e9
+```
+-->
+<img src="/post-images/url-query-decode-flow.svg" alt="URL Query 解码流程" width=50%>
+<p><strong>Tomcat 的参数解码</strong></p>
+<p>Tomcat 在首次调用 <code>request.getParameter()</code> 时才会解析参数（延迟解析）。核心逻辑在 <code>Parameters</code> 类中：</p>
+<pre><code class="language-java">// Tomcat Parameters.java（简化）
+private void processParameters(byte[] bytes, int start, int len, Charset charset) {
+    int pos = start;
+    int end = start + len;
+
+    while (pos &lt; end) {
+        // 找到 key=value 对
+        int nameStart = pos;
+        int nameEnd = -1;
+        int valueStart = -1;
+        int valueEnd = -1;
+
+        // 解析 key 和 value 的边界
+        while (pos &lt; end) {
+            byte b = bytes[pos];
+            if (b == '=' &amp;&amp; nameEnd == -1) {
+                nameEnd = pos;
+                valueStart = pos + 1;
+            } else if (b == '&amp;') {
+                valueEnd = pos;
+                break;
+            }
+            pos++;
+        }
+
+        // 对 key 和 value 进行 URL 解码
+        // %E5%BC%A0 → 0xE5 0xBC 0xA0 → &quot;张&quot;（UTF-8）
+        String name = urlDecode(bytes, nameStart, nameEnd, charset);
+        String value = urlDecode(bytes, valueStart, valueEnd, charset);
+
+        addParameter(name, value);
+    }
+}
+</code></pre>
+<blockquote>
+<p>源码参考：<a href="https://github.com/apache/tomcat/blob/10.1.34/java/org/apache/tomcat/util/http/Parameters.java#L234-L463">Tomcat Parameters.java#L234-L463</a></p>
+</blockquote>
+<p><strong>Spring 的 <code>@RequestParam</code> 处理</strong></p>
+<p>Spring 通过 <code>RequestParamMethodArgumentResolver</code> 处理 <code>@RequestParam</code> 注解：</p>
+<pre><code class="language-java">@GetMapping(&quot;/users&quot;)
+public List&lt;User&gt; getUsers(
+    @RequestParam String name,  // 自动解码为 &quot;张三&quot;
+    @RequestParam int age       // 自动转换为整数 25
+) {
+    // ...
+}
+</code></pre>
+<p>Spring 内部的处理逻辑：</p>
+<pre><code class="language-java">// RequestParamMethodArgumentResolver.java（简化）
+@Override
+protected Object resolveName(String name, MethodParameter parameter,
+                             NativeWebRequest request) throws Exception {
+    HttpServletRequest servletRequest = request.getNativeRequest(HttpServletRequest.class);
+
+    // 调用 Servlet API 获取参数（此时 Tomcat 已完成解码）
+    String[] paramValues = servletRequest.getParameterValues(name);
+
+    if (paramValues != null) {
+        return paramValues.length == 1 ? paramValues[0] : paramValues;
+    }
+    return null;
+}
+</code></pre>
+<blockquote>
+<p>源码参考：<a href="https://github.com/spring-projects/spring-framework/blob/v6.1.14/spring-web/src/main/java/org/springframework/web/method/annotation/RequestParamMethodArgumentResolver.java#L160-L190">RequestParamMethodArgumentResolver.java#L160-L190</a></p>
+</blockquote>
+<p><strong>CharacterEncodingFilter 的作用</strong></p>
+<p>Spring Boot 默认配置了 <code>CharacterEncodingFilter</code>，确保 Tomcat 使用 UTF-8 解码参数：</p>
+<pre><code class="language-java">// CharacterEncodingFilter.java（简化）
+@Override
+protected void doFilterInternal(HttpServletRequest request,
+                                HttpServletResponse response,
+                                FilterChain filterChain) {
+    String encoding = getEncoding();  // 默认 UTF-8
+
+    // 在 Tomcat 解析参数之前设置编码
+    if (isForceRequestEncoding() || request.getCharacterEncoding() == null) {
+        request.setCharacterEncoding(encoding);
+    }
+    if (isForceResponseEncoding()) {
+        response.setCharacterEncoding(encoding);
+    }
+
+    filterChain.doFilter(request, response);
+}
+</code></pre>
+<blockquote>
+<p>源码参考：<a href="https://github.com/spring-projects/spring-framework/blob/v6.1.14/spring-web/src/main/java/org/springframework/web/filter/CharacterEncodingFilter.java#L187-L202">CharacterEncodingFilter.java#L187-L202</a></p>
+</blockquote>
+<p><strong>为什么顺序很重要？</strong></p>
+<p><code>CharacterEncodingFilter</code> 必须在参数解析之前执行，否则 Tomcat 会使用默认编码（通常是 ISO-8859-1）解码参数，导致中文乱码。Spring Boot 默认将这个 Filter 配置为最高优先级，所以一般不会遇到问题。</p>
+<p>如果遇到 URL Query 中文乱码，检查以下几点：</p>
+<ol>
+<li><code>CharacterEncodingFilter</code> 是否正确配置</li>
+<li>Tomcat 的 <code>URIEncoding</code> 配置（<code>server.xml</code> 中的 Connector 配置）</li>
+<li>客户端是否使用 UTF-8 编码</li>
+</ol>
+<h3 id="36-常见问题排查">3.6 常见问题排查</h3>
+<p><strong>问题 1：客户端发送的 JSON 字段，后端收到是 null</strong></p>
+<p>可能原因：</p>
+<ol>
+<li><strong>命名不一致</strong>：客户端发 <code>user_name</code>，后端字段是 <code>userName</code>，且没配置 <code>SNAKE_CASE</code></li>
+<li><strong>类型不匹配</strong>：客户端发字符串 <code>&quot;25&quot;</code>，后端期望 <code>int</code>（Jackson 通常能自动转换，但复杂类型可能失败）</li>
+<li><strong>缺少无参构造函数</strong>：Jackson 反序列化需要无参构造函数</li>
+</ol>
+<p><strong>问题 2：后端返回的 JSON 字段顺序和预期不同</strong></p>
+<p>Jackson 默认不保证字段顺序。如果有顺序要求，使用 <code>@JsonPropertyOrder</code>：</p>
+<pre><code class="language-java">@JsonPropertyOrder({&quot;id&quot;, &quot;name&quot;, &quot;email&quot;})
+public class User { ... }
+</code></pre>
+<p><strong>问题 3：前后端空值约定不一致</strong></p>
+<p>这是联调中最常见的问题。建议团队统一约定：</p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>客户端行为</th>
+<th>后端行为</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>字段不传</td>
+<td>不包含该 key</td>
+<td>使用默认值或判断为 null</td>
+</tr>
+<tr>
+<td>传 null</td>
+<td><code>&quot;field&quot;: null</code></td>
+<td>接收为 null</td>
+</tr>
+<tr>
+<td>传空字符串</td>
+<td><code>&quot;field&quot;: &quot;&quot;</code></td>
+<td>接收为空字符串（注意：不等于 null）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="37-与客户端编码的对应关系">3.7 与客户端编码的对应关系</h3>
+<table>
+<thead>
+<tr>
+<th>客户端操作</th>
+<th>后端处理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>URLComponents</code> 编码中文</td>
+<td><code>@RequestParam</code> 自动 URL 解码</td>
+</tr>
+<tr>
+<td><code>JSONEncoder</code> 序列化对象</td>
+<td>Jackson 反序列化为 Java 对象</td>
+</tr>
+<tr>
+<td>设置 <code>Content-Type: application/json</code></td>
+<td>Spring 选择 <code>MappingJackson2HttpMessageConverter</code></td>
+</tr>
+<tr>
+<td>Alamofire <code>JSONParameterEncoder</code></td>
+<td>等同于上述组合</td>
+</tr>
+</tbody>
+</table>
+<p>理解了这个对应关系，联调时遇到问题就知道该从哪边排查了。</p>
+<h2 id="4-延伸阅读js-bridge-的编解码逻辑">4. 延伸阅读：JS Bridge 的编解码逻辑</h2>
+<p>如果你对 Native 与 H5 之间的 JS Bridge 通信机制感兴趣，可以阅读这篇独立的解析文章：</p>
+<p>👉 <a href="/jsbridge-encoding-ios-android-h5">iOS &amp; Android &amp; H5 三端 JS Bridge 的编解码逻辑与源码分析</a></p>
+<p>这篇文章从源码层面拆解了 JS Bridge 的编解码逻辑，包括：</p>
+<ul>
+<li>消息结构与回调机制</li>
+<li>iOS（<a href="https://github.com/marcuswestin/WebViewJavascriptBridge/tree/v6.0.3">marcuswestin/WebViewJavascriptBridge</a>）的实现细节</li>
+<li>Android（<a href="https://github.com/wendux/WebViewJavascriptBridge/tree/25dbf77b83a2da3a420e868b70948e7e56b87847">wendux/WebViewJavascriptBridge</a>）的实现细节</li>
+<li>H5 端的 JavaScript 注入与消息处理</li>
+<li>三端的差异与注意点</li>
+</ul>
+<h2 id="5-总结">5. 总结</h2>
+<br>
+<h3 id="51-全链路编解码概览">5.1 全链路编解码概览</h3>
+<p>下图展示了一个完整的 HTTP 请求-响应周期中，数据经历的编解码过程：</p>
+<!--
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client as 客户端
+    participant Network as 网络传输
+    participant Server as 服务端
+
+    rect rgb(227, 242, 253)
+        Note over Client: 【编码阶段】
+        Client->>Client: URL Query: URLComponents 自动编码
+        Client->>Client: JSON Body: JSONEncoder/Gson 手动调用
+        Client->>Client: HTTP 报文: 框架自动封装
+    end
+
+    Client->>Network: HTTP 请求（UTF-8 字节流）
+
+    rect rgb(232, 245, 233)
+        Note over Server: 【解码阶段】
+        Network->>Server: 接收请求
+        Server->>Server: URL Query: Tomcat 自动解码
+        Server->>Server: JSON Body: Jackson 自动解码
+        Server->>Server: 业务处理
+    end
+
+    rect rgb(232, 245, 233)
+        Note over Server: 【编码阶段】
+        Server->>Server: JSON Body: Jackson 自动编码
+    end
+
+    Server->>Network: HTTP 响应（UTF-8 字节流）
+
+    rect rgb(227, 242, 253)
+        Note over Client: 【解码阶段】
+        Network->>Client: 接收响应
+        Client->>Client: JSON Body: JSONDecoder/Gson 手动调用
+    end
+```
+-->
+<figure data-type="image" tabindex="2"><img src="https://blog.rakuyoo.top/post-images/full-link-encoding-flow.svg" alt="全链路编解码流程" loading="lazy"></figure>
+<h3 id="52-按请求类型的编解码对照">5.2 按请求类型的编解码对照</h3>
+<p>不同的请求类型，编解码的方式和负责人不同：</p>
+<p><strong>GET 请求（参数在 URL Query）</strong></p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>位置</th>
+<th>负责人</th>
+<th>自动/手动</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>客户端编码</td>
+<td>URL Query</td>
+<td><code>URLComponents</code> / <code>Uri.Builder</code></td>
+<td>✅ 自动</td>
+<td>Percent-Encoding</td>
+</tr>
+<tr>
+<td>服务端解码</td>
+<td>URL Query</td>
+<td>Tomcat（Servlet 容器）</td>
+<td>✅ 自动</td>
+<td><code>request.getParameter()</code> 时解码</td>
+</tr>
+</tbody>
+</table>
+<p><strong>POST / PUT / PATCH 请求（JSON Body）</strong></p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>位置</th>
+<th>负责人</th>
+<th>自动/手动</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>客户端编码</td>
+<td>Body</td>
+<td><code>JSONEncoder</code> / <code>Gson</code></td>
+<td>⚠️ 手动调用</td>
+<td>需显式调用序列化方法</td>
+</tr>
+<tr>
+<td>服务端解码</td>
+<td>Body</td>
+<td>Jackson</td>
+<td>✅ 自动</td>
+<td><code>@RequestBody</code> 触发自动反序列化</td>
+</tr>
+<tr>
+<td>服务端编码</td>
+<td>Body</td>
+<td>Jackson</td>
+<td>✅ 自动</td>
+<td><code>@ResponseBody</code> 触发自动序列化</td>
+</tr>
+<tr>
+<td>客户端解码</td>
+<td>Body</td>
+<td><code>JSONDecoder</code> / <code>Gson</code></td>
+<td>⚠️ 手动调用</td>
+<td>需显式调用反序列化方法</td>
+</tr>
+</tbody>
+</table>
+<p><strong>POST 请求（Form URL-Encoded）</strong></p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>位置</th>
+<th>负责人</th>
+<th>自动/手动</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>客户端编码</td>
+<td>Body</td>
+<td>HTTP 框架（Alamofire / OkHttp）</td>
+<td>✅ 自动</td>
+<td>类似 URL Query 的编码</td>
+</tr>
+<tr>
+<td>服务端解码</td>
+<td>Body</td>
+<td>Tomcat（Servlet 容器）</td>
+<td>✅ 自动</td>
+<td>与 URL Query 处理方式相同</td>
+</tr>
+</tbody>
+</table>
+<h3 id="53-编解码责任速查表">5.3 编解码责任速查表</h3>
+<table>
+<thead>
+<tr>
+<th>数据位置</th>
+<th>客户端编码</th>
+<th>服务端解码</th>
+<th>服务端编码</th>
+<th>客户端解码</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>URL Query</strong></td>
+<td>URLComponents</td>
+<td>Tomcat</td>
+<td>-</td>
+<td>-</td>
+</tr>
+<tr>
+<td><strong>JSON Body</strong></td>
+<td>JSONEncoder/Gson</td>
+<td>Jackson</td>
+<td>Jackson</td>
+<td>JSONDecoder/Gson</td>
+</tr>
+<tr>
+<td><strong>Form Body</strong></td>
+<td>HTTP 框架</td>
+<td>Tomcat</td>
+<td>-</td>
+<td>-</td>
+</tr>
+<tr>
+<td><strong>Header</strong></td>
+<td>手动处理</td>
+<td>手动处理</td>
+<td>手动处理</td>
+<td>手动处理</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>💡 <strong>记忆技巧</strong>：URL 相关的编解码由「URL 处理组件」负责（URLComponents、Tomcat），JSON 相关的由「JSON 库」负责（JSONEncoder、Jackson、Gson）。</p>
+</blockquote>
+<h3 id="54-统一编码规范的价值">5.4 统一编码规范的价值</h3>
+<p>通过这篇文章的分析，我们可以看到：<strong>编解码问题往往不是技术问题，而是约定问题</strong>。</p>
+<p>无论是客户端与服务端的 HTTP 接口，只要各端约定好：</p>
+<ul>
+<li>字符集统一用 UTF-8</li>
+<li>时间格式统一用 ISO 8601 或时间戳</li>
+<li>空值统一用 <code>null</code> 还是省略</li>
+<li>大整数统一用字符串</li>
+</ul>
+<p>就能避免绝大多数联调问题。</p>
+<hr>
+<br>
+<p>至此，就是这篇文章的全部内容了。希望这篇文章能帮你建立起对 HTTP 编码的整体认识。下次遇到「乱码」、「字段丢失」这类问题时，希望你能知道该从哪里开始排查了。</p>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyoo.top/console-log-reference-trap-and-devtools-lazy-expansion/" class="post-title gt-a-link">
+                    JavaScript console.log 打印对象的引用陷阱与 DevTools 延迟展开机制
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyoo.top/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>
