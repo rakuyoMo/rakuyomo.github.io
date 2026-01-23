@@ -1,0 +1,3540 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://blog.rakuyo.dev</id>
+    <title>Rakuyo&apos;s blog</title>
+    <updated>2026-01-23T07:55:25.469Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://blog.rakuyo.dev"/>
+    <link rel="self" href="https://blog.rakuyo.dev/atom.xml"/>
+    <logo>https://blog.rakuyo.dev/images/avatar.png</logo>
+    <icon>https://blog.rakuyo.dev/favicon.ico</icon>
+    <rights>All rights reserved 2026, Rakuyo&apos;s blog</rights>
+    <entry>
+        <title type="html"><![CDATA[群晖 NAS 公网访问配置（五）：使用 certd 免费版配置泛域名证书]]></title>
+        <id>https://blog.rakuyo.dev/synology-ssl-with-certd/</id>
+        <link href="https://blog.rakuyo.dev/synology-ssl-with-certd/">
+        </link>
+        <updated>2026-01-17T14:01:31.000Z</updated>
+        <summary type="html"><![CDATA[<p>原本《群晖 NAS 公网访问配置》系列前四篇文章已经够用了，本系列中的 NAS 服务不会开放到公网上，https 本来是可有可无的。</p>
+<p>但是，如果你和本站一样使用了 <code>.dev</code> 域，那么你肯定也会遇到和我一样的问题：只用 <code>http</code> 无法访问服务，浏览器会<strong>强制使用 HTTPS</strong>。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>原本《群晖 NAS 公网访问配置》系列前四篇文章已经够用了，本系列中的 NAS 服务不会开放到公网上，https 本来是可有可无的。</p>
+<p>但是，如果你和本站一样使用了 <code>.dev</code> 域，那么你肯定也会遇到和我一样的问题：只用 <code>http</code> 无法访问服务，浏览器会<strong>强制使用 HTTPS</strong>。</p>
+<!-- more -->
+<p>这个问题的背景是：</p>
+<blockquote>
+<p><code>.dev</code> 是一个正式的通用顶级域（gTLD），由 Google（Charleston Road Registry / Google Registry）运营。<br><br>
+整个 <code>.dev</code> 被放到 HSTS preload 列表里，主流浏览器会把对 <code>.dev</code> 的请求当作必须走 HTTPS 的站点处理——如果没有有效 TLS，浏览器会拒绝/升级连接，导致无法通过 <code>http://yourname.dev</code> 正常打开。也就是说，使用 <code>.dev</code> 发布站点时必须配置有效的证书（Let’s Encrypt 等都可用）。</p>
+</blockquote>
+<p>为了解决这个问题，本篇文章诞生了：本文将教会你如何通过 <a href="https://github.com/certd/certd"><code>certd</code></a> 这个开源项目申请泛域名证书，并通过流水线定时触发 + 脚本导入实现全自动更新，以便在 DSM 面板和 NAS 上的服务都能安全访问。</p>
+<p>本文为《群晖 NAS 公网访问配置》系列文章的第五篇。全部文章请参考：</p>
+<p><a href="/synology-config-ddns/">群晖 NAS 公网访问配置（一）：配置 DDNS</a><br>
+<a href="/synology-with-wireguard/">群晖 NAS 公网访问配置（二）：配置 WireGuard</a><br>
+<a href="/synology-docker-public-access/">群晖 NAS 公网访问配置（三）：配置 Nginx 访问 Docker 服务</a><br>
+<a href="/synology-with-cloud/">群晖 NAS 公网访问配置（四）：配置云服务器</a><br>
+<a href="/synology-ssl-with-certd/">群晖 NAS 公网访问配置（五）：使用 certd 免费版配置泛域名证书</a></p>
+<h2 id="方案概览">方案概览</h2>
+<p>这套方案的核心思路很简单：</p>
+<ul>
+<li>用 <code>certd</code> 免费版通过 DNS-01 验证申请泛域名证书。</li>
+<li>在流水线里把证书写入固定路径，再用脚本自动导入 DSM。</li>
+<li>配置流水线定时触发，证书到期前自动续期并自动导入，实现全自动维护。</li>
+</ul>
+<h2 id="前置条件">前置条件</h2>
+<ul>
+<li>你已按前四篇完成 DDNS、WireGuard、Nginx 等配置。</li>
+<li>域名托管在腾讯云，并且能使用 API 密钥操作 DNS 解析。</li>
+<li>群晖已安装 Container Manager（或 Docker 套件），可以运行容器。</li>
+<li>先在套件中心安装 Python3 套件，脚本会用 <code>python3</code>（或 <code>python</code>）解析 DSM 返回的数据。</li>
+<li>准备一个主域名，支持 <code>*.example.com</code> 泛域名证书。</li>
+</ul>
+<h2 id="在群晖部署-certd">在群晖部署 certd</h2>
+<p><code>certd</code> 官方提供了 <a href="https://certd.docmirror.cn/guide/install/docker/">Docker 部署方式</a>，群晖上直接用 Container Manager 即可。</p>
+<ol>
+<li>打开 Container Manager，新增项目，选择 <code>docker-compose.yaml</code>。</li>
+<li>建议使用下面的精简配置，并把数据目录改成你自己的卷路径。</li>
+</ol>
+<pre><code class="language-yaml">version: &quot;3.3&quot;
+services:
+  certd:
+    image: registry.cn-shenzhen.aliyuncs.com/handsfree/certd:latest
+    container_name: certd
+    restart: unless-stopped
+    volumes:
+      - /volume1/docker/certd:/app/data:delegated
+    ports:
+      - &quot;7001:7001&quot;
+      - &quot;7002:7002&quot;
+    environment:
+      - TZ=Asia/Shanghai
+      - certd_koa_hostname=0.0.0.0
+</code></pre>
+<ol start="3">
+<li>部署完成后访问 <code>http://群晖 IP:7001</code>，使用默认账号 <code>admin/123456</code> 登录，并第一时间修改密码。</li>
+</ol>
+<h2 id="在-certd-中申请泛域名证书">在 certd 中申请泛域名证书</h2>
+<br>
+<h3 id="1-添加腾讯云授权">1. 添加腾讯云授权</h3>
+<p>进入 <code>certd</code> 的授权管理，新增腾讯云授权，填写 <code>SecretId</code> 和 <code>SecretKey</code>。<br>
+这两个值可以复用你在 DDNS 配置时创建的密钥。</p>
+<h3 id="2-创建证书申请流水线">2. 创建证书申请流水线</h3>
+<p>进入证书流水线，新增 “证书申请（JS 版）”，按下面的方式填写：</p>
+<ul>
+<li>域名验证方式：DNS 直接验证。</li>
+<li>证书颁发机构：选择 “Let's Encrypt”。</li>
+<li>DNS 解析服务商：腾讯云。</li>
+<li>证书域名：填写主域名和泛域名，例如 <code>example.com</code> 与 <code>*.example.com</code>。</li>
+<li>更新天数：按需设置（默认值以界面为准），表示证书到期前多少天触发更新。</li>
+</ul>
+<p>保存后不需要手动运行，后面设置定时触发后会自动执行。<br>
+如果你希望尽快拿到证书，可以把定时触发时间设置为当前时间后几分钟，让它自动跑首轮。</p>
+<p>如果失败，多半是 DNS 生效时间不够。可以在流水线里把 “等待解析生效时长” 适当调大，再试一次。</p>
+<h2 id="将证书输出到固定路径">将证书输出到固定路径</h2>
+<p>为了让脚本能拿到证书文件，需要把证书保存到 NAS 上一个固定目录。<code>certd</code> 的流水线里加一个“主机 - 复制到本机”任务即可。</p>
+<ol>
+<li>打开对应流水线，新增任务 “主机 - 复制到本机”。</li>
+<li>证书类型选择 <code>pem</code>。</li>
+<li>路径建议这样填（相对路径会写到 <code>/app/data</code> 下）：
+<ul>
+<li>全链证书保存路径：<code>tmp/fullchain.pem</code></li>
+<li>私钥保存路径：<code>tmp/private.key</code></li>
+<li>中间证书保存路径：<code>tmp/intermediate.pem</code></li>
+</ul>
+</li>
+</ol>
+<p>因为我在 <code>docker-compose.yaml</code> 里把 <code>/volume1/docker/certd</code> 映射到容器的 <code>/app/data</code>，所以上面三个文件最终会落在：</p>
+<ul>
+<li><code>/volume1/docker/certd/tmp/fullchain.pem</code></li>
+<li><code>/volume1/docker/certd/tmp/private.key</code></li>
+<li><code>/volume1/docker/certd/tmp/intermediate.pem</code></li>
+</ul>
+<p>你可以按自己的映射关系调整路径，但脚本里要用同一套路径。</p>
+<h2 id="用脚本导入证书到-dsm">用脚本导入证书到 DSM</h2>
+<br>
+<h3 id="可选为启用-2fa-的账户获取-device-id">（可选）为启用 2FA 的账户获取 device-id</h3>
+<p>如果你的 DSM 账户启用了两步验证（2FA），需要先获取一次 <code>device-id</code>，后续就可以用它来免 OTP 登录。</p>
+<p><strong>在你的本地电脑</strong>（或任何能访问 NAS 内网的设备）上执行以下命令，<strong>只需要执行一次</strong>（记得替换其中的参数）：</p>
+<pre><code class="language-bash">curl -sS -k -G &quot;https://192.168.1.10:5001/webapi/entry.cgi&quot; \
+  --data-urlencode &quot;api=SYNO.API.Auth&quot; \
+  --data-urlencode &quot;version=6&quot; \
+  --data-urlencode &quot;method=login&quot; \
+  --data-urlencode &quot;format=sid&quot; \
+  --data-urlencode &quot;account=admin&quot; \
+  --data-urlencode &quot;passwd=your-password&quot; \
+  --data-urlencode &quot;otp_code=123456&quot; \
+  --data-urlencode &quot;device_name=certd&quot; \
+  --data-urlencode &quot;enable_device_token=yes&quot; \
+  --data-urlencode &quot;enable_syno_token=yes&quot; \
+  | grep -oP '&quot;device_id&quot;\s*:\s*&quot;\K[^&quot;]+'
+</code></pre>
+<p>参数说明：</p>
+<ul>
+<li><code>https://192.168.1.10:5001</code>：你的 NAS 内网地址和端口</li>
+<li><code>account</code>：DSM 管理员账号</li>
+<li><code>passwd</code>：DSM 管理员密码</li>
+<li><code>otp_code</code>：从你的两步验证应用（如 Google Authenticator）获取的 6 位数字</li>
+<li><code>device_name</code>：自定义设备名称，用于在 DSM 中标识该设备，建议填 <code>certd</code></li>
+</ul>
+<p>命令会输出类似 <code>aBcD1234eFgH5678</code> 这样的字符串，这就是你的 <code>device-id</code>，记录下来供后续脚本使用。</p>
+<p>如果命令执行失败或没有输出，可以检查：</p>
+<ul>
+<li>OTP 码是否正确且未过期</li>
+<li>网络是否能访问到 NAS</li>
+<li>账号密码是否正确</li>
+</ul>
+<h3 id="准备导入脚本">准备导入脚本</h3>
+<p>首次使用前不需要手动准备证书记录。执行脚本时传入 <code>--cert-desc</code>，并加上 <code>--create</code>，脚本会在 DSM 里找不到同名描述时自动创建证书记录并导入证书。<br>
+如果你需要手动排查或验证，也可以在 DSM 里走 “新增 → 新增新证书 → 导入证书”，导入一次后再交给脚本更新。</p>
+<blockquote>
+<p>DSM 自带的 <code>Let's Encrypt</code> 需要公网 80 端口可达，且通常不支持 <code>DNS-01</code> 与泛域名，不适合本方案。</p>
+</blockquote>
+<p>把下面脚本保存到 NAS 上，例如 <code>/volume1/docker/certd/scripts/synology-import-cert.sh</code>，无需修改脚本内容，所有配置都通过参数传入。</p>
+<blockquote>
+<p>该脚本同步保存在 Github 上：<a href="https://gist.github.com/rakuyoMo/68c3be53edbc9e5285fc2c33fb67fa49">synology-import-cert.sh</a></p>
+</blockquote>
+<script src="https://gist.github.com/rakuyoMo/68c3be53edbc9e5285fc2c33fb67fa49.js"></script>
+<p>脚本保存到本地后赋予其可执行权限：</p>
+<pre><code class="language-bash">chmod +x /volume1/docker/certd/scripts/synology-import-cert.sh
+</code></pre>
+<h3 id="让流水线自动执行脚本">让流水线自动执行脚本</h3>
+<p>要做到全自动，需要让 <code>certd</code> 在证书更新后自动执行脚本。做法是给流水线增加一个 “主机 - 执行远程主机脚本命令” 任务。</p>
+<ol>
+<li>在 <code>certd</code> 的 “授权管理” 里新增 SSH 授权，主机填 NAS 地址，端口填你的 SSH 端口（可在 DSM 的 “控制面板 → 终端机和 SNMP → 终端机” 中查看，默认为 <code>22</code>），账号使用管理员账户。<br>
+如果你之前没开 SSH，可以在 DSM 的 “控制面板 → 终端机和 SNMP → 终端机” 里开启。</li>
+<li>回到证书流水线，在 “主机 - 复制到本机” 之后新增 “主机 - 执行远程主机脚本命令” 任务。</li>
+<li>选择刚才的 SSH 授权，脚本命令填写下面的内容：</li>
+</ol>
+<blockquote>
+<p>如果启用了 2FA，则在参数上带上之前获取到的 <code>device-id</code></p>
+</blockquote>
+<pre><code class="language-bash">bash /volume1/docker/certd/scripts/synology-import-cert.sh \
+  --base-url &quot;https://192.168.1.10:5001&quot; \
+  --username &quot;admin&quot; \
+  --password &quot;your-password&quot; \
+  --cert-desc &quot;nas-wildcard&quot; \
+  --fullchain &quot;/volume1/docker/certd/tmp/fullchain.pem&quot; \
+  --key &quot;/volume1/docker/certd/tmp/private.key&quot; \
+  --device-id &quot;your-device-id&quot; \
+  --set-default \
+  --assign-services &quot;all&quot; \
+  --insecure \
+  --create
+</code></pre>
+<p>参数说明：</p>
+<ul>
+<li>如果 DSM 证书尚未可信或域名不匹配，请保留 <code>--insecure</code> 参数。携带该参数后将跳过 HTTPS 证书校验，避免首次接入时因自签证书或域名不匹配而登录失败。</li>
+<li>如果你希望一次性覆盖全部服务，保留 <code>--assign-services all</code>；也可以指定具体服务名称，例如 <code>&quot;DSM Desktop Service,Reverse Proxy&quot;</code>。</li>
+</ul>
+<p>配置完成后，可以手动运行一次流水线测试。如果一切正常，证书会自动导入到 DSM。这样流水线每次拿到新证书后都会自动更新 DSM。</p>
+<p>首次运行成功后，建议优化脚本配置：将 <code>--base-url</code> 改为你的域名，并去掉 <code>--insecure</code> 参数，这样可以正常校验 HTTPS 证书，更加安全：</p>
+<pre><code class="language-bash">bash /volume1/docker/certd/scripts/synology-import-cert.sh \
+  --base-url &quot;https://nas.example.com:5001&quot; \
+  --username &quot;admin&quot; \
+  --password &quot;your-password&quot; \
+  --cert-desc &quot;nas-wildcard&quot; \
+  --fullchain &quot;/volume1/docker/certd/tmp/fullchain.pem&quot; \
+  --key &quot;/volume1/docker/certd/tmp/private.key&quot; \
+  --device-id &quot;your-device-id&quot; \
+  --set-default \
+  --assign-services &quot;all&quot; \
+  --create
+</code></pre>
+<h2 id="配置-nginx-使用-ssl-证书">配置 Nginx 使用 SSL 证书</h2>
+<p>现在证书已经能通过 <code>certd</code> 自动管理了，接下来需要让 Nginx 使用这些证书来支持 HTTPS 访问。本文将基于 DSM 自带的 Nginx（参考<a href="/synology-docker-public-access/#%E9%85%8D%E7%BD%AE-nas-%E7%9A%84-nginx">第三篇文章</a>）。</p>
+<h3 id="修改-nginx-配置">修改 Nginx 配置</h3>
+<p>DSM 自带的 Nginx 配置文件在 <code>/etc/nginx/sites-enabled</code> 目录下。</p>
+<p>假设你在第三篇文章中为 calibre 配置了 <code>calibre.example.com.conf</code>，现在需要修改它以支持 HTTPS。</p>
+<p>使用 SSH 连接到 NAS，编辑对应的配置文件：</p>
+<pre><code class="language-bash">sudo vim /etc/nginx/sites-enabled/calibre.example.com.conf
+</code></pre>
+<p>将原有的配置改为：</p>
+<pre><code class="language-nginx"># HTTP 自动跳转到 HTTPS
+server {
+    listen 80;
+    server_name calibre.example.com;
+    return 301 https://$server_name$request_uri;
+}
+
+# HTTPS 配置
+server {
+    listen 443 ssl;
+    server_name calibre.example.com;
+
+    # SSL 证书配置
+    ssl_certificate /volume1/docker/certd/tmp/fullchain.pem;
+    ssl_certificate_key /volume1/docker/certd/tmp/private.key;
+
+    # SSL 协议与加密套件
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    location / {
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Scheme $scheme;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_redirect off;
+        proxy_pass http://172.17.0.1:8083;
+
+        client_max_body_size 2000m;
+    }
+}
+</code></pre>
+<p>关键修改点：</p>
+<ul>
+<li>新增 80 端口的 server 块，自动跳转到 HTTPS</li>
+<li>原有的 server 块改为监听 443 端口，并启用 SSL</li>
+<li>使用 certd 导出的证书路径：<code>/volume1/docker/certd/tmp/fullchain.pem</code> 和 <code>/volume1/docker/certd/tmp/private.key</code></li>
+<li>新增 <code>X-Forwarded-Proto</code> header，让后端应用知道使用的是 HTTPS</li>
+</ul>
+<h3 id="重启-nginx">重启 Nginx</h3>
+<p>保存配置文件后，测试配置并重启 Nginx 使配置生效：</p>
+<pre><code class="language-bash">sudo /usr/bin/nginx -c /etc/nginx/nginx.conf.run -t
+sudo /usr/bin/nginx -c /etc/nginx/nginx.conf.run -s reload
+</code></pre>
+<h3 id="验证-https-是否生效">验证 HTTPS 是否生效</h3>
+<p>用浏览器访问 <code>https://calibre.example.com</code>，检查：</p>
+<ul>
+<li>浏览器地址栏显示小锁图标。</li>
+<li>证书信息显示正确的域名和颁发机构。</li>
+<li>页面能正常加载，没有证书警告。</li>
+</ul>
+<p>如果有问题，可以查看 Nginx 日志：</p>
+<pre><code class="language-bash">sudo tail -f /var/log/nginx/error.log
+</code></pre>
+<p>常见问题：</p>
+<ul>
+<li><strong>证书路径不对</strong>：确认 <code>/volume1/docker/certd/tmp/</code> 下有 <code>fullchain.pem</code> 和 <code>private.key</code> 文件。</li>
+<li><strong>权限问题</strong>：确保 Nginx 能读取证书文件，可以执行 <code>sudo chmod 644 /volume1/docker/certd/tmp/*.pem /volume1/docker/certd/tmp/*.key</code>。</li>
+<li><strong>证书未更新</strong>：certd 更新证书后，Nginx 需要重启才能重新加载证书。你可以在流水线的 “主机 - 执行远程主机脚本命令” 任务中，在导入脚本后面加一个重启命令：</li>
+</ul>
+<pre><code class="language-bash">bash /volume1/docker/certd/scripts/synology-import-cert.sh \
+  --base-url &quot;https://nas.example.com:5001&quot; \
+  --username &quot;admin&quot; \
+  --password &quot;your-password&quot; \
+  --cert-desc &quot;nas-wildcard&quot; \
+  --fullchain &quot;/volume1/docker/certd/tmp/fullchain.pem&quot; \
+  --key &quot;/volume1/docker/certd/tmp/private.key&quot; \
+  --device-id &quot;your-device-id&quot; \
+  --set-default \
+  --assign-services &quot;all&quot; \
+  --create
+
+# 重启 Nginx 以重新加载证书
+sudo /usr/bin/nginx -c /etc/nginx/nginx.conf.run -s reload
+</code></pre>
+<h2 id="续期与维护">续期与维护</h2>
+<p>在创建 <code>certd</code> 流水线时，默认会有包含一个定时触发器，Let's Encrypt 证书有效期是 90 天。要实现全自动，只需要在流水线里配置定时触发即可。</p>
+<p><code>certd</code> 会在证书到期前按照 “更新天数” 设定的天数自动申请新证书并继续执行后续部署任务，没到期前不会重复申请。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[为什么 Swift 推荐 Bool 用 is 前缀，而 Java 常规避]]></title>
+        <id>https://blog.rakuyo.dev/bool-is-prefix-in-swift-and-java/</id>
+        <link href="https://blog.rakuyo.dev/bool-is-prefix-in-swift-and-java/">
+        </link>
+        <updated>2025-12-29T07:21:36.000Z</updated>
+        <summary type="html"><![CDATA[<p>最近在读阿里出品的 <a href="https://github.com/alibaba/p3c#">Java 开发手册</a>，其中有一条规则是：</p>
+<blockquote>
+<p>POJO 类中的任何布尔类型的变量，都不要加 is 前缀，否则部分框架解析会引起序列化错误。</p>
+</blockquote>
+<p>这条规则让 iOS 开发出身的让感到好奇：为什么 Swift 推荐 Bool 用 is 前缀，而 Java 却要避免这种命名？</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>最近在读阿里出品的 <a href="https://github.com/alibaba/p3c#">Java 开发手册</a>，其中有一条规则是：</p>
+<blockquote>
+<p>POJO 类中的任何布尔类型的变量，都不要加 is 前缀，否则部分框架解析会引起序列化错误。</p>
+</blockquote>
+<p>这条规则让 iOS 开发出身的让感到好奇：为什么 Swift 推荐 Bool 用 is 前缀，而 Java 却要避免这种命名？</p>
+<!-- more -->
+<h2 id="javajavabeans-规范带来的解析差异">Java：JavaBeans 规范带来的解析差异</h2>
+<p>先从 Java 说起。JavaBeans 是一套基于命名约定的组件模型，核心是通过 <code>getX()/isX()/setX()</code> 的方法名推断 “属性名”，很多框架会借助 <code>java.beans.Introspector</code> 与 <code>PropertyDescriptor</code> 进行反射解析并调用访问器。</p>
+<p>因此 Java 生态广泛依赖 JavaBeans 规范，布尔字段如果直接叫 <code>isReady</code>，可能被推断为 <code>ready</code> 或 <code>isReady</code>，在不同框架之间容易产生不一致。</p>
+<pre><code class="language-java">private boolean isReady;
+
+public boolean isReady() {
+    return isReady;
+}
+
+public void setReady(boolean ready) {
+    this.isReady = ready;
+}
+</code></pre>
+<p>底层上，框架往往先解析出属性名，再按属性名绑定或序列化，这就是 <code>is</code> 前缀产生歧义的根因。</p>
+<p>因此更稳妥的做法通常是：字段用 <code>ready</code>、<code>enabled</code> 这类名，getter 用 <code>isReady()</code>，避免字段名本身带 <code>is</code>。</p>
+<h2 id="objective-cgetter-推荐-is但属性名更像形容词">Objective-C：getter 推荐 is，但属性名更像形容词</h2>
+<p>作为早期 iOS 开发的代表，Objective-C 的 <code>@property</code> 是编译期语法糖，编译器会生成 ivar 与 getter/setter，运行时通过 <code>objc_msgSend</code> 做消息分发，KVC 则按访问器和 ivar 规则查找属性。</p>
+<p>Cocoa 命名规则建议 BOOL 的 getter 用 <code>is</code> / <code>has</code> / <code>should</code>，但属性名本身更倾向“形容词”。常见写法是用自定义 getter：</p>
+<pre><code class="language-objc">@property (nonatomic, getter=isHidden) BOOL hidden;
+</code></pre>
+<p>这样读取时是 <code>isHidden</code>，setter 仍然是 <code>setHidden:</code>，语义清晰，也避免属性名叫 <code>isHidden</code> 带来的 setter 命名怪异。</p>
+<h2 id="swift语义优先不存在-javabeans-歧义">Swift：语义优先，不存在 JavaBeans 歧义</h2>
+<p>到了 Swift 的时代，属性访问是编译期语义。<code>obj.property</code> 对于存储属性会被编译为内存偏移的直接读写，计算属性则调用 getter/setter；类的动态行为主要由静态派发或虚表派发完成，只有标记 <code>@objc</code> 或 <code>dynamic</code> 时才会走 Objective-C 运行时，因此不会依赖 JavaBeans 式的命名解析。</p>
+<p>Swift 的 API 设计指南强调“读起来像断言”，所以 <code>isEnabled</code>、<code>isHidden</code> 这类名字非常自然，也不会出现 <code>is</code> 前缀被剥离的歧义。</p>
+<pre><code class="language-swift">if view.isHidden {}
+</code></pre>
+<h2 id="python属性访问直接对应名字">Python：属性访问直接对应名字</h2>
+<p>既然提起了这个问题，就连带着另外一个我经常使用的开发语言 Python 一起研究一下。</p>
+<p>Python 的属性读取会进入 <code>__getattribute__</code>，按实例字典、类字典与描述符协议解析，<code>@property</code> 也是用描述符实现 getter/setter。由于查找基于字典与描述符，而不是命名约定，所以不会出现 JavaBeans 的歧义。</p>
+<p>约定上常用 <code>is_</code>、<code>has_</code> 前缀表达布尔语义，但这只是命名习惯。</p>
+<pre><code class="language-python">class User:
+    def __init__(self):
+        self.is_ready = False
+</code></pre>
+<h2 id="小结">小结</h2>
+<p>Java：字段避免 <code>is</code> 前缀，getter 用 <code>isX()</code>。<br>
+Objective-C：属性名用形容词，getter 用 <code>isX</code> 更符合 Cocoa。<br>
+Swift：放心用 <code>is/has/should</code>，语义更强。<br>
+Python：用 <code>is_</code> 只是风格选择，不涉及解析冲突。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[iOS & Android & H5 三端 JS Bridge 的编解码逻辑与源码分析]]></title>
+        <id>https://blog.rakuyo.dev/jsbridge-encoding-ios-android-h5/</id>
+        <link href="https://blog.rakuyo.dev/jsbridge-encoding-ios-android-h5/">
+        </link>
+        <updated>2025-12-25T02:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>上一篇 <a href="/http-encoding-and-jsbridge-cross-platform">全链路 HTTP 编解码：从客户端到服务端的数据流转</a> 讲解 HTTP 请求中的编解码。然而在客户端开发的日常里，除了 HTTP，还有一个更高频的跨端传输场景：与 H5 的数据交换，而 JS Bridge 正是其中不可或缺的桥梁。</p>
+<p>本篇文章会沿着交互流程这条主线，只关注“编码 → 传输 → 解码”相关的细节。iOS、Android 与 H5 分别在什么时候序列化、什么时候做字符串转义、什么时候反序列化，以及这些差异会带来哪些坑。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>上一篇 <a href="/http-encoding-and-jsbridge-cross-platform">全链路 HTTP 编解码：从客户端到服务端的数据流转</a> 讲解 HTTP 请求中的编解码。然而在客户端开发的日常里，除了 HTTP，还有一个更高频的跨端传输场景：与 H5 的数据交换，而 JS Bridge 正是其中不可或缺的桥梁。</p>
+<p>本篇文章会沿着交互流程这条主线，只关注“编码 → 传输 → 解码”相关的细节。iOS、Android 与 H5 分别在什么时候序列化、什么时候做字符串转义、什么时候反序列化，以及这些差异会带来哪些坑。</p>
+<!-- more -->
+<blockquote>
+<p>下面以两个经典的开源实现为例，分析底层逻辑与代码实现：</p>
+<ul>
+<li>iOS：<a href="https://github.com/marcuswestin/WebViewJavascriptBridge/tree/v6.0.3">marcuswestin/WebViewJavascriptBridge</a></li>
+<li>Android：<a href="https://github.com/wendux/WebViewJavascriptBridge/tree/25dbf77b83a2da3a420e868b70948e7e56b87847">wendux/WebViewJavascriptBridge</a></li>
+</ul>
+</blockquote>
+<h2 id="1-交互流程中的编解码骨架">1. 交互流程中的编解码骨架</h2>
+<p>无论是哪端实现，消息本质上都是 JSON。先把消息结构说清楚：</p>
+<p><strong>消息结构</strong></p>
+<p>消息分为<strong>请求</strong>和<strong>响应</strong>两种格式：</p>
+<pre><code class="language-javascript">// 请求消息：JS → Native 或 Native → JS
+{
+    handlerName: &quot;getUserInfo&quot;,     // 要调用的处理器名称
+    data: { userId: &quot;123&quot; },        // 业务参数
+    callbackId: &quot;cb_1_1703404800&quot;   // 回调标识，用于匹配响应
+}
+
+// 响应消息：处理完成后返回
+{
+    responseId: &quot;cb_1_1703404800&quot;,  // 对应请求的 callbackId
+    responseData: { name: &quot;张三&quot; }   // 处理结果
+}
+</code></pre>
+<p>接收方通过是否存在 <code>responseId</code> 来区分请求与响应。<code>callbackId</code> / <code>responseId</code> 虽然是流程字段，但它们在编码阶段就已经写入消息体，任何一端漏写或命名不一致，都会导致解码正常却无法匹配回调。</p>
+<p>在实现里，iOS 用 <code>NSDictionary</code> 填充这些字段（<a href="https://github.com/marcuswestin/WebViewJavascriptBridge/blob/v6.0.3/WebViewJavascriptBridge/WebViewJavascriptBridgeBase.m#L45-L62">WebViewJavascriptBridgeBase.m#L45-L62</a>），Android 则用 <code>WVJBMessage</code> 类定义字段（<a href="https://github.com/wendux/WebViewJavascriptBridge/blob/25dbf77b83a2da3a420e868b70948e7e56b87847/webviewjavascriptbridge/src/main/java/wendu/webviewjavascriptbridge/WVJBWebView.java#L114-L120">WVJBWebView.java#L114-L120</a>）。</p>
+<p><strong>交互流程中的编解码节点</strong></p>
+<ul>
+<li>JS 侧构造对象 → JSON.stringify（编码）。</li>
+<li>Native 侧拿到字符串 → NSJSONSerialization / JSONObject（解码）。</li>
+<li>Native 侧构造响应 → JSON 序列化，iOS 额外做 JS 字符串转义（编码）。</li>
+<li>JS 侧 JSON.parse → 得到对象（解码）。</li>
+</ul>
+<p>下面这张序列图展示了 JS Bridge 的双向通信流程。读图时只需要把注意力放在两次 JSON 编码与两次 JSON 解码上，其余机制只是把消息送达。</p>
+<!--
+```mermaid
+sequenceDiagram
+    participant JS as H5 (JavaScript)
+    participant Native as Native (iOS/Android)
+
+    Note over JS,Native: JS 调用 Native
+    JS->>JS: 生成 callbackId: "cb_1_xxx"
+    JS->>JS: 存储回调: callbacks["cb_1_xxx"] = fn
+    JS->>Native: 发送消息 {handlerName, data, callbackId}
+    Native->>Native: 查找并执行 handler
+    Native-&#45;>>JS: 返回 {responseId: "cb_1_xxx", responseData}
+    JS->>JS: 查找回调: callbacks["cb_1_xxx"]
+    JS->>JS: 执行回调并删除
+
+    Note over JS,Native: Native 调用 JS
+    Native->>Native: 生成 callbackId: "objc_cb_1"
+    Native->>Native: 存储回调: callbacks["objc_cb_1"] = block
+    Native->>JS: 发送消息 {handlerName, data, callbackId}
+    JS->>JS: 查找并执行 handler
+    JS-&#45;>>Native: 返回 {responseId: "objc_cb_1", responseData}
+    Native->>Native: 查找回调: callbacks["objc_cb_1"]
+    Native->>Native: 执行回调并删除
+```
+-->
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyo.dev/post-images/1766573208002.svg" alt="JS Bridge 双向通信流程" loading="lazy"></figure>
+<h2 id="2-js-native-的编解码">2. JS → Native 的编解码</h2>
+<p>这条链路里，H5 负责编码，Native 负责解码。</p>
+<p><strong>H5 侧编码</strong></p>
+<p>iOS 与 Android 的注入脚本虽然不同，但编码动作是一致的：先把消息序列化成 JSON 字符串（iOS 见 <a href="https://github.com/marcuswestin/WebViewJavascriptBridge/blob/v6.0.3/WebViewJavascriptBridge/WebViewJavascriptBridge_JS.m#L72-L76">WebViewJavascriptBridge_JS.m#L72-L76</a>，Android 见 <a href="https://github.com/wendux/WebViewJavascriptBridge/blob/25dbf77b83a2da3a420e868b70948e7e56b87847/webviewjavascriptbridge/src/main/assets/WebViewJavascriptBridge.js#L12-L24">WebViewJavascriptBridge.js#L12-L24</a>）。</p>
+<pre><code class="language-javascript">// iOS 端注入的 JS：把消息队列序列化成 JSON 字符串
+function _fetchQueue() {
+    var messageQueueString = JSON.stringify(sendMessageQueue);
+    sendMessageQueue = [];
+    return messageQueueString;
+}
+
+// Android 端注入的 JS：直接序列化单条消息
+function _doSend(message, responseCallback) {
+    // ...
+    var msg = JSON.stringify(message || {});
+    if (window.WVJBInterface) {
+        WVJBInterface.notice(msg);
+    } else {
+        prompt(&quot;_wvjbxx&quot;, msg);
+    }
+}
+</code></pre>
+<p><code>JSON.stringify</code> 有几个容易踩坑的点：</p>
+<ul>
+<li><code>undefined</code> 和函数不会被序列化，字段会直接消失。</li>
+<li>大整数在 JS 里是 <code>Number</code>，可能丢精度，跨端时建议用字符串传输。</li>
+<li><code>NaN</code>、<code>Infinity</code> 会被序列化成 <code>null</code>。</li>
+</ul>
+<p><strong>iOS 端解码</strong></p>
+<p>iOS 端通过 <code>evaluateJavaScript</code> 调用 <code>_fetchQueue()</code> 拉取队列（<a href="https://github.com/marcuswestin/WebViewJavascriptBridge/blob/v6.0.3/WebViewJavascriptBridge/WKWebViewJavascriptBridge.m#L94-L101">WKWebViewJavascriptBridge.m#L94-L101</a>，命令字符串由 <a href="https://github.com/marcuswestin/WebViewJavascriptBridge/blob/v6.0.3/WebViewJavascriptBridge/WebViewJavascriptBridgeBase.m#L155-L157">WebViewJavascriptBridgeBase.m#L155-L157</a> 生成）。拿到 JSON 字符串后再用 <code>NSJSONSerialization</code> 反序列化（<a href="https://github.com/marcuswestin/WebViewJavascriptBridge/blob/v6.0.3/WebViewJavascriptBridge/WebViewJavascriptBridgeBase.m#L205-L207">WebViewJavascriptBridgeBase.m#L205-L207</a>）：</p>
+<pre><code class="language-objc">// 获取 JS 端的消息队列
+NSString *messageQueueString = [self _evaluateJavascript:@&quot;WebViewJavascriptBridge._fetchQueue();&quot;];
+
+// 反序列化
+- (NSArray *)_deserializeMessageJSON:(NSString *)messageJSON {
+    return [NSJSONSerialization JSONObjectWithData:
+        [messageJSON dataUsingEncoding:NSUTF8StringEncoding]
+        options:0 error:nil];
+}
+</code></pre>
+<p><strong>Android 端解码</strong></p>
+<p>Android 端通过 <code>JavascriptInterface</code> 或 <code>prompt</code> 拿到字符串消息（<a href="https://github.com/wendux/WebViewJavascriptBridge/blob/25dbf77b83a2da3a420e868b70948e7e56b87847/webviewjavascriptbridge/src/main/java/wendu/webviewjavascriptbridge/WVJBWebView.java#L371-L379">WVJBWebView.java#L371-L379</a>，<a href="https://github.com/wendux/WebViewJavascriptBridge/blob/25dbf77b83a2da3a420e868b70948e7e56b87847/webviewjavascriptbridge/src/main/java/wendu/webviewjavascriptbridge/WVJBWebView.java#L626-L680">WVJBWebView.java#L626-L680</a>）。这两条通道只是传输差异，拿到的都是 JSON 字符串，后续再交给 <code>JSONObject</code> 解析并分发（<a href="https://github.com/wendux/WebViewJavascriptBridge/blob/25dbf77b83a2da3a420e868b70948e7e56b87847/webviewjavascriptbridge/src/main/java/wendu/webviewjavascriptbridge/WVJBWebView.java#L241-L275">WVJBWebView.java#L241-L275</a>）：</p>
+<pre><code class="language-java">// 方式一：通过 JavascriptInterface
+@JavascriptInterface
+public void notice(String message) {
+    handleMessage(message);
+}
+
+// 方式二：通过拦截 prompt
+@Override
+public boolean onJsPrompt(WebView view, String url, String message, String defaultValue, JsPromptResult result) {
+    if (message.equals(&quot;_wvjbxx&quot;)) {
+        handleMessage(defaultValue);
+        result.confirm(&quot;&quot;);
+        return true;
+    }
+    return super.onJsPrompt(view, url, message, defaultValue, result);
+}
+</code></pre>
+<h2 id="3-native-js-的编解码">3. Native → JS 的编解码</h2>
+<p>这条链路里，Native 负责编码，H5 负责解码。关键在于 Native 侧如何把对象安全地塞进 JS 代码中。</p>
+<p><strong>iOS 端编码</strong></p>
+<p>发送消息时，通过 <code>NSJSONSerialization</code> 将字典序列化为 JSON 字符串。序列化方法见 <a href="https://github.com/marcuswestin/WebViewJavascriptBridge/blob/v6.0.3/WebViewJavascriptBridge/WebViewJavascriptBridgeBase.m#L201-L203">WebViewJavascriptBridgeBase.m#L201-L203</a>，派发方法见 <a href="https://github.com/marcuswestin/WebViewJavascriptBridge/blob/v6.0.3/WebViewJavascriptBridge/WebViewJavascriptBridgeBase.m#L178-L198">WebViewJavascriptBridgeBase.m#L178-L198</a>：</p>
+<pre><code class="language-objc">// 序列化方法（简化）
+- (NSString *)_serializeMessage:(id)message {
+    return [[NSString alloc] initWithData:
+        [NSJSONSerialization dataWithJSONObject:message options:0 error:nil]
+        encoding:NSUTF8StringEncoding];
+}
+
+// 派发消息到 JS
+- (void)_dispatchMessage:(NSDictionary *)message {
+    NSString *messageJSON = [self _serializeMessage:message];
+
+    // 转义特殊字符，防止 JS 执行出错
+    messageJSON = [messageJSON stringByReplacingOccurrencesOfString:@&quot;\\&quot; withString:@&quot;\\\\&quot;];
+    messageJSON = [messageJSON stringByReplacingOccurrencesOfString:@&quot;\&quot;&quot; withString:@&quot;\\\&quot;&quot;];
+    messageJSON = [messageJSON stringByReplacingOccurrencesOfString:@&quot;\'&quot; withString:@&quot;\\'&quot;];
+    messageJSON = [messageJSON stringByReplacingOccurrencesOfString:@&quot;\n&quot; withString:@&quot;\\n&quot;];
+    messageJSON = [messageJSON stringByReplacingOccurrencesOfString:@&quot;\r&quot; withString:@&quot;\\r&quot;];
+    messageJSON = [messageJSON stringByReplacingOccurrencesOfString:@&quot;\f&quot; withString:@&quot;\\f&quot;];
+    messageJSON = [messageJSON stringByReplacingOccurrencesOfString:@&quot;\u2028&quot; withString:@&quot;\\u2028&quot;];
+    messageJSON = [messageJSON stringByReplacingOccurrencesOfString:@&quot;\u2029&quot; withString:@&quot;\\u2029&quot;];
+
+    NSString *js = [NSString stringWithFormat:
+        @&quot;WebViewJavascriptBridge._handleMessageFromObjC('%@');&quot;, messageJSON];
+    [self _evaluateJavascript:js];
+}
+</code></pre>
+<p>这里的转义非常关键，因为 JSON 字符串被包在 JavaScript 的单引号字符串里，必须避免破坏字符串边界：</p>
+<table>
+<thead>
+<tr>
+<th>原始字符</th>
+<th>转义后</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>\</code></td>
+<td><code>\\</code></td>
+<td>反斜杠本身需要转义</td>
+</tr>
+<tr>
+<td><code>&quot;</code></td>
+<td><code>\&quot;</code></td>
+<td>双引号，防止破坏字符串边界</td>
+</tr>
+<tr>
+<td><code>'</code></td>
+<td><code>\'</code></td>
+<td>单引号，因为外层用单引号包裹</td>
+</tr>
+<tr>
+<td><code>\n</code></td>
+<td><code>\\n</code></td>
+<td>换行符</td>
+</tr>
+<tr>
+<td><code>\r</code></td>
+<td><code>\\r</code></td>
+<td>回车符</td>
+</tr>
+<tr>
+<td><code>\f</code></td>
+<td><code>\\f</code></td>
+<td>换页符</td>
+</tr>
+<tr>
+<td><code>\u2028</code></td>
+<td><code>\\u2028</code></td>
+<td>行分隔符（JS 中会被解释为换行）</td>
+</tr>
+<tr>
+<td><code>\u2029</code></td>
+<td><code>\\u2029</code></td>
+<td>段落分隔符（同上）</td>
+</tr>
+</tbody>
+</table>
+<p>特别注意 <code>\u2028</code> 和 <code>\u2029</code>。它们在 JSON 中合法，但在 JS 字符串字面量中会被当作换行处理，导致语法错误。</p>
+<p><strong>Android 端编码</strong></p>
+<p>Android 端使用 <code>JSONObject</code> 进行序列化（序列化见 <a href="https://github.com/wendux/WebViewJavascriptBridge/blob/25dbf77b83a2da3a420e868b70948e7e56b87847/webviewjavascriptbridge/src/main/java/wendu/webviewjavascriptbridge/WVJBWebView.java#L278-L300">WVJBWebView.java#L278-L300</a>，派发见 <a href="https://github.com/wendux/WebViewJavascriptBridge/blob/25dbf77b83a2da3a420e868b70948e7e56b87847/webviewjavascriptbridge/src/main/java/wendu/webviewjavascriptbridge/WVJBWebView.java#L235-L238">WVJBWebView.java#L235-L238</a>）：</p>
+<pre><code class="language-java">private JSONObject message2JSONObject(WVJBMessage message) {
+    JSONObject jo = new JSONObject();
+    if (message.callbackId != null) {
+        jo.put(&quot;callbackId&quot;, message.callbackId);
+    }
+    if (message.data != null) {
+        jo.put(&quot;data&quot;, message.data);
+    }
+    // ... 其他字段
+    return jo;
+}
+
+private void dispatchMessage(WVJBMessage message) {
+    String messageJSON = message2JSONObject(message).toString();
+    // 执行 JS
+    evaluateJavascript(&quot;WebViewJavascriptBridge._handleMessageFromJava(&quot; + messageJSON + &quot;)&quot;);
+}
+</code></pre>
+<p>由于 JSON 直接作为对象字面量拼进 JS 调用中，不需要像 iOS 一样把 JSON 放进单引号字符串，因此少了一层字符串转义。</p>
+<p><strong>H5 侧解码</strong></p>
+<p>iOS 端传进来的是字符串，因此 JS 侧需要 <code>JSON.parse</code>（<a href="https://github.com/marcuswestin/WebViewJavascriptBridge/blob/v6.0.3/WebViewJavascriptBridge/WebViewJavascriptBridge_JS.m#L78-L113">WebViewJavascriptBridge_JS.m#L78-L113</a>）：</p>
+<pre><code class="language-javascript">function _dispatchMessageFromNative(messageJSON) {
+    var message = JSON.parse(messageJSON);
+    // 处理消息...
+}
+</code></pre>
+<p>Android 端如果直接传对象，JS 侧可以跳过 <code>JSON.parse</code>，这取决于 Native 侧是否以字符串形式传参（<a href="https://github.com/wendux/WebViewJavascriptBridge/blob/25dbf77b83a2da3a420e868b70948e7e56b87847/webviewjavascriptbridge/src/main/java/wendu/webviewjavascriptbridge/WVJBWebView.java#L235-L238">WVJBWebView.java#L235-L238</a>，<a href="https://github.com/wendux/WebViewJavascriptBridge/blob/25dbf77b83a2da3a420e868b70948e7e56b87847/webviewjavascriptbridge/src/main/assets/WebViewJavascriptBridge.js#L44-L84">WebViewJavascriptBridge.js#L44-L84</a>）。</p>
+<h2 id="4-编解码语义差异与坑点">4. 编解码语义差异与坑点</h2>
+<p><strong>字段一致性</strong></p>
+<p>三端约定的字段名必须一致，包括 <code>handlerName</code>、<code>data</code>、<code>callbackId</code>、<code>responseId</code>、<code>responseData</code>。前缀差异只影响调试，不影响解析，但字段名一旦变了，就会出现“解码正常却找不到回调”的现象。</p>
+<p><strong>JSON 语义差异</strong></p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>JavaScript</th>
+<th>iOS（NSJSONSerialization）</th>
+<th>Android（JSONObject）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>null</td>
+<td><code>null</code></td>
+<td><code>NSNull</code></td>
+<td><code>JSONObject.NULL</code></td>
+</tr>
+<tr>
+<td>undefined</td>
+<td><code>undefined</code>（不会被序列化）</td>
+<td>-</td>
+<td>-</td>
+</tr>
+<tr>
+<td>布尔值</td>
+<td><code>true</code> / <code>false</code></td>
+<td><code>@YES</code> / <code>@NO</code></td>
+<td><code>true</code> / <code>false</code></td>
+</tr>
+<tr>
+<td>大整数</td>
+<td>可能丢失精度</td>
+<td><code>NSNumber</code></td>
+<td><code>long</code></td>
+</tr>
+</tbody>
+</table>
+<p>特别注意 <code>undefined</code>。JavaScript 中对象的 <code>undefined</code> 值在 <code>JSON.stringify</code> 时会被忽略，这可能导致字段丢失。</p>
+<p><strong>解析兜底</strong></p>
+<p>任何一端的 <code>JSON.parse</code> 失败都会中断后续流程，建议加一层 try-catch：</p>
+<pre><code class="language-javascript">function _dispatchMessageFromNative(messageJSON) {
+    try {
+        var message = JSON.parse(messageJSON);
+        // ...
+    } catch (e) {
+        console.error(&quot;Bridge message parse error:&quot;, e);
+    }
+}
+</code></pre>
+<h2 id="5-编解码排查清单">5. 编解码排查清单</h2>
+<p>遇到“回调不执行”“数据丢失”“中文乱码”时，按下面顺序排查最省时：</p>
+<ol>
+<li><strong>编码阶段</strong>：检查 <code>JSON.stringify</code> / <code>NSJSONSerialization</code> / <code>JSONObject</code> 是否成功。</li>
+<li><strong>转义阶段</strong>：确认 iOS 端的特殊字符转义是否完整，尤其是 <code>\u2028</code> / <code>\u2029</code>。</li>
+<li><strong>解码阶段</strong>：检查 <code>JSON.parse</code> 是否抛异常，Native 端反序列化是否失败。</li>
+<li><strong>字段阶段</strong>：核对 <code>callbackId</code> / <code>responseId</code> 是否一致。</li>
+</ol>
+<h2 id="6-总结">6. 总结</h2>
+<p>JS Bridge 的编码链路并不神秘，本质就是 JSON 的序列化与反序列化，差别在于传输通道与字符串转义。只要把每一次编码与解码的位置标清楚，问题通常都能快速定位。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[全链路 HTTP 编解码：从客户端到服务端的数据流转]]></title>
+        <id>https://blog.rakuyo.dev/http-encoding-and-jsbridge-cross-platform/</id>
+        <link href="https://blog.rakuyo.dev/http-encoding-and-jsbridge-cross-platform/">
+        </link>
+        <updated>2025-12-24T09:22:44.000Z</updated>
+        <summary type="html"><![CDATA[<p>作为开发者，我们每天都在和网络请求打交道。但你有没有想过：当 iOS 调用 <code>URLSession</code> 发起一个 GET 请求时，参数里的中文是怎么处理的？后端的 Spring 框架又是如何解析这些参数的？Jackson 在其中扮演了什么角色？</p>
+<p>这篇文章会从 HTTP 协议的编码规范讲起，深入客户端网络层的实现细节，再到服务端的 Jackson 与 Spring 请求处理。希望读完之后，你对「数据是怎么在客户端和服务端之间流转的」能有一个完整的认识。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>作为开发者，我们每天都在和网络请求打交道。但你有没有想过：当 iOS 调用 <code>URLSession</code> 发起一个 GET 请求时，参数里的中文是怎么处理的？后端的 Spring 框架又是如何解析这些参数的？Jackson 在其中扮演了什么角色？</p>
+<p>这篇文章会从 HTTP 协议的编码规范讲起，深入客户端网络层的实现细节，再到服务端的 Jackson 与 Spring 请求处理。希望读完之后，你对「数据是怎么在客户端和服务端之间流转的」能有一个完整的认识。</p>
+<!-- more -->
+<h2 id="1-网络层编解码http-协议视角">1. 网络层编解码：HTTP 协议视角</h2>
+<blockquote>
+<p>本章聚焦 HTTP 的<strong>编码细节</strong>。如果你对 HTTP 协议本身（请求方法、状态码、Header 语义等）还不太熟悉，可以先阅读 <a href="/computer-network-http-and-https">计算机网络之五 - HTTP 与 HTTPS</a>。</p>
+</blockquote>
+<h3 id="11-http-协议本身不做编码">1.1 HTTP 协议本身不做编码</h3>
+<p>先澄清一个常见的误解：<strong>HTTP 协议本身不执行任何编码操作</strong>。</p>
+<p>HTTP 只是一份规范文档（RFC 7230-7235 等），它规定了 “数据应该以什么格式传输”，比如 URL 中的中文要用 Percent-Encoding、Body 的格式由 Content-Type 指定。但它不会帮你把中文变成 <code>%E4%B8%AD%E6%96%87</code>，也不会帮你把对象序列化成 JSON——这些工作由各层软件完成。</p>
+<h3 id="12-编码职责分层">1.2 编码职责分层</h3>
+<p>一个网络请求的编码工作，由多层软件协作完成：</p>
+<table>
+<thead>
+<tr>
+<th>层级</th>
+<th>负责什么</th>
+<th>谁来做</th>
+<th>是否自动</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>应用层</td>
+<td>对象 → JSON 字符串</td>
+<td>你的代码调用 JSONEncoder / Gson</td>
+<td>手动调用</td>
+</tr>
+<tr>
+<td>HTTP 框架层</td>
+<td>URL 编码、HTTP 报文封装</td>
+<td>URLSession / OkHttp / Alamofire</td>
+<td>大部分自动</td>
+</tr>
+<tr>
+<td>传输层</td>
+<td>TCP 分段、校验和</td>
+<td>操作系统网络栈</td>
+<td>完全自动</td>
+</tr>
+<tr>
+<td>网络层</td>
+<td>IP 数据包封装</td>
+<td>操作系统网络栈</td>
+<td>完全自动</td>
+</tr>
+</tbody>
+</table>
+<p>用图来表示：</p>
+<!--
+```mermaid
+flowchart TB
+    A["你的代码：User 对象"] -&#45;>|"JSONEncoder / Gson（手动调用）"| B["JSON 字符串：{&quot;name&quot;:&quot;张三&quot;}"]
+    B -&#45;>|"HTTP 框架（URLSession / OkHttp）"| C["HTTP 报文：POST /api HTTP/1.1..."]
+    C -&#45;>|"操作系统网络栈（自动）"| D["TCP 分段 → IP 数据包 → 字节流"]
+
+    style A fill:#e1f5fe
+    style D fill:#e8f5e9
+```
+-->
+<img src="/post-images/1766573208004.svg" alt="编码职责分层" width=50%>
+<p>关键点：<strong>JSON 序列化不是自动的</strong>。即使你用 Alamofire 这样的高层框架，也需要指定编码器（如 <code>JSONParameterEncoder</code>）。框架只是帮你简化了调用方式，底层仍然是手动触发的序列化。</p>
+<h3 id="13-三个编码场景详解">1.3 三个编码场景详解</h3>
+<p>在一个 HTTP 请求中，数据可以出现在三个位置，每个位置的编码规则和实现方式不同：</p>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>典型场景</th>
+<th>编码规则</th>
+<th>谁来做</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>URL Query</td>
+<td>GET 请求参数</td>
+<td>Percent-Encoding</td>
+<td>HTTP 框架自动，边界情况需手动</td>
+</tr>
+<tr>
+<td>Header</td>
+<td>认证信息、自定义元数据</td>
+<td>ASCII（非 ASCII 需 Base64）</td>
+<td>手动处理</td>
+</tr>
+<tr>
+<td>Body</td>
+<td>POST/PUT 请求体</td>
+<td>取决于 Content-Type</td>
+<td>序列化手动，封装自动</td>
+</tr>
+</tbody>
+</table>
+<p><strong>URL Query 编码</strong></p>
+<p>URL 规范（RFC 3986）规定，Query 中只能包含特定的 ASCII 字符。对于中文、空格等字符，必须进行 Percent-Encoding（关于 URL 的完整结构，可参考 <a href="/computer-network-url-and-dns">计算机网络之二 - URL 与 DNS</a>）：</p>
+<pre><code>原始：name=张三&amp;city=北京
+编码后：name=%E5%BC%A0%E4%B8%89&amp;city=%E5%8C%97%E4%BA%AC
+</code></pre>
+<p>这里有个细节经常被忽略：<strong>空格</strong>的编码。在 Query 中，空格可以编码为 <code>%20</code> 或 <code>+</code>，但两者的语义略有不同。表单提交（<code>application/x-www-form-urlencoded</code>）通常用 <code>+</code>，而标准 URL 编码用 <code>%20</code>。</p>
+<p><em>谁来做？</em> iOS 的 <code>URLComponents</code>、Android 的 <code>Uri.Builder</code> 会自动编码大部分字符，但 <code>+</code> 等边界字符可能需要手动处理。</p>
+<blockquote>
+<p>源码参考：</p>
+<ul>
+<li>iOS Alamofire：<a href="https://github.com/Alamofire/Alamofire/blob/5.9.1/Source/Core/ParameterEncoder.swift#L174-L185">ParameterEncoder.swift#L174-L185</a></li>
+<li>Android：<a href="https://github.com/square/okhttp/blob/parent-5.3.2/okhttp/src/commonJvmAndroid/kotlin/okhttp3/HttpUrl.kt#L1106-L1123">OkHttp - HttpUrl.kt#L1106-L1123</a></li>
+</ul>
+</blockquote>
+<p><strong>Header 编码</strong></p>
+<p>HTTP Header 本质上是 ASCII 文本。如果你想在 Header 里传中文，要么用 Base64 编码，要么用 RFC 5987 定义的扩展语法。实际开发中，建议 Header 只传 ASCII 安全的内容，复杂数据放 Body。</p>
+<p><em>谁来做？</em> 需要你手动处理。框架不会自动帮你把中文 Base64 编码。</p>
+<p><strong>Body 编码</strong></p>
+<p>Body 的编码方式决定了应该设置什么 <code>Content-Type</code>，服务端会根据它来选择解码方式：</p>
+<ul>
+<li><code>application/json</code>：UTF-8 编码的 JSON 文本</li>
+<li><code>application/x-www-form-urlencoded</code>：类似 URL Query 的键值对</li>
+<li><code>multipart/form-data</code>：文件上传常用，每个 part 有独立的编码</li>
+</ul>
+<p><em>谁来做？</em> JSON 序列化需要你手动调用（<code>JSONEncoder</code> / <code>Gson</code>），之后 HTTP 框架会自动设置 <code>Content-Type</code> 并封装到 HTTP 报文中。</p>
+<blockquote>
+<p>源码参考：</p>
+<ul>
+<li>iOS Alamofire：<a href="https://github.com/Alamofire/Alamofire/blob/5.9.1/Source/Core/ParameterEncoder.swift#L186-L193">ParameterEncoder.swift#L186-L193</a></li>
+<li>Android Retrofit：<a href="https://github.com/square/retrofit/blob/parent-2.8.1/retrofit/src/main/java/retrofit2/RequestBuilder.java#L195-L202">RequestBuilder.java#L195-L202</a></li>
+</ul>
+</blockquote>
+<h3 id="14-常见编码陷阱">1.4 常见编码陷阱</h3>
+<p><strong>空值处理</strong></p>
+<p>当参数值为 <code>null</code> 或空字符串时，不同的 HTTP 客户端库和后端框架处理方式差异很大：</p>
+<ul>
+<li>有的框架会省略整个键值对</li>
+<li>有的会保留键但值为空：<code>key=</code></li>
+<li>有的会传字符串 <code>&quot;null&quot;</code></li>
+</ul>
+<p>以 Alamofire 为例，它提供了三种 <code>nil</code> 编码策略：</p>
+<pre><code class="language-swift">public struct NilEncoding {
+    public static let dropKey = NilEncoding { nil }      // 省略整个键值对
+    public static let dropValue = NilEncoding { &quot;&quot; }     // 保留键，值为空
+    public static let null = NilEncoding { &quot;null&quot; }      // 编码为字符串 &quot;null&quot;
+}
+</code></pre>
+<p>而 Gson 默认不序列化 <code>null</code> 字段，需要显式调用 <code>serializeNulls()</code> 才会输出：</p>
+<pre><code class="language-java">// 默认行为：{&quot;name&quot;:&quot;张三&quot;}（age 字段被省略）
+// 调用 serializeNulls() 后：{&quot;name&quot;:&quot;张三&quot;,&quot;age&quot;:null}
+new GsonBuilder().serializeNulls().create();
+</code></pre>
+<p>建议在团队内明确约定，避免联调时踩坑。</p>
+<blockquote>
+<p>源码参考：</p>
+<ul>
+<li>iOS Alamofire：<a href="https://github.com/Alamofire/Alamofire/blob/5.9.1/Source/Features/URLEncodedFormEncoder.swift#L318-L325">URLEncodedFormEncoder.swift#L318-L325</a></li>
+<li>Android Gson：<a href="https://github.com/google/gson/blob/gson-parent-2.13.2/gson/src/main/java/com/google/gson/GsonBuilder.java#L235-L239">GsonBuilder.java#L235-L239</a></li>
+</ul>
+</blockquote>
+<p><strong>数字精度</strong></p>
+<p>JavaScript 的 <code>Number</code> 类型是 IEEE 754 双精度浮点数，最大安全整数是 <code>2^53 - 1</code>（约 9007 万亿）。超过这个范围的 ID，在 JSON 序列化/反序列化过程中会丢失精度。解决方案是用字符串传递大整数。</p>
+<p><strong>时间格式</strong></p>
+<p>ISO 8601（如 <code>2025-12-24T10:30:00Z</code>）是最通用的时间格式，但要注意时区问题。有些后端返回的是 Unix 时间戳（秒或毫秒），有些是带时区的字符串，有些是 UTC 时间——联调前务必确认。</p>
+<h3 id="15-数据链路概览">1.5 数据链路概览</h3>
+<p>一个典型的网络请求，数据会经历这样的链路：</p>
+<!--
+```mermaid
+flowchart TB
+    subgraph 客户端
+        A[业务模型<br/>Swift Struct / Kotlin Data Class] -&#45;>|序列化<br/>Codable / Gson| B[JSON 字符串]
+        B -&#45;>|UTF-8 编码| C[二进制字节流]
+        C -&#45;>|HTTP 协议封装| D[网络请求]
+    end
+
+    D -&#45;>|网络传输| E[服务端接收]
+
+    subgraph 服务端
+        E -&#45;>|HTTP 协议解析| F[二进制字节流]
+        F -&#45;>|UTF-8 解码| G[JSON 字符串]
+        G -&#45;>|反序列化| H[业务模型]
+    end
+
+    style A fill:#e1f5fe
+    style H fill:#e8f5e9
+```
+-->
+<img src="/post-images/1766573208001.svg" alt="HTTP 数据链路" width=50%>
+<p>理解这个链路有助于定位问题：编码问题在哪一层产生，就应该在哪一层解决。</p>
+<h2 id="2-ios-端urlsession-与-alamofire-的编解码逻辑">2. iOS 端：URLSession 与 Alamofire 的编解码逻辑</h2>
+<br>
+<h3 id="21-urlsession-的默认行为">2.1 URLSession 的默认行为</h3>
+<p><strong>URL Query 的组装</strong></p>
+<p>使用 <code>URLComponents</code> 构建 URL 时，系统会自动进行 Percent-Encoding：</p>
+<pre><code class="language-swift">var components = URLComponents(string: &quot;https://api.example.com/users&quot;)!
+components.queryItems = [
+    URLQueryItem(name: &quot;name&quot;, value: &quot;张三&quot;),
+    URLQueryItem(name: &quot;age&quot;, value: &quot;25&quot;)
+]
+// 结果：https://api.example.com/users?name=%E5%BC%A0%E4%B8%89&amp;age=25
+</code></pre>
+<p>但这里有个坑：<code>URLQueryItem</code> 对某些字符的编码可能不符合预期。比如 <code>+</code> 号默认不会被编码，但在某些后端框架中会被解析为空格。如果遇到这类问题，可能需要手动调用 <code>addingPercentEncoding(withAllowedCharacters:)</code>。</p>
+<p><strong>避免二次编码</strong></p>
+<p><code>URLComponents</code> 在设置 <code>queryItems</code> 时会自动进行 Percent-Encoding，所以你传入的值应该是<strong>原始值</strong>，而不是已编码的值：</p>
+<pre><code class="language-swift">// ✅ 正确：传入原始值，URLComponents 自动编码
+components.queryItems = [URLQueryItem(name: &quot;name&quot;, value: &quot;张三&quot;)]
+// 结果：name=%E5%BC%A0%E4%B8%89
+
+// ❌ 错误：传入已编码的值，会导致二次编码
+let encoded = &quot;张三&quot;.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)!
+components.queryItems = [URLQueryItem(name: &quot;name&quot;, value: encoded)]
+// 结果：name=%25E5%25BC%25A0%25E4%25B8%2589（% 被编码成了 %25）
+</code></pre>
+<p>那什么时候需要手动调用 <code>addingPercentEncoding(withAllowedCharacters:)</code>？</p>
+<ol>
+<li><strong>直接拼接 URL 字符串时</strong>：如果你不用 <code>URLComponents</code>，而是手动拼接 URL，就需要自己编码</li>
+<li><strong><code>URLComponents</code> 编码不符合预期时</strong>：比如 <code>+</code> 号默认不编码，但后端会解析为空格，这时需要手动处理</li>
+<li><strong>使用 <code>percentEncodedQuery</code> 属性时</strong>：这个属性接受已编码的字符串，不会再次编码</li>
+</ol>
+<p><strong>处理特殊字符</strong></p>
+<p><code>URLQueryItem</code> 遵循 RFC 3986，但实际开发中有几个字符需要特别注意：</p>
+<table>
+<thead>
+<tr>
+<th>字符</th>
+<th>URLQueryItem 是否编码</th>
+<th>潜在问题</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>+</code></td>
+<td>❌ 不编码</td>
+<td>后端可能解析为空格</td>
+</tr>
+<tr>
+<td><code>&amp;</code></td>
+<td>✅ 编码为 <code>%26</code></td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>=</code></td>
+<td>✅ 编码为 <code>%3D</code></td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>#</code></td>
+<td>✅ 编码为 <code>%23</code></td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>%</code></td>
+<td>❌ 不编码</td>
+<td>如果后面跟的不是有效十六进制，可能解析失败</td>
+</tr>
+<tr>
+<td>空格</td>
+<td>✅ 编码为 <code>%20</code></td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<p>最常踩坑的是 <code>+</code> 号，因为它在 <code>application/x-www-form-urlencoded</code> 规范中代表空格，而 <code>URLQueryItem</code> 不会编码它。如果你的参数值本身包含 <code>+</code>，需要手动处理：</p>
+<pre><code class="language-swift">// 问题场景：value 包含 + 号
+components.queryItems = [URLQueryItem(name: &quot;formula&quot;, value: &quot;1+1=2&quot;)]
+// 结果：formula=1+1=2（+ 未编码，后端可能解析为 &quot;1 1=2&quot;）
+
+// 解决方案：手动替换 + 为 %2B
+let safeValue = &quot;1+1=2&quot;.replacingOccurrences(of: &quot;+&quot;, with: &quot;%2B&quot;)
+components.percentEncodedQuery = &quot;formula=\(safeValue)&quot;
+// 结果：formula=1%2B1=2（后端正确解析为 &quot;1+1=2&quot;）
+</code></pre>
+<p>或者封装一个更通用的方法：</p>
+<pre><code class="language-swift">extension String {
+    var urlQueryEncoded: String {
+        var allowed = CharacterSet.urlQueryAllowed
+        allowed.remove(&quot;+&quot;)  // 将 + 从 &quot;允许字符&quot; 中移除，强制编码
+        return self.addingPercentEncoding(withAllowedCharacters: allowed) ?? self
+    }
+}
+
+// 使用
+components.percentEncodedQuery = &quot;formula=\(&quot;1+1=2&quot;.urlQueryEncoded)&quot;
+</code></pre>
+<p><strong>Body 的 JSON 编码</strong></p>
+<p><code>URLSession</code> 本身不提供 JSON 序列化，需要配合 <code>JSONEncoder</code>：</p>
+<pre><code class="language-swift">struct User: Codable {
+    let name: String
+    let age: Int
+}
+
+let user = User(name: &quot;张三&quot;, age: 25)
+let jsonData = try JSONEncoder().encode(user)
+
+var request = URLRequest(url: url)
+request.httpMethod = &quot;POST&quot;
+request.httpBody = jsonData
+request.setValue(&quot;application/json&quot;, forHTTPHeaderField: &quot;Content-Type&quot;)
+</code></pre>
+<p><code>JSONEncoder</code> 有几个常用配置：</p>
+<ul>
+<li><code>keyEncodingStrategy</code>：驼峰转下划线（<code>.convertToSnakeCase</code>）</li>
+<li><code>dateEncodingStrategy</code>：时间格式</li>
+<li><code>outputFormatting</code>：是否格式化输出（调试用）</li>
+</ul>
+<p><strong>Content-Type 的默认处理</strong></p>
+<p><code>URLSession</code> 不会自动设置 <code>Content-Type</code>，需要手动指定。忘记设置的话，服务端可能无法正确解析请求体。</p>
+<h3 id="22-alamofire-的默认编码行为">2.2 Alamofire 的默认编码行为</h3>
+<p>Alamofire 对参数编码做了很好的封装，根据请求方法自动选择编码方式：</p>
+<table>
+<thead>
+<tr>
+<th>HTTP 方法</th>
+<th>默认编码方式</th>
+<th>参数位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET, HEAD, DELETE</td>
+<td>URL Encoding</td>
+<td>URL Query</td>
+</tr>
+<tr>
+<td>POST, PUT, PATCH</td>
+<td>JSON Encoding</td>
+<td>Request Body</td>
+</tr>
+</tbody>
+</table>
+<p><strong>参数编码策略</strong></p>
+<p>Alamofire 提供了三种内置编码器：</p>
+<pre><code class="language-swift">// URL 编码 - 参数放在 URL Query
+AF.request(url, parameters: params, encoder: URLEncodedFormParameterEncoder.default)
+
+// JSON 编码 - 参数序列化为 JSON Body
+AF.request(url, method: .post, parameters: params, encoder: JSONParameterEncoder.default)
+
+// 表单编码 - multipart/form-data
+AF.upload(multipartFormData: { formData in
+    formData.append(imageData, withName: &quot;avatar&quot;, fileName: &quot;avatar.jpg&quot;, mimeType: &quot;image/jpeg&quot;)
+}, to: url)
+</code></pre>
+<p><strong>常见配置点与易踩坑</strong></p>
+<ol>
+<li><strong>数组编码格式</strong>：<code>items[]=1&amp;items[]=2</code> vs <code>items=1&amp;items=2</code>，不同后端框架有不同偏好</li>
+<li><strong>布尔值编码</strong>：<code>true</code>/<code>false</code> vs <code>1</code>/<code>0</code></li>
+<li><strong>嵌套对象</strong>：<code>user[name]=张三</code> vs <code>user.name=张三</code></li>
+</ol>
+<p>Alamofire 的 <code>URLEncodedFormParameterEncoder</code> 提供了 <code>ArrayEncoding</code> 和 <code>BoolEncoding</code> 选项来处理这些差异。</p>
+<h2 id="3-服务端jackson-与-spring-的编解码">3. 服务端：Jackson 与 Spring 的编解码</h2>
+<p>在看完客户端如何处理编解码之后，让我们看看服务端是如何处理的。理解全链路有助于排查联调问题。</p>
+<blockquote>
+<p>本章基于 Java 17 与 Spring Boot 3.3.6。即使你没有 Java 开发经验，也能读懂核心逻辑。</p>
+</blockquote>
+<h3 id="31-spring-与-jackson谁负责什么">3.1 Spring 与 Jackson：谁负责什么</h3>
+<p>先澄清一个概念：<strong>Spring 本身不处理 JSON 编解码</strong>，这个工作由 <strong>Jackson</strong> 完成。</p>
+<p><strong>Jackson</strong> 是 Java 生态中最流行的 JSON 库，类似于：</p>
+<ul>
+<li>iOS 的 <code>Codable</code> + <code>JSONEncoder</code> / <code>JSONDecoder</code></li>
+<li>Android 的 <code>Gson</code></li>
+<li>JavaScript 的 <code>JSON.stringify</code> / <code>JSON.parse</code></li>
+</ul>
+<p><strong>Spring</strong> 是 Web 框架，它的职责是：</p>
+<ul>
+<li>接收 HTTP 请求，提取参数</li>
+<li>调用 Jackson 进行 JSON 编解码</li>
+<li>调用业务逻辑，返回响应</li>
+</ul>
+<p>用图来表示：</p>
+<!--
+```mermaid
+sequenceDiagram
+    participant Client as 客户端
+    participant Spring as Spring
+    participant Jackson as Jackson
+
+    Client->>Spring: POST /users<br/>{"name":"张三"}
+
+    Note over Spring: 提取 Content-Type<br/>选择 MessageConverter
+
+    Spring->>Jackson: 调用反序列化
+    Note over Jackson: readValue()<br/>JSON → Java 对象
+    Jackson-&#45;>>Spring: User 对象
+
+    Note over Spring: 调用业务逻辑<br/>返回 Java 对象
+
+    Spring->>Jackson: 调用序列化
+    Note over Jackson: writeValueAsString()<br/>Java 对象 → JSON
+    Jackson-&#45;>>Spring: JSON 字符串
+
+    Spring-&#45;>>Client: {"id":1,"name":"张三"}
+```
+-->
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyo.dev/post-images/spring-jackson-flow.svg" alt="Spring 与 Jackson 协作流程" loading="lazy"></figure>
+<p>所以，当你遇到 JSON 相关的问题时，大多数情况下应该去看 Jackson 的文档和配置。</p>
+<h3 id="32-jackson-核心机制">3.2 Jackson 核心机制</h3>
+<p>Jackson 的核心是 <code>ObjectMapper</code> 类，它提供了两个最重要的方法：</p>
+<pre><code class="language-java">ObjectMapper mapper = new ObjectMapper();
+
+// 序列化：Java 对象 → JSON 字符串
+String json = mapper.writeValueAsString(user);
+
+// 反序列化：JSON 字符串 → Java 对象
+User user = mapper.readValue(json, User.class);
+</code></pre>
+<p><strong>序列化流程</strong></p>
+<p>当调用 <code>writeValueAsString()</code> 时，Jackson 内部会：</p>
+<ol>
+<li><strong>查找序列化器</strong>：根据对象类型，找到对应的 <code>JsonSerializer</code></li>
+<li><strong>反射获取字段</strong>：通过 Java 反射机制，获取对象的所有字段和 getter 方法</li>
+<li><strong>逐个序列化</strong>：对每个字段调用对应的序列化器，生成 JSON 片段</li>
+<li><strong>组装输出</strong>：将所有片段组装成完整的 JSON 字符串</li>
+</ol>
+<pre><code class="language-java">// 简化的序列化流程（源码位置：DefaultSerializerProvider.java#L320）
+public void serializeValue(JsonGenerator gen, Object value) {
+    if (value == null) {
+        _serializeNull(gen);
+        return;
+    }
+    // 根据对象类型查找序列化器
+    Class&lt;?&gt; cls = value.getClass();
+    JsonSerializer&lt;Object&gt; ser = findTypedValueSerializer(cls, true, null);
+    // 执行序列化
+    _serialize(gen, value, ser);
+}
+</code></pre>
+<blockquote>
+<p>源码参考：<a href="https://github.com/FasterXML/jackson-databind/blob/jackson-databind-2.17.2/src/main/java/com/fasterxml/jackson/databind/ser/DefaultSerializerProvider.java#L321-L342">DefaultSerializerProvider.java#L321-L342</a></p>
+</blockquote>
+<p><strong>反序列化流程</strong></p>
+<p>当调用 <code>readValue()</code> 时，Jackson 内部会：</p>
+<ol>
+<li><strong>解析 JSON</strong>：将 JSON 字符串解析成 token 流</li>
+<li><strong>查找反序列化器</strong>：根据目标类型，找到对应的 <code>JsonDeserializer</code></li>
+<li><strong>创建对象实例</strong>：调用目标类的无参构造函数（这就是为什么 Jackson 需要无参构造函数）</li>
+<li><strong>填充字段</strong>：根据 JSON 中的 key，找到对应的字段或 setter，设置值</li>
+</ol>
+<pre><code class="language-java">// 简化的反序列化逻辑
+public &lt;T&gt; T readValue(String content, Class&lt;T&gt; valueType) {
+    // 创建 JSON 解析器
+    JsonParser parser = _jsonFactory.createParser(content);
+    // 查找反序列化器并执行
+    return _readMapAndClose(parser, _typeFactory.constructType(valueType));
+}
+</code></pre>
+<p><strong>类型映射</strong></p>
+<p>Jackson 在序列化/反序列化时，会自动进行类型转换：</p>
+<table>
+<thead>
+<tr>
+<th>JSON 类型</th>
+<th>Java 类型</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&quot;string&quot;</code></td>
+<td><code>String</code></td>
+</tr>
+<tr>
+<td><code>123</code></td>
+<td><code>int</code>, <code>long</code>, <code>Integer</code>, <code>Long</code></td>
+</tr>
+<tr>
+<td><code>12.34</code></td>
+<td><code>double</code>, <code>float</code>, <code>Double</code>, <code>Float</code>, <code>BigDecimal</code></td>
+</tr>
+<tr>
+<td><code>true</code>/<code>false</code></td>
+<td><code>boolean</code>, <code>Boolean</code></td>
+</tr>
+<tr>
+<td><code>null</code></td>
+<td><code>null</code>（引用类型）</td>
+</tr>
+<tr>
+<td><code>[...]</code></td>
+<td><code>List</code>, <code>Set</code>, 数组</td>
+</tr>
+<tr>
+<td><code>{...}</code></td>
+<td><code>Map</code>, 自定义对象</td>
+</tr>
+</tbody>
+</table>
+<h3 id="33-spring-如何调用-jackson">3.3 Spring 如何调用 Jackson</h3>
+<p>Spring 通过 <code>HttpMessageConverter</code> 机制来处理请求和响应的转换。对于 JSON，使用的是 <code>MappingJackson2HttpMessageConverter</code>。</p>
+<p><strong><code>@RequestBody </code> 的处理流程</strong></p>
+<p>当 Spring 遇到 <code>@RequestBody</code> 注解时：</p>
+<pre><code class="language-java">@PostMapping(&quot;/users&quot;)
+public User createUser(@RequestBody User user) {
+    return userService.save(user);
+}
+</code></pre>
+<p>内部处理流程：</p>
+<ol>
+<li>Spring 检查请求的 <code>Content-Type</code>，发现是 <code>application/json</code></li>
+<li>选择 <code>MappingJackson2HttpMessageConverter</code> 来处理</li>
+<li>Converter 内部调用 Jackson 的 <code>ObjectMapper.readValue()</code> 进行反序列化</li>
+</ol>
+<pre><code class="language-java">// AbstractJackson2HttpMessageConverter.java（简化）
+@Override
+protected Object readInternal(Class&lt;?&gt; clazz, HttpInputMessage inputMessage) {
+    JavaType javaType = getJavaType(clazz, null);
+    return readJavaType(javaType, inputMessage);
+}
+
+private Object readJavaType(JavaType javaType, HttpInputMessage inputMessage) {
+    ObjectMapper objectMapper = selectObjectMapper(clazz, contentType);
+    ObjectReader objectReader = objectMapper.readerFor(javaType);
+    // 调用 Jackson 进行反序列化
+    return objectReader.readValue(inputMessage.getBody());
+}
+</code></pre>
+<blockquote>
+<p>源码参考：<a href="https://github.com/spring-projects/spring-framework/blob/v6.1.14/spring-web/src/main/java/org/springframework/http/converter/json/AbstractJackson2HttpMessageConverter.java#L357-L408">AbstractJackson2HttpMessageConverter.java#L357-L408</a></p>
+</blockquote>
+<p><strong><code>@ResponseBody</code> 的处理流程</strong></p>
+<p>当方法返回值需要转换为 JSON 时（<code>@RestController</code> 默认包含 <code>@ResponseBody</code>）：</p>
+<ol>
+<li>Spring 检查客户端的 <code>Accept</code> 头，确定返回格式</li>
+<li>选择 <code>MappingJackson2HttpMessageConverter</code> 来处理</li>
+<li>Converter 内部调用 Jackson 的 <code>ObjectMapper.writeValue()</code> 进行序列化</li>
+</ol>
+<pre><code class="language-java">// AbstractJackson2HttpMessageConverter.java（简化）
+@Override
+protected void writeInternal(Object object, HttpOutputMessage outputMessage) {
+    ObjectMapper objectMapper = selectObjectMapper(object.getClass(), contentType);
+    ObjectWriter objectWriter = objectMapper.writer();
+    // 调用 Jackson 进行序列化
+    objectWriter.writeValue(generator, object);
+}
+</code></pre>
+<blockquote>
+<p>源码参考：<a href="https://github.com/spring-projects/spring-framework/blob/v6.1.14/spring-web/src/main/java/org/springframework/http/converter/json/AbstractJackson2HttpMessageConverter.java#L439-L487">AbstractJackson2HttpMessageConverter.java#L439-L487</a></p>
+</blockquote>
+<h3 id="34-jackson-常用配置">3.4 Jackson 常用配置</h3>
+<p>Jackson 是 Spring 默认的 JSON 库，它的行为可以通过注解或全局配置来调整。</p>
+<p><strong>空值处理：<code>@JsonInclude</code></strong></p>
+<p>Jackson 默认会序列化所有字段，包括 <code>null</code>：</p>
+<pre><code class="language-java">public class User {
+    private String name = &quot;张三&quot;;
+    private String email = null;
+}
+// 默认输出：{&quot;name&quot;:&quot;张三&quot;,&quot;email&quot;:null}
+</code></pre>
+<p>如果你想省略 <code>null</code> 字段（和 Gson 默认行为一致），可以使用 <code>@JsonInclude</code>：</p>
+<pre><code class="language-java">@JsonInclude(JsonInclude.Include.NON_NULL)
+public class User {
+    private String name = &quot;张三&quot;;
+    private String email = null;
+}
+// 输出：{&quot;name&quot;:&quot;张三&quot;}
+</code></pre>
+<p><code>@JsonInclude</code> 的常用选项：</p>
+<table>
+<thead>
+<tr>
+<th>选项</th>
+<th>行为</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ALWAYS</code></td>
+<td>始终包含（默认）</td>
+</tr>
+<tr>
+<td><code>NON_NULL</code></td>
+<td>排除 <code>null</code> 值</td>
+</tr>
+<tr>
+<td><code>NON_EMPTY</code></td>
+<td>排除 <code>null</code>、空字符串、空集合</td>
+</tr>
+<tr>
+<td><code>NON_DEFAULT</code></td>
+<td>排除等于默认值的字段</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>源码参考：<a href="https://github.com/FasterXML/jackson-annotations/blob/jackson-annotations-2.17.2/src/main/java/com/fasterxml/jackson/annotation/JsonInclude.java#L113-L241">JsonInclude.java#L113-L241 - Include 枚举</a></p>
+</blockquote>
+<p><strong>命名策略：驼峰 vs 下划线</strong></p>
+<p>Java 习惯用驼峰命名（<code>userName</code>），而很多 API 规范要求下划线（<code>user_name</code>）。Jackson 提供了 <code>PropertyNamingStrategies</code>：</p>
+<pre><code class="language-java">// 全局配置（Spring Boot application.yml）
+spring:
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+
+// 或者单个类配置
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+public class User {
+    private String userName;  // 序列化为 &quot;user_name&quot;
+}
+</code></pre>
+<p><strong>时间格式</strong></p>
+<p>Jackson 默认把 <code>Date</code> 序列化为时间戳（毫秒），如果你想要 ISO 8601 格式：</p>
+<pre><code class="language-java">// 全局配置
+spring:
+  jackson:
+    date-format: yyyy-MM-dd'T'HH:mm:ss.SSSZ
+    time-zone: UTC
+
+// 或者单个字段配置
+@JsonFormat(pattern = &quot;yyyy-MM-dd HH:mm:ss&quot;, timezone = &quot;Asia/Shanghai&quot;)
+private Date createTime;
+</code></pre>
+<h3 id="35-url-query-与字符编码">3.5 URL Query 与字符编码</h3>
+<p>前面讲的都是 JSON Body 的编解码，由 Jackson 负责。但 <strong>URL Query 的解码和 Jackson 无关</strong>，这部分由 Servlet 容器（如 Tomcat）和 Spring 共同完成。</p>
+<p><strong>解码流程概览</strong></p>
+<p>当客户端发送 <code>GET /users?name=%E5%BC%A0%E4%B8%89&amp;age=25</code> 时，解码流程如下：</p>
+<!--
+```mermaid
+flowchart TB
+    A["客户端发送<br/>GET /users?name=%E5%BC%A0%E4%B8%89&age=25"] -&#45;> B
+    B["1. Tomcat 接收请求<br/>解析 Query String，参数值仍是编码状态"] -&#45;> C
+    C["2. CharacterEncodingFilter<br/>设置请求字符编码为 UTF-8"] -&#45;> D
+    D["3. 首次调用 request.getParameter()<br/>Tomcat 触发参数解析<br/>%E5%BC%A0%E4%B8%89 → 字节序列 → UTF-8 解码 → 张三"] -&#45;> E
+    E["4. Spring @RequestParam 绑定<br/>获取已解码的值，进行类型转换"] -&#45;> F
+    F["你的代码收到<br/>name = 张三, age = 25"]
+
+    style A fill:#e3f2fd
+    style F fill:#e8f5e9
+```
+-->
+<img src="/post-images/url-query-decode-flow.svg" alt="URL Query 解码流程" width=50%>
+<p><strong>Tomcat 的参数解码</strong></p>
+<p>Tomcat 在首次调用 <code>request.getParameter()</code> 时才会解析参数（延迟解析）。核心逻辑在 <code>Parameters</code> 类中：</p>
+<pre><code class="language-java">// Tomcat Parameters.java（简化）
+private void processParameters(byte[] bytes, int start, int len, Charset charset) {
+    int pos = start;
+    int end = start + len;
+
+    while (pos &lt; end) {
+        // 找到 key=value 对
+        int nameStart = pos;
+        int nameEnd = -1;
+        int valueStart = -1;
+        int valueEnd = -1;
+
+        // 解析 key 和 value 的边界
+        while (pos &lt; end) {
+            byte b = bytes[pos];
+            if (b == '=' &amp;&amp; nameEnd == -1) {
+                nameEnd = pos;
+                valueStart = pos + 1;
+            } else if (b == '&amp;') {
+                valueEnd = pos;
+                break;
+            }
+            pos++;
+        }
+
+        // 对 key 和 value 进行 URL 解码
+        // %E5%BC%A0 → 0xE5 0xBC 0xA0 → &quot;张&quot;（UTF-8）
+        String name = urlDecode(bytes, nameStart, nameEnd, charset);
+        String value = urlDecode(bytes, valueStart, valueEnd, charset);
+
+        addParameter(name, value);
+    }
+}
+</code></pre>
+<blockquote>
+<p>源码参考：<a href="https://github.com/apache/tomcat/blob/10.1.34/java/org/apache/tomcat/util/http/Parameters.java#L234-L463">Tomcat Parameters.java#L234-L463</a></p>
+</blockquote>
+<p><strong>Spring 的 <code>@RequestParam</code> 处理</strong></p>
+<p>Spring 通过 <code>RequestParamMethodArgumentResolver</code> 处理 <code>@RequestParam</code> 注解：</p>
+<pre><code class="language-java">@GetMapping(&quot;/users&quot;)
+public List&lt;User&gt; getUsers(
+    @RequestParam String name,  // 自动解码为 &quot;张三&quot;
+    @RequestParam int age       // 自动转换为整数 25
+) {
+    // ...
+}
+</code></pre>
+<p>Spring 内部的处理逻辑：</p>
+<pre><code class="language-java">// RequestParamMethodArgumentResolver.java（简化）
+@Override
+protected Object resolveName(String name, MethodParameter parameter,
+                             NativeWebRequest request) throws Exception {
+    HttpServletRequest servletRequest = request.getNativeRequest(HttpServletRequest.class);
+
+    // 调用 Servlet API 获取参数（此时 Tomcat 已完成解码）
+    String[] paramValues = servletRequest.getParameterValues(name);
+
+    if (paramValues != null) {
+        return paramValues.length == 1 ? paramValues[0] : paramValues;
+    }
+    return null;
+}
+</code></pre>
+<blockquote>
+<p>源码参考：<a href="https://github.com/spring-projects/spring-framework/blob/v6.1.14/spring-web/src/main/java/org/springframework/web/method/annotation/RequestParamMethodArgumentResolver.java#L160-L190">RequestParamMethodArgumentResolver.java#L160-L190</a></p>
+</blockquote>
+<p><strong>CharacterEncodingFilter 的作用</strong></p>
+<p>Spring Boot 默认配置了 <code>CharacterEncodingFilter</code>，确保 Tomcat 使用 UTF-8 解码参数：</p>
+<pre><code class="language-java">// CharacterEncodingFilter.java（简化）
+@Override
+protected void doFilterInternal(HttpServletRequest request,
+                                HttpServletResponse response,
+                                FilterChain filterChain) {
+    String encoding = getEncoding();  // 默认 UTF-8
+
+    // 在 Tomcat 解析参数之前设置编码
+    if (isForceRequestEncoding() || request.getCharacterEncoding() == null) {
+        request.setCharacterEncoding(encoding);
+    }
+    if (isForceResponseEncoding()) {
+        response.setCharacterEncoding(encoding);
+    }
+
+    filterChain.doFilter(request, response);
+}
+</code></pre>
+<blockquote>
+<p>源码参考：<a href="https://github.com/spring-projects/spring-framework/blob/v6.1.14/spring-web/src/main/java/org/springframework/web/filter/CharacterEncodingFilter.java#L187-L202">CharacterEncodingFilter.java#L187-L202</a></p>
+</blockquote>
+<p><strong>为什么顺序很重要？</strong></p>
+<p><code>CharacterEncodingFilter</code> 必须在参数解析之前执行，否则 Tomcat 会使用默认编码（通常是 ISO-8859-1）解码参数，导致中文乱码。Spring Boot 默认将这个 Filter 配置为最高优先级，所以一般不会遇到问题。</p>
+<p>如果遇到 URL Query 中文乱码，检查以下几点：</p>
+<ol>
+<li><code>CharacterEncodingFilter</code> 是否正确配置</li>
+<li>Tomcat 的 <code>URIEncoding</code> 配置（<code>server.xml</code> 中的 Connector 配置）</li>
+<li>客户端是否使用 UTF-8 编码</li>
+</ol>
+<h3 id="36-常见问题排查">3.6 常见问题排查</h3>
+<p><strong>问题 1：客户端发送的 JSON 字段，后端收到是 null</strong></p>
+<p>可能原因：</p>
+<ol>
+<li><strong>命名不一致</strong>：客户端发 <code>user_name</code>，后端字段是 <code>userName</code>，且没配置 <code>SNAKE_CASE</code></li>
+<li><strong>类型不匹配</strong>：客户端发字符串 <code>&quot;25&quot;</code>，后端期望 <code>int</code>（Jackson 通常能自动转换，但复杂类型可能失败）</li>
+<li><strong>缺少无参构造函数</strong>：Jackson 反序列化需要无参构造函数</li>
+</ol>
+<p><strong>问题 2：后端返回的 JSON 字段顺序和预期不同</strong></p>
+<p>Jackson 默认不保证字段顺序。如果有顺序要求，使用 <code>@JsonPropertyOrder</code>：</p>
+<pre><code class="language-java">@JsonPropertyOrder({&quot;id&quot;, &quot;name&quot;, &quot;email&quot;})
+public class User { ... }
+</code></pre>
+<p><strong>问题 3：前后端空值约定不一致</strong></p>
+<p>这是联调中最常见的问题。建议团队统一约定：</p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>客户端行为</th>
+<th>后端行为</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>字段不传</td>
+<td>不包含该 key</td>
+<td>使用默认值或判断为 null</td>
+</tr>
+<tr>
+<td>传 null</td>
+<td><code>&quot;field&quot;: null</code></td>
+<td>接收为 null</td>
+</tr>
+<tr>
+<td>传空字符串</td>
+<td><code>&quot;field&quot;: &quot;&quot;</code></td>
+<td>接收为空字符串（注意：不等于 null）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="37-与客户端编码的对应关系">3.7 与客户端编码的对应关系</h3>
+<table>
+<thead>
+<tr>
+<th>客户端操作</th>
+<th>后端处理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>URLComponents</code> 编码中文</td>
+<td><code>@RequestParam</code> 自动 URL 解码</td>
+</tr>
+<tr>
+<td><code>JSONEncoder</code> 序列化对象</td>
+<td>Jackson 反序列化为 Java 对象</td>
+</tr>
+<tr>
+<td>设置 <code>Content-Type: application/json</code></td>
+<td>Spring 选择 <code>MappingJackson2HttpMessageConverter</code></td>
+</tr>
+<tr>
+<td>Alamofire <code>JSONParameterEncoder</code></td>
+<td>等同于上述组合</td>
+</tr>
+</tbody>
+</table>
+<p>理解了这个对应关系，联调时遇到问题就知道该从哪边排查了。</p>
+<h2 id="4-延伸阅读js-bridge-的编解码逻辑">4. 延伸阅读：JS Bridge 的编解码逻辑</h2>
+<p>如果你对 Native 与 H5 之间的 JS Bridge 通信机制感兴趣，可以阅读这篇独立的解析文章：</p>
+<p>👉 <a href="/jsbridge-encoding-ios-android-h5">iOS &amp; Android &amp; H5 三端 JS Bridge 的编解码逻辑与源码分析</a></p>
+<p>这篇文章从源码层面拆解了 JS Bridge 的编解码逻辑，包括：</p>
+<ul>
+<li>消息结构与回调机制</li>
+<li>iOS（<a href="https://github.com/marcuswestin/WebViewJavascriptBridge/tree/v6.0.3">marcuswestin/WebViewJavascriptBridge</a>）的实现细节</li>
+<li>Android（<a href="https://github.com/wendux/WebViewJavascriptBridge/tree/25dbf77b83a2da3a420e868b70948e7e56b87847">wendux/WebViewJavascriptBridge</a>）的实现细节</li>
+<li>H5 端的 JavaScript 注入与消息处理</li>
+<li>三端的差异与注意点</li>
+</ul>
+<h2 id="5-总结">5. 总结</h2>
+<br>
+<h3 id="51-全链路编解码概览">5.1 全链路编解码概览</h3>
+<p>下图展示了一个完整的 HTTP 请求-响应周期中，数据经历的编解码过程：</p>
+<!--
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client as 客户端
+    participant Network as 网络传输
+    participant Server as 服务端
+
+    rect rgb(227, 242, 253)
+        Note over Client: 【编码阶段】
+        Client->>Client: URL Query: URLComponents 自动编码
+        Client->>Client: JSON Body: JSONEncoder/Gson 手动调用
+        Client->>Client: HTTP 报文: 框架自动封装
+    end
+
+    Client->>Network: HTTP 请求（UTF-8 字节流）
+
+    rect rgb(232, 245, 233)
+        Note over Server: 【解码阶段】
+        Network->>Server: 接收请求
+        Server->>Server: URL Query: Tomcat 自动解码
+        Server->>Server: JSON Body: Jackson 自动解码
+        Server->>Server: 业务处理
+    end
+
+    rect rgb(232, 245, 233)
+        Note over Server: 【编码阶段】
+        Server->>Server: JSON Body: Jackson 自动编码
+    end
+
+    Server->>Network: HTTP 响应（UTF-8 字节流）
+
+    rect rgb(227, 242, 253)
+        Note over Client: 【解码阶段】
+        Network->>Client: 接收响应
+        Client->>Client: JSON Body: JSONDecoder/Gson 手动调用
+    end
+```
+-->
+<figure data-type="image" tabindex="2"><img src="https://blog.rakuyo.dev/post-images/full-link-encoding-flow.svg" alt="全链路编解码流程" loading="lazy"></figure>
+<h3 id="52-按请求类型的编解码对照">5.2 按请求类型的编解码对照</h3>
+<p>不同的请求类型，编解码的方式和负责人不同：</p>
+<p><strong>GET 请求（参数在 URL Query）</strong></p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>位置</th>
+<th>负责人</th>
+<th>自动/手动</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>客户端编码</td>
+<td>URL Query</td>
+<td><code>URLComponents</code> / <code>Uri.Builder</code></td>
+<td>✅ 自动</td>
+<td>Percent-Encoding</td>
+</tr>
+<tr>
+<td>服务端解码</td>
+<td>URL Query</td>
+<td>Tomcat（Servlet 容器）</td>
+<td>✅ 自动</td>
+<td><code>request.getParameter()</code> 时解码</td>
+</tr>
+</tbody>
+</table>
+<p><strong>POST / PUT / PATCH 请求（JSON Body）</strong></p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>位置</th>
+<th>负责人</th>
+<th>自动/手动</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>客户端编码</td>
+<td>Body</td>
+<td><code>JSONEncoder</code> / <code>Gson</code></td>
+<td>⚠️ 手动调用</td>
+<td>需显式调用序列化方法</td>
+</tr>
+<tr>
+<td>服务端解码</td>
+<td>Body</td>
+<td>Jackson</td>
+<td>✅ 自动</td>
+<td><code>@RequestBody</code> 触发自动反序列化</td>
+</tr>
+<tr>
+<td>服务端编码</td>
+<td>Body</td>
+<td>Jackson</td>
+<td>✅ 自动</td>
+<td><code>@ResponseBody</code> 触发自动序列化</td>
+</tr>
+<tr>
+<td>客户端解码</td>
+<td>Body</td>
+<td><code>JSONDecoder</code> / <code>Gson</code></td>
+<td>⚠️ 手动调用</td>
+<td>需显式调用反序列化方法</td>
+</tr>
+</tbody>
+</table>
+<p><strong>POST 请求（Form URL-Encoded）</strong></p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>位置</th>
+<th>负责人</th>
+<th>自动/手动</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>客户端编码</td>
+<td>Body</td>
+<td>HTTP 框架（Alamofire / OkHttp）</td>
+<td>✅ 自动</td>
+<td>类似 URL Query 的编码</td>
+</tr>
+<tr>
+<td>服务端解码</td>
+<td>Body</td>
+<td>Tomcat（Servlet 容器）</td>
+<td>✅ 自动</td>
+<td>与 URL Query 处理方式相同</td>
+</tr>
+</tbody>
+</table>
+<h3 id="53-编解码责任速查表">5.3 编解码责任速查表</h3>
+<table>
+<thead>
+<tr>
+<th>数据位置</th>
+<th>客户端编码</th>
+<th>服务端解码</th>
+<th>服务端编码</th>
+<th>客户端解码</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>URL Query</strong></td>
+<td>URLComponents</td>
+<td>Tomcat</td>
+<td>-</td>
+<td>-</td>
+</tr>
+<tr>
+<td><strong>JSON Body</strong></td>
+<td>JSONEncoder/Gson</td>
+<td>Jackson</td>
+<td>Jackson</td>
+<td>JSONDecoder/Gson</td>
+</tr>
+<tr>
+<td><strong>Form Body</strong></td>
+<td>HTTP 框架</td>
+<td>Tomcat</td>
+<td>-</td>
+<td>-</td>
+</tr>
+<tr>
+<td><strong>Header</strong></td>
+<td>手动处理</td>
+<td>手动处理</td>
+<td>手动处理</td>
+<td>手动处理</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>💡 <strong>记忆技巧</strong>：URL 相关的编解码由「URL 处理组件」负责（URLComponents、Tomcat），JSON 相关的由「JSON 库」负责（JSONEncoder、Jackson、Gson）。</p>
+</blockquote>
+<h3 id="54-统一编码规范的价值">5.4 统一编码规范的价值</h3>
+<p>通过这篇文章的分析，我们可以看到：<strong>编解码问题往往不是技术问题，而是约定问题</strong>。</p>
+<p>无论是客户端与服务端的 HTTP 接口，只要各端约定好：</p>
+<ul>
+<li>字符集统一用 UTF-8</li>
+<li>时间格式统一用 ISO 8601 或时间戳</li>
+<li>空值统一用 <code>null</code> 还是省略</li>
+<li>大整数统一用字符串</li>
+</ul>
+<p>就能避免绝大多数联调问题。</p>
+<hr>
+<br>
+<p>至此，就是这篇文章的全部内容了。希望这篇文章能帮你建立起对 HTTP 编码的整体认识。下次遇到「乱码」、「字段丢失」这类问题时，希望你能知道该从哪里开始排查了。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[JavaScript console.log 打印对象的引用陷阱与 DevTools 延迟展开机制]]></title>
+        <id>https://blog.rakuyo.dev/console-log-reference-trap-and-devtools-lazy-expansion/</id>
+        <link href="https://blog.rakuyo.dev/console-log-reference-trap-and-devtools-lazy-expansion/">
+        </link>
+        <updated>2025-12-14T16:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>最近在小红书上看到一个帖子：<a href="http://xhslink.com/o/62CSwZc5Pj3">后端转前端发现诡异bug</a>，他遇到了这样的诡异现象：</p>
+<!--
+在前端开发中，经常会遇到这样的诡异现象：浏览器 Network 面板显示接口返回的数据字段存在且有值，但通过 `console.log` 打印后展开对象，该字段却显示为 `undefined`。这个问题涉及 JavaScript 对象的引用传递机制、浏览器 DevTools 的延迟展开实现，以及 Vue 3 响应式数据的访问方式。本文将深入剖析这一现象的技术原理，并提供多种实用的解决方案。
+-->]]></summary>
+        <content type="html"><![CDATA[<p>最近在小红书上看到一个帖子：<a href="http://xhslink.com/o/62CSwZc5Pj3">后端转前端发现诡异bug</a>，他遇到了这样的诡异现象：</p>
+<!--
+在前端开发中，经常会遇到这样的诡异现象：浏览器 Network 面板显示接口返回的数据字段存在且有值，但通过 `console.log` 打印后展开对象，该字段却显示为 `undefined`。这个问题涉及 JavaScript 对象的引用传递机制、浏览器 DevTools 的延迟展开实现，以及 Vue 3 响应式数据的访问方式。本文将深入剖析这一现象的技术原理，并提供多种实用的解决方案。
+-->
+<!-- more -->
+<h2 id="问题描述">问题描述</h2>
+<ul>
+<li><strong>现象</strong>：浏览器 Network 面板显示接口返回的 JSON 数据中 <code>createdBy</code> 字段存在且有值</li>
+<li><strong>问题</strong>：通过 axios 请求数据后，使用 <code>console.log</code> 打印 <code>response.data</code>，展开对象时该字段显示为 <code>undefined</code></li>
+<li><strong>环境</strong>：浏览器环境（Chrome DevTools），使用 axios 库，从 Vue 3 项目迁移部分代码</li>
+</ul>
+<p>借着这个问题，评论区有一个 momo 大佬顺势提出了一道面试题：</p>
+<blockquote>
+<p>请解释为什么在 JavaScript 中 <code>console.log</code> 有时打印的不是运行当下的值，而是对象的最终值。 特别是在 axios 请求场景中，为什么 <code>console.log(response.data)</code> 显示的内容会和浏览器 Network 面板里的原始响应数据不一致。 请结合对象引用、DevTools 延迟展开机制进行说明，并给出一个最小可复现的代码示例（包含 axios 或模拟异步修改对象的场景）， 同时给出至少两种正确打印“当时快照值”的解决方案，并说明各自的适用场景。</p>
+</blockquote>
+<p>贴主的这个问题的答案同时也是 momo 大佬这道面试题的答案，其本质涉及三个层面：</p>
+<ol>
+<li>JavaScript 对象的引用传递机制</li>
+<li>浏览器 DevTools 的延迟展开实现</li>
+<li>Vue 3 响应式数据的访问方式</li>
+</ol>
+<h2 id="原因分析">原因分析</h2>
+<br>
+<h3 id="浏览器-consolelog-的延迟展开机制">浏览器 <code>console.log</code> 的延迟展开机制</h3>
+<br>
+<h4 id="核心机制">核心机制</h4>
+<p>当在浏览器中执行 <code>console.log(obj)</code> 时，控制台的处理流程如下：</p>
+<ol>
+<li><strong>打印阶段</strong>：存储该对象的<strong>内存引用</strong>（而非值的快照）</li>
+<li><strong>展开阶段</strong>：用户点击控制台中的对象时，DevTools 读取该引用指向的<strong>当前值</strong></li>
+<li><strong>显示结果</strong>：如果对象在打印后被修改，展开时看到的是修改后的值</li>
+</ol>
+<p>这是浏览器为了性能优化而采取的设计：</p>
+<ul>
+<li>避免在打印时深度遍历和序列化大型对象</li>
+<li>节省内存，不需要存储对象的完整副本</li>
+<li>提升控制台响应速度</li>
+</ul>
+<h4 id="延迟展开的副作用">延迟展开的副作用</h4>
+<pre><code class="language-javascript">const data = { value: 1 };
+console.log('打印时刻:', data);
+data.value = 2;
+// 此时在控制台展开 data，看到的是 { value: 2 }
+</code></pre>
+<p>上述代码中，虽然打印发生在修改之前，但由于存储的是引用，展开时读取的是修改后的值。</p>
+<h4 id="浏览器的提示机制">浏览器的提示机制</h4>
+<p>Chrome DevTools 会在某些情况下在控制台显示一个 <strong>ⓘ</strong> 标记，提示用户：&quot;Value below was evaluated just now&quot;（下面的值是刚刚计算的）。这说明展开时的值可能与打印时不同。</p>
+<h3 id="环境差异浏览器-vs-nodejs">环境差异：浏览器 vs Node.js</h3>
+<p>不同 JavaScript 运行环境对 <code>console.log</code> 的实现不同：</p>
+<table>
+<thead>
+<tr>
+<th>环境</th>
+<th>实现方式</th>
+<th>特点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>浏览器</strong></td>
+<td>存储对象引用，延迟展开</td>
+<td>性能好，但可能显示&quot;未来的值&quot;</td>
+</tr>
+<tr>
+<td><strong>Node.js</strong></td>
+<td>立即序列化对象</td>
+<td>显示打印时刻的准确值</td>
+</tr>
+</tbody>
+</table>
+<p>在 Node.js 中执行相同代码：</p>
+<pre><code class="language-javascript">const data = { value: 1 };
+console.log('打印时刻:', data);  // 输出: 打印时刻: { value: 1 }
+data.value = 2;
+// Node.js 中输出的始终是 { value: 1 }
+</code></pre>
+<h3 id="案例中的第二层原因vue-3-ref-访问问题">案例中的第二层原因：Vue 3 <code>ref</code> 访问问题</h3>
+<p>原始问题的完整原因是双重的：</p>
+<ol>
+<li><strong>console 延迟展开</strong>：导致看到的是对象的最终状态</li>
+<li><strong>Vue <code>ref</code> 访问错误</strong>：从 Vue 代码迁移时忘记添加 <code>.value</code></li>
+</ol>
+<p>Vue 3 的响应式数据访问：</p>
+<pre><code class="language-javascript">import { ref } from 'vue';
+
+const userIdRef = ref('user123');
+
+// 错误：直接访问 ref 对象
+const createdBy = userIdRef;  // 返回 RefImpl 对象
+console.log(createdBy);       // 可能显示为 undefined 或 RefImpl
+
+// 正确：通过 .value 访问实际值
+const createdBy = userIdRef.value;  // 返回 'user123'
+</code></pre>
+<p>在 Vue 组件中，模板会自动解包 <code>ref</code>，但在纯 JavaScript 代码中必须手动添加 <code>.value</code>。</p>
+<h2 id="技术原理">技术原理</h2>
+<br>
+<h3 id="javascript-引用类型">JavaScript 引用类型</h3>
+<p>JavaScript 的数据类型分为两类：</p>
+<h4 id="基本类型值传递">基本类型（值传递）</h4>
+<ul>
+<li>Number</li>
+<li>String</li>
+<li>Boolean</li>
+<li>null</li>
+<li>undefined</li>
+<li>Symbol</li>
+<li>BigInt</li>
+</ul>
+<p>基本类型直接存储值，赋值时复制值：</p>
+<pre><code class="language-javascript">let a = 1;
+let b = a;
+b = 2;
+console.log(a);  // 1（不受 b 的修改影响）
+</code></pre>
+<h4 id="引用类型引用传递">引用类型（引用传递）</h4>
+<ul>
+<li>Object</li>
+<li>Array</li>
+<li>Function</li>
+<li>Date</li>
+<li>RegExp</li>
+<li>Map</li>
+<li>Set</li>
+</ul>
+<p>引用类型存储内存地址，赋值时复制引用：</p>
+<pre><code class="language-javascript">let obj1 = { value: 1 };
+let obj2 = obj1;
+obj2.value = 2;
+console.log(obj1.value);  // 2（obj1 和 obj2 指向同一个对象）
+</code></pre>
+<h3 id="devtools-延迟展开的实现细节">DevTools 延迟展开的实现细节</h3>
+<p>浏览器控制台对对象的处理流程：</p>
+<pre><code>打印阶段：
+console.log(obj)
+    ↓
+存储对象引用 + 堆栈信息
+    ↓
+显示对象的简要表示（如：{...}）
+
+展开阶段：
+用户点击展开
+    ↓
+通过引用读取对象当前属性
+    ↓
+遍历并显示属性值
+</code></pre>
+<h4 id="为什么不立即序列化">为什么不立即序列化？</h4>
+<p>假设有一个深层嵌套的大对象：</p>
+<pre><code class="language-javascript">const largeObject = {
+  level1: {
+    level2: {
+      level3: {
+        // ... 数百个属性
+        data: new Array(10000).fill({ /* 复杂对象 */ })
+      }
+    }
+  }
+};
+
+console.log(largeObject);
+</code></pre>
+<p>如果立即序列化：</p>
+<ul>
+<li>需要深度遍历整个对象树</li>
+<li>消耗大量 CPU 和内存</li>
+<li>阻塞主线程，影响页面响应</li>
+</ul>
+<p>延迟展开则只在用户需要时才读取，性能更优。</p>
+<h2 id="解决方案">解决方案</h2>
+<br>
+<h3 id="方案-1json-序列化深拷贝">方案 1：JSON 序列化深拷贝</h3>
+<pre><code class="language-javascript">console.log('快照:', JSON.parse(JSON.stringify(obj)));
+</code></pre>
+<p><strong>原理</strong>：</p>
+<ol>
+<li><code>JSON.stringify(obj)</code> 将对象序列化为 JSON 字符串</li>
+<li><code>JSON.parse(...)</code> 将字符串反序列化为新对象</li>
+<li>新对象与原对象完全独立，不共享引用</li>
+</ol>
+<p><strong>优点</strong>：</p>
+<ul>
+<li>完全隔离，打印的是真实的快照</li>
+<li>语法简单，容易理解</li>
+</ul>
+<p><strong>缺点</strong>：</p>
+<ul>
+<li>无法序列化函数、Symbol、undefined</li>
+<li>循环引用会抛出错误</li>
+<li>无法处理特殊对象（Date、RegExp、Map、Set 等会被转换或丢失）</li>
+</ul>
+<p><strong>示例</strong>：</p>
+<pre><code class="language-javascript">const obj = {
+  name: 'test',
+  fn: () =&gt; {},      // 会被忽略
+  undef: undefined,  // 会被忽略
+  date: new Date(),  // 转换为字符串
+  map: new Map()     // 转换为 {}
+};
+
+console.log('原对象:', obj);
+console.log('JSON 快照:', JSON.parse(JSON.stringify(obj)));
+// 输出: { name: 'test', date: '2024-01-01T00:00:00.000Z', map: {} }
+</code></pre>
+<p><strong>适用场景</strong>：调试纯数据对象（POJO）</p>
+<h3 id="方案-2structuredclone">方案 2：<code>structuredClone()</code></h3>
+<pre><code class="language-javascript">console.log('快照:', structuredClone(obj));
+</code></pre>
+<p><strong>原理</strong>：使用结构化克隆算法，这是 HTML 标准定义的深拷贝算法。</p>
+<p><strong>优点</strong>：</p>
+<ul>
+<li>支持更多数据类型：Map、Set、Date、RegExp、ArrayBuffer、TypedArray 等</li>
+<li>处理循环引用</li>
+<li>性能较好</li>
+</ul>
+<p><strong>缺点</strong>：</p>
+<ul>
+<li>仍不支持函数、DOM 节点、Error 对象</li>
+<li>需要较新的浏览器版本</li>
+</ul>
+<p><strong>浏览器兼容性</strong>：</p>
+<ul>
+<li>Chrome 98+ (2022 年 2 月)</li>
+<li>Firefox 94+ (2021 年 11 月)</li>
+<li>Safari 15.4+ (2022 年 3 月)</li>
+</ul>
+<p><strong>示例</strong>：</p>
+<pre><code class="language-javascript">const obj = {
+  name: 'test',
+  date: new Date(),
+  map: new Map([['key', 'value']]),
+  set: new Set([1, 2, 3])
+};
+
+console.log('structuredClone:', structuredClone(obj));
+// 完整保留 Date、Map、Set 的类型和值
+</code></pre>
+<p><strong>适用场景</strong>：包含复杂数据结构（Map、Set、Date 等）的对象</p>
+<h3 id="方案-3展开运算符浅拷贝">方案 3：展开运算符（浅拷贝）</h3>
+<pre><code class="language-javascript">console.log('对象快照:', { ...obj });
+console.log('数组快照:', [...arr]);
+</code></pre>
+<p><strong>原理</strong>：创建新对象，复制第一层属性。</p>
+<p><strong>优点</strong>：</p>
+<ul>
+<li>语法简洁</li>
+<li>性能最好</li>
+<li>支持所有类型</li>
+</ul>
+<p><strong>缺点</strong>：</p>
+<ul>
+<li>仅浅拷贝，嵌套对象仍是引用</li>
+</ul>
+<p><strong>示例</strong>：</p>
+<pre><code class="language-javascript">const obj = {
+  name: 'test',
+  nested: { value: 1 }
+};
+
+const shallow = { ...obj };
+obj.nested.value = 2;
+
+console.log(shallow.nested.value);  // 2（nested 仍是引用）
+</code></pre>
+<p><strong>适用场景</strong>：扁平结构的对象</p>
+<h3 id="方案-4直接打印值或字符串化">方案 4：直接打印值或字符串化</h3>
+<pre><code class="language-javascript">// 方式 1：打印特定字段
+console.log('createdBy:', obj.createdBy);
+
+// 方式 2：JSON 字符串（格式化）
+console.log('JSON 字符串:', JSON.stringify(obj, null, 2));
+
+// 方式 3：模板字符串
+console.log(`createdBy=${obj.createdBy}, status=${obj.status}`);
+</code></pre>
+<p><strong>优点</strong>：</p>
+<ul>
+<li>最直接，无额外开销</li>
+<li>基本类型不受引用影响</li>
+<li>JSON 字符串易于复制和分享</li>
+</ul>
+<p><strong>适用场景</strong>：</p>
+<ul>
+<li>只关注特定字段</li>
+<li>需要查看整体 JSON 结构</li>
+<li>需要复制数据用于测试</li>
+</ul>
+<h3 id="方案-5consoletable">方案 5：<code>console.table()</code></h3>
+<pre><code class="language-javascript">console.table(obj);
+console.table([obj1, obj2, obj3]);
+</code></pre>
+<p><strong>原理</strong>：以表格形式展示数据，内部会自动序列化当前值。</p>
+<p><strong>优点</strong>：</p>
+<ul>
+<li>可视化效果好</li>
+<li>自动序列化，不受引用影响</li>
+<li>适合对比多个对象</li>
+</ul>
+<p><strong>示例</strong>：</p>
+<pre><code class="language-javascript">const users = [
+  { id: 1, name: 'Alice', age: 25 },
+  { id: 2, name: 'Bob', age: 30 },
+  { id: 3, name: 'Charlie', age: 35 }
+];
+
+console.table(users);
+// 输出一个表格，列为 id、name、age
+</code></pre>
+<p><strong>适用场景</strong>：数组或对象列表的调试</p>
+<h3 id="方案-6调试器断点">方案 6：调试器断点</h3>
+<pre><code class="language-javascript">debugger;
+console.log(obj);
+</code></pre>
+<p>或在 Chrome DevTools 中设置断点。</p>
+<p><strong>优点</strong>：</p>
+<ul>
+<li>在断点处查看变量的准确状态</li>
+<li>可以逐步执行，观察变量变化</li>
+<li>可以使用 DevTools 的所有功能</li>
+</ul>
+<p><strong>适用场景</strong>：复杂的调试场景，需要逐步跟踪</p>
+<h2 id="方案对比">方案对比</h2>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>深度拷贝</th>
+<th>性能</th>
+<th>类型支持</th>
+<th>代码复杂度</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JSON 序列化</td>
+<td>是</td>
+<td>中等</td>
+<td>纯数据（不支持函数、undefined、Symbol）</td>
+<td>低</td>
+<td>常规数据对象</td>
+</tr>
+<tr>
+<td>structuredClone</td>
+<td>是</td>
+<td>中等</td>
+<td>较广泛（支持 Map、Set、Date，不支持函数）</td>
+<td>低</td>
+<td>复杂数据结构</td>
+</tr>
+<tr>
+<td>展开运算符</td>
+<td>否（浅拷贝）</td>
+<td>快</td>
+<td>所有类型</td>
+<td>低</td>
+<td>扁平对象</td>
+</tr>
+<tr>
+<td>直接打印值</td>
+<td>-</td>
+<td>最快</td>
+<td>基本类型和字符串</td>
+<td>低</td>
+<td>查看特定字段</td>
+</tr>
+<tr>
+<td>console.table</td>
+<td>是（自动）</td>
+<td>快</td>
+<td>可序列化类型</td>
+<td>低</td>
+<td>列表/表格数据</td>
+</tr>
+<tr>
+<td>断点调试</td>
+<td>-</td>
+<td>-</td>
+<td>所有类型</td>
+<td>中等</td>
+<td>复杂调试流程</td>
+</tr>
+</tbody>
+</table>
+<p><strong>推荐策略</strong>：</p>
+<ol>
+<li><strong>默认选择</strong>：<code>JSON.parse(JSON.stringify(obj))</code> - 适用于 90% 的场景</li>
+<li><strong>复杂对象</strong>：<code>structuredClone(obj)</code> - 包含 Map、Set、Date 等类型</li>
+<li><strong>简单查看</strong>：直接打印字段或使用 <code>JSON.stringify(obj, null, 2)</code></li>
+<li><strong>列表数据</strong>：<code>console.table(arr)</code></li>
+<li><strong>复杂调试</strong>：使用断点调试器</li>
+</ol>
+<h2 id="相关知识点">相关知识点</h2>
+<br>
+<h3 id="vue-响应式数据访问">Vue 响应式数据访问</h3>
+<br>
+<h4 id="vue-3-的-ref">Vue 3 的 ref</h4>
+<pre><code class="language-javascript">import { ref } from 'vue';
+
+const count = ref(0);
+
+// 错误：直接访问 ref
+console.log(count);  // RefImpl { _value: 0, ... }
+
+// 正确：通过 .value 访问
+console.log(count.value);  // 0
+
+// 修改值
+count.value++;
+</code></pre>
+<h4 id="vue-3-的-reactive">Vue 3 的 reactive</h4>
+<pre><code class="language-javascript">import { reactive } from 'vue';
+
+const state = reactive({ count: 0 });
+
+// 正确：直接访问属性
+console.log(state.count);  // 0
+
+// 修改值
+state.count++;
+</code></pre>
+<h4 id="获取原始值">获取原始值</h4>
+<pre><code class="language-javascript">import { toRaw, reactive } from 'vue';
+
+const state = reactive({ count: 0 });
+const raw = toRaw(state);
+
+// raw 是非响应式的原始对象
+console.log(raw);
+</code></pre>
+<h4 id="从-vue-组件迁移代码的注意事项">从 Vue 组件迁移代码的注意事项</h4>
+<p>在 Vue 模板中，<code>ref</code> 会自动解包：</p>
+<pre><code class="language-vue">&lt;template&gt;
+  &lt;!-- 自动解包，无需 .value --&gt;
+  &lt;div&gt;{{ count }}&lt;/div&gt;
+&lt;/template&gt;
+
+&lt;script setup&gt;
+import { ref } from 'vue';
+
+const count = ref(0);
+
+// 在 JS 中必须使用 .value
+function increment() {
+  count.value++;  // 正确
+  // count++;     // 错误
+}
+&lt;/script&gt;
+</code></pre>
+<p>迁移到纯 JavaScript 时必须手动添加 <code>.value</code>。</p>
+<h3 id="浏览器与-nodejs-的-console-实现差异">浏览器与 Node.js 的 console 实现差异</h3>
+<h4 id="浏览器chrome">浏览器（Chrome）</h4>
+<pre><code class="language-javascript">const obj = { value: 1 };
+console.log(obj);
+obj.value = 2;
+// 展开时显示 { value: 2 }
+</code></pre>
+<p>实现原理：</p>
+<ul>
+<li>存储对象引用</li>
+<li>延迟读取属性</li>
+<li>优化性能和内存</li>
+</ul>
+<h4 id="nodejs">Node.js</h4>
+<pre><code class="language-javascript">const obj = { value: 1 };
+console.log(obj);
+obj.value = 2;
+// 输出 { value: 1 }
+</code></pre>
+<p>实现原理：</p>
+<ul>
+<li>立即调用 <code>util.inspect()</code></li>
+<li>序列化对象为字符串</li>
+<li>显示打印时刻的准确值</li>
+</ul>
+<h4 id="选择建议">选择建议</h4>
+<ul>
+<li><strong>开发调试</strong>：使用浏览器 DevTools，功能更强大</li>
+<li><strong>服务器日志</strong>：Node.js 环境，输出准确</li>
+<li><strong>CI/CD 测试</strong>：Node.js 环境，可靠性高</li>
+</ul>
+<h3 id="其他有用的-console-方法">其他有用的 console 方法</h3>
+<h4 id="consoledir"><code>console.dir()</code></h4>
+<p>显示对象的所有属性（包括不可枚举属性）：</p>
+<pre><code class="language-javascript">const obj = { a: 1 };
+Object.defineProperty(obj, 'hidden', {
+  value: 'secret',
+  enumerable: false
+});
+
+console.log(obj);   // { a: 1 }
+console.dir(obj);   // { a: 1, hidden: 'secret' }
+</code></pre>
+<h4 id="consoleassert"><code>console.assert()</code></h4>
+<p>断言调试，条件为 false 时打印错误：</p>
+<pre><code class="language-javascript">const value = 5;
+console.assert(value === 10, 'value 应该等于 10，但实际是', value);
+// Assertion failed: value 应该等于 10，但实际是 5
+</code></pre>
+<h4 id="consoletrace"><code>console.trace()</code></h4>
+<p>打印当前的调用堆栈：</p>
+<pre><code class="language-javascript">function foo() {
+  function bar() {
+    console.trace('调用堆栈');
+  }
+  bar();
+}
+
+foo();
+// 输出完整的调用链：bar -&gt; foo -&gt; &lt;anonymous&gt;
+</code></pre>
+<h4 id="consoletime-consoletimeend"><code>console.time()</code> / <code>console.timeEnd()</code></h4>
+<p>测量代码执行时间：</p>
+<pre><code class="language-javascript">console.time('数组处理');
+const arr = new Array(1000000).fill(0).map((_, i) =&gt; i * 2);
+console.timeEnd('数组处理');
+// 数组处理: 23.456ms
+</code></pre>
+<h4 id="consolegroup-consolegroupend"><code>console.group()</code> / <code>console.groupEnd()</code></h4>
+<p>分组显示日志：</p>
+<pre><code class="language-javascript">console.group('用户信息');
+console.log('姓名:', 'Alice');
+console.log('年龄:', 25);
+console.groupEnd();
+</code></pre>
+<h2 id="总结">总结</h2>
+<br>
+<h3 id="核心要点">核心要点</h3>
+<ol>
+<li><strong>引用陷阱</strong>：<code>console.log(obj)</code> 在浏览器中存储的是对象引用，展开时读取的是当前值</li>
+<li><strong>环境差异</strong>：浏览器延迟展开（性能优化），Node.js 立即序列化（准确性优先）</li>
+<li><strong>解决方案</strong>：使用深拷贝（JSON 或 structuredClone）打印快照，或直接打印字段值</li>
+<li><strong>Vue 特殊性</strong>：从 Vue 迁移代码时注意 <code>ref</code> 需要 <code>.value</code> 访问</li>
+</ol>
+<h3 id="调试最佳实践">调试最佳实践</h3>
+<ol>
+<li>
+<p><strong>默认方案</strong>：</p>
+<pre><code class="language-javascript">console.log('快照:', JSON.parse(JSON.stringify(obj)));
+</code></pre>
+</li>
+<li>
+<p><strong>复杂对象</strong>：</p>
+<pre><code class="language-javascript">console.log('快照:', structuredClone(obj));
+</code></pre>
+</li>
+<li>
+<p><strong>查看字段</strong>：</p>
+<pre><code class="language-javascript">console.log('字段:', obj.field);
+</code></pre>
+</li>
+<li>
+<p><strong>列表数据</strong>：</p>
+<pre><code class="language-javascript">console.table(arrayOfObjects);
+</code></pre>
+</li>
+<li>
+<p><strong>复杂场景</strong>：使用 DevTools 断点调试器</p>
+</li>
+</ol>
+<h3 id="参考资料">参考资料</h3>
+<ul>
+<li><a href="https://developer.mozilla.org/zh-CN/docs/Web/API/console">MDN - console</a></li>
+<li><a href="https://developer.chrome.com/docs/devtools/console/api/">Chrome DevTools Console API Reference</a></li>
+<li><a href="https://developer.mozilla.org/en-US/docs/Web/API/structuredClone">structuredClone() - Web APIs</a></li>
+<li><a href="https://vuejs.org/api/reactivity-core.html">Vue 3 Reactivity API</a></li>
+</ul>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[ARM Mac 安装 Java 8 备忘]]></title>
+        <id>https://blog.rakuyo.dev/install-java8-on-arm-mac/</id>
+        <link href="https://blog.rakuyo.dev/install-java8-on-arm-mac/">
+        </link>
+        <updated>2025-12-04T16:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>最近需要在 ARM Mac 上装 Java 8，研究了一圈发现直接用 Azul Zulu 的原生 ARM 版本最省事。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>最近需要在 ARM Mac 上装 Java 8，研究了一圈发现直接用 Azul Zulu 的原生 ARM 版本最省事。</p>
+<!-- more -->
+<h2 id="快速安装">快速安装</h2>
+<p>直接上命令：</p>
+<pre><code class="language-bash"># 添加 cask-versions 仓库
+brew tap homebrew/cask-versions
+
+# 安装 Zulu 8
+brew install --cask zulu8
+</code></pre>
+<p>装完之后 JDK 在 <code>/Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home</code>。</p>
+<p>如果需要设置 <code>JAVA_HOME</code>，在 <code>~/.zshrc</code> 或 <code>~/.bashrc</code> 里加上：</p>
+<pre><code class="language-bash">export JAVA_HOME='/Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home'
+</code></pre>
+<p>验证一下：</p>
+<pre><code class="language-bash">java -version
+</code></pre>
+<p>应该能看到类似这样的输出：</p>
+<pre><code>openjdk version &quot;1.8.0_xxx&quot;
+OpenJDK Runtime Environment (Zulu 8.xx.x.x-CA-macosx-aarch64)
+OpenJDK 64-Bit Server VM (Zulu 8.xx.x.x-CA-macosx-aarch64)
+</code></pre>
+<p>注意输出里的 <code>aarch64</code>，说明这是 ARM 原生版本。</p>
+<h2 id="oracle-jdk-vs-openjdk">Oracle JDK vs OpenJDK</h2>
+<p>顺便说一下为什么选 OpenJDK 而不是 Oracle JDK。</p>
+<p>从授权角度看，Oracle JDK 从 2019 年开始收费，2023 年还改成按员工数计费。OpenJDK 是完全免费的开源项目，由 Oracle、Red Hat 和社区一起维护。</p>
+<p>技术上，从 Java 11 开始两者用的是同一套代码，功能和性能基本没区别。</p>
+<p>所以对于 Java 8 来说，用 OpenJDK 的发行版（比如 Zulu）就行，既省钱又不影响使用。</p>
+<h2 id="为什么用-zulu-的-arm-原生版本">为什么用 Zulu 的 ARM 原生版本</h2>
+<p>这个方案是从 <a href="https://stackoverflow.com/a/79331138/9166124">Stack Overflow 这个回答</a> 里看到的。</p>
+<p>之前可能会想到用 Rosetta 2 跑 x86 版本的 JDK 8，但现在不太建议这么做：</p>
+<ol>
+<li><strong>性能问题</strong>：Rosetta 2 毕竟是转译层，原生 ARM 跑起来肯定更快</li>
+<li><strong>兼容性风险</strong>：根据 <a href="https://developer.apple.com/documentation/apple-silicon/about-the-rosetta-translation-environment/#overview">Apple 的开发者文档</a>，macOS 28（预计 2027 年发布）会大幅缩减 Rosetta 2 的支持范围，到时候只会保留给一些老游戏用。现在如果用 x86 版本，以后可能会遇到麻烦</li>
+</ol>
+<p>直接用 ARM 原生版本，一步到位。</p>
+<h2 id="小结">小结</h2>
+<p>ARM Mac 装 Java 8，用 Azul Zulu 的 ARM 原生版本就好。简单直接，也不用担心以后的兼容性问题。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[解决 swift-collections 1.3.0 在 Xcode 26.1 下的 Lifetime 特性编译错误]]></title>
+        <id>https://blog.rakuyo.dev/swift-collections-lifetime-feature-compilation-error/</id>
+        <link href="https://blog.rakuyo.dev/swift-collections-lifetime-feature-compilation-error/">
+        </link>
+        <updated>2025-11-30T16:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>最近在 vibe coding 一款 macOS App，名叫 “Hassan”，具体做什么的暂且按下不表。项目在从 Xcode 16.4 升级到 26.1 后遇到了一个编译错误，花费几个小时研究明白后决定水一篇文章，整理一下这几个小时的收获。</p>
+<!-- 项目从 Xcode 16.4 升级到 26.1，结果 swift-collections 1.3.0 编译不过了。折腾了一圈才发现，这事儿涉及到 Swift 6.2 的实验性特性 `@_lifetime`，还有 SPM 选择 Package.swift 文件的机制。
+
+思来想去决定记录一下解决过程。 -->]]></summary>
+        <content type="html"><![CDATA[<p>最近在 vibe coding 一款 macOS App，名叫 “Hassan”，具体做什么的暂且按下不表。项目在从 Xcode 16.4 升级到 26.1 后遇到了一个编译错误，花费几个小时研究明白后决定水一篇文章，整理一下这几个小时的收获。</p>
+<!-- 项目从 Xcode 16.4 升级到 26.1，结果 swift-collections 1.3.0 编译不过了。折腾了一圈才发现，这事儿涉及到 Swift 6.2 的实验性特性 `@_lifetime`，还有 SPM 选择 Package.swift 文件的机制。
+
+思来想去决定记录一下解决过程。 -->
+<!-- more -->
+<blockquote>
+<p>现在 Hassan 已经上架啦！详见 <a href="https://hassanstudio.github.io">官网</a>。</p>
+</blockquote>
+<h2 id="问题描述">问题描述</h2>
+<br>
+<h3 id="开发环境">开发环境</h3>
+<p>先交代一些我的开发环境：</p>
+<ul>
+<li>macOS Tahoe 26.1 (25B78)</li>
+<li>Xcode 26.1 (17B55)</li>
+<li>Tuist 4.90.0</li>
+<li>swift-collections 1.3.0</li>
+</ul>
+<h3 id="问题表现">问题表现</h3>
+<p>Hassan 使用了 <a href="https://github.com/apple/swift-collections/releases/tag/1.3.0">Swift Collections 1.3.0</a>。其在 Xcode 16.4 (16F6) 下编译一切正常，但切换到 Xcode 26.1 后，编译失败并报错：</p>
+<pre><code>/Users/rakuyo/Hassan/Tuist/.build/checkouts/swift-collections/Sources/InternalCollectionsUtilities/autogenerated/LifetimeOverride.swift:104:2 '@_lifetime' attribute is only valid when experimental feature Lifetimes is enabled
+/Users/rakuyo/Hassan/Tuist/.build/checkouts/swift-collections/Sources/InternalCollectionsUtilities/autogenerated/LifetimeOverride.swift:107:6 A function cannot return a ~Escapable result
+</code></pre>
+<h2 id="问题分析">问题分析</h2>
+<br>
+<h3 id="根本原因">根本原因</h3>
+<p>看了一下代码，发现报错的地方用了 <code>#if compiler(&gt;=6.2)</code> 做条件编译：</p>
+<ul>
+<li>Xcode 16.4 的编译器版本小于 6.2，所以这部分代码根本不会编译</li>
+<li>Xcode 26.1 的编译器达到了 6.2，就触发了这部分代码的编译</li>
+</ul>
+<h3 id="swift-collections-的-packageswift-文件">swift-collections 的 Package.swift 文件</h3>
+<p>翻了一下 swift-collections 的源码，返现它有两个 Package.swift 文件：</p>
+<ol>
+<li>默认的 <a href="https://github.com/apple/swift-collections/blob/1.3.0/Package.swift">Package.swift</a></li>
+<li>Swift 6.0 版本使用的 <a href="https://github.com/apple/swift-collections/blob/1.3.0/Package%40swift-6.0.swift">Package@swift-6.0.swift</a></li>
+</ol>
+<p>关键的区别在于：</p>
+<ul>
+<li><code>Package.swift</code> 文件中包含了 <code>.enableExperimentalFeature(&quot;Lifetimes&quot;)</code> 配置</li>
+<li><code>Package@swift-6.0.swift</code> 文件中没有这个配置</li>
+</ul>
+<h3 id="关于-_lifetime-特性">关于 <code>@_lifetime</code> 特性</h3>
+<p><code>@_lifetime</code> 是 Swift 6.2 引入的实验性特性，用于处理生命周期依赖关系。虽然 6.2 里已经有了，但它还不是正式的语言特性，所以需要显式开启。</p>
+<p>官方论坛里有讨论：<a href="https://forums.swift.org/t/experimental-support-for-lifetime-dependencies-in-swift-6-2-and-beyond/78638">Experimental support for lifetime dependencies in Swift 6.2 and beyond</a></p>
+<h2 id="解决问题">解决问题</h2>
+<br>
+<h3 id="最初的思路">最初的思路</h3>
+<p>一开始，我认为问题出在 SPM 或 Tuist 错误地选择了 <code>Package@swift-6.0.swift</code> 文件。因为我的项目设置的是 Swift 5.9，Build Settings 里也是 5.9，我认为应该使用默认的 <code>Package.swift</code>（包含了 Lifetimes 特性的启用），这样就不会有编译错误。</p>
+<h3 id="深入调查">深入调查</h3>
+<p>但是继续往下查，发现这事儿比想的复杂：</p>
+<h4 id="spm-使用工具链的-swift-版本">SPM 使用工具链的 Swift 版本</h4>
+<p>SPM 在下载依赖时，使用的是 <strong>工具链</strong> 的 Swift 版本，也就是 <code>swift --version</code> 的版本，而不是项目中 Build Settings 配置的 Swift 版本，它只影响项目的编译，和 SPM 用哪个 <code>Package.swift</code> 无关。</p>
+<h4 id="macos-的-swift-工具链限制">macOS 的 Swift 工具链限制</h4>
+<p>macOS 上没法抛开 Xcode 单独装或配置 Swift 工具链。Swift 工具链是跟 Xcode 绑定的。</p>
+<h4 id="macos-tahoe-与-xcode-版本的限制">macOS Tahoe 与 Xcode 版本的限制</h4>
+<ul>
+<li>macOS Tahoe 无法使用 Xcode 15</li>
+<li>Xcode 16.14 就已经是 Swift 6.0+ 的版本</li>
+<li>如果想在 Swift 5.x 的基础上使用 SPM，就必须使用 Xcode 15.0，但这在 macOS Tahoe 上是不可能的</li>
+</ul>
+<h4 id="swift-tools-version-的实际作用">swift-tools-version 的实际作用</h4>
+<p>项目的 <code>Package.swift</code> 文件顶部的 <code>// swift-tools-version: 5.9</code> 并不能决定用哪个 <code>Package.swift</code> 文件。这个声明只是指定了解析 Package.swift 所需的最低 SPM 工具版本。</p>
+<h3 id="那么单独安装-swift-5101-toolchain-行不行">那么单独安装 Swift 5.10.1 toolchain 行不行？</h3>
+<p>既然 Xcode 自带的工具链是 Swift 6.0+，那能不能单独装个 Swift 5.10.1 的 toolchain？</p>
+<h4 id="使用-swiftly-安装-toolchain">使用 swiftly 安装 toolchain</h4>
+<p><a href="https://github.com/swiftlang/swiftly">swiftly</a> 是 Swift 官方的工具链管理工具，可以装不同版本的 Swift toolchain。</p>
+<p>试了一下，用 Swift 5.10.1 toolchain 跑 SPM 下载依赖，结果又报错了：</p>
+<pre><code>Computing version for https://github.com/devxoul/Then.git
+error: Invalid manifest (compiled with: [&quot;/Users/rakuyo/Library/Developer/Toolchains/swift-5.10.1-RELEASE.xctoolchain/usr/bin/swiftc&quot;, &quot;-vfsoverlay&quot;, &quot;/var/folders/56/hxctgzds50b8p0fw6myh2y500000gn/T/TemporaryDirectory.qkPC2f/vfs.yaml&quot;, &quot;-L&quot;, &quot;/Users/rakuyo/Library/Developer/Toolchains/swift-5.10.1-RELEASE.xctoolchain/usr/lib/swift/pm/ManifestAPI&quot;, &quot;-lPackageDescription&quot;, &quot;-Xlinker&quot;, &quot;-rpath&quot;, &quot;-Xlinker&quot;, &quot;/Users/rakuyo/Library/Developer/Toolchains/swift-5.10.1-RELEASE.xctoolchain/usr/lib/swift/pm/ManifestAPI&quot;, &quot;-target&quot;, &quot;arm64-apple-macosx12.0&quot;, &quot;-sdk&quot;, &quot;/Applications/Xcode-26.1.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.1.sdk&quot;, &quot;-F&quot;, &quot;/Applications/Xcode-26.1.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks&quot;, &quot;-I&quot;, &quot;/Applications/Xcode-26.1.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib&quot;, &quot;-L&quot;, &quot;/Applications/Xcode-26.1.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib&quot;, &quot;-swift-version&quot;, &quot;5&quot;, &quot;-I&quot;, &quot;/Users/rakuyo/Library/Developer/Toolchains/swift-5.10.1-RELEASE.xctoolchain/usr/lib/swift/pm/ManifestAPI&quot;, &quot;-sdk&quot;, &quot;/Applications/Xcode-26.1.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.1.sdk&quot;, &quot;-package-description-version&quot;, &quot;5.0.0&quot;, &quot;/Package.swift&quot;, &quot;-Xfrontend&quot;, &quot;-disable-implicit-concurrency-module-import&quot;, &quot;-Xfrontend&quot;, &quot;-disable-implicit-string-processing-module-import&quot;, &quot;-o&quot;, &quot;/var/folders/56/hxctgzds50b8p0fw6myh2y500000gn/T/TemporaryDirectory.EKOhFy/then-manifest&quot;])
+error: fatalError
+error: compile command failed due to signal 6 (use -v to see invocation)
+/Applications/Xcode-26.1.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.1.sdk/System/Library/Frameworks/Foundation.framework/Modules/Foundation.swiftmodule/arm64e-apple-macos.swiftinterface:1114:149: error: expected ',' separator
+  public mutating func transform&lt;E&gt;(updating range: inout Swift.Range&lt;Foundation.AttributedString.Index&gt;, body: (inout Foundation.AttributedString) throws(E) -&gt; Swift.Void) throws(E) where E : Swift.Error
+</code></pre>
+<p>看报错信息就知道了，虽然用了 Swift 5.10.1 的编译器，但 SPM 还是在链接 Xcode 26.1 的 SDK。Swift 5.10.1 的编译器看不懂 macOS 26.1 SDK 里的新语法（比如 <code>throws(E)</code> 这种类型化抛出），所以编译失败。</p>
+<h4 id="结论">结论</h4>
+<p>单独装 Swift 5.10.1 toolchain 也不行：</p>
+<ul>
+<li>SPM 虽然用了旧版本的 Swift 编译器</li>
+<li>但它还是链接到了 Xcode 26.1 的 SDK</li>
+<li>旧版本编译器处理不了新版本 SDK 的语法</li>
+<li>Swift toolchain 和 Xcode SDK 之间有版本兼容性问题</li>
+</ul>
+<h3 id="官方-issues-的发现">官方 Issues 的发现</h3>
+<p>调查的时候翻了下 swift-collections 的 Issues，找到了相关讨论：<a href="https://github.com/apple/swift-collections/issues/546">#546</a>。</p>
+<p>看起来社区里也有人遇到类似问题，但官方并没有在 <code>Package@swift-6.0.swift</code> 里默认加上 <code>.enableExperimentalFeature(&quot;Lifetimes&quot;)</code> 配置。</p>
+<h2 id="解决方案">解决方案</h2>
+<p>折腾了一圈，最后的结论就是：</p>
+<ol>
+<li><strong>只能用 <code>Package@swift-6.0.swift</code></strong>：因为工具链是 Swift 6.0+，SPM 会自动选这个文件</li>
+<li><strong>必须显式启用 Lifetimes 特性</strong>：得在项目配置里加上 <code>-enable-experimental-feature Lifetimes</code> 编译参数</li>
+</ol>
+<p>具体配置看你用什么构建工具：</p>
+<h3 id="使用-tuist">使用 Tuist</h3>
+<p>在 Tuist 的项目配置中，需要为依赖 swift-collections 的 target 添加编译参数：</p>
+<pre><code class="language-swift">.target(
+    name: &quot;YourTarget&quot;,
+    // ... 其他配置
+    settings: .settings(
+        base: [
+            &quot;OTHER_SWIFT_FLAGS&quot;: &quot;$(inherited) -enable-experimental-feature Lifetimes&quot;
+        ]
+    )
+)
+</code></pre>
+<h3 id="使用-xcode-项目">使用 Xcode 项目</h3>
+<p>在 Build Settings 中，找到 &quot;Other Swift Flags&quot;，添加：</p>
+<pre><code>-enable-experimental-feature Lifetimes
+</code></pre>
+<h2 id="意外收获tuist-的-swift-版本默认配置">意外收获：Tuist 的 Swift 版本默认配置</h2>
+<p>调查的时候还发现了个 Tuist 相关的事情。</p>
+<p>Tuist 默认用的是 <code>SWIFT_VERSION = 5.0</code>。想用 Swift 6.0 的话，也得显式指定。</p>
+<p>相关信息：</p>
+<ul>
+<li>PR：<a href="https://github.com/tuist/tuist/pull/4679">#4679</a></li>
+<li>代码定义：<a href="https://github.com/tuist/tuist/blob/701204857f795b685706cdd2cb2b9863c9567a05/cli/Sources/TuistGenerator/Settings/DefaultSettingsProvider.swift#L258">DefaultSettingsProvider.swift</a></li>
+<li>社区讨论：<a href="https://community.tuist.dev/t/cant-change-swift-version-for-targets-from-5-to-6/41/4">Can't change Swift version for targets (from 5 to 6)</a></li>
+</ul>
+<p>用 Tuist 并且想用 Swift 6.0 的话，得在配置里明确指定：</p>
+<pre><code class="language-swift">.target(
+    name: &quot;YourTarget&quot;,
+    // ... 其他配置
+    settings: .settings(
+        base: [
+            &quot;SWIFT_VERSION&quot;: &quot;6.0&quot;
+        ]
+    )
+)
+</code></pre>
+<h2 id="总结">总结</h2>
+<p>这次折腾下来，对 SPM 的工作机制算是有了更深的理解：</p>
+<ol>
+<li><strong>SPM 用的是工具链版本</strong>：SPM 根据 <code>swift --version</code> 的版本（也就是工具链版本）来选 Package.swift 文件，不是项目配置的 Swift 版本</li>
+<li><strong>Package@swift-X.X.swift 的优先级</strong>：工具链版本满足条件时，SPM 会优先用带版本后缀的 Package.swift 文件</li>
+<li><strong>实验性特性得显式启用</strong>：即使代码里用了实验性特性，Package.swift 里没启用的话，也得在项目级别显式启用</li>
+<li><strong>macOS 的工具链限制</strong>：macOS 上 Swift 工具链跟 Xcode 是绑定的，不像 Linux 那样能灵活切换</li>
+<li><strong>Toolchain 与 SDK 的兼容性</strong>：单独装了旧版本 Swift toolchain 也没用，它可能跟新版本 Xcode SDK 不兼容</li>
+</ol>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[计算机网络之七 - OSI 与 TCP/IP 分层模型]]></title>
+        <id>https://blog.rakuyo.dev/computer-network-osi-and-tcpip-models/</id>
+        <link href="https://blog.rakuyo.dev/computer-network-osi-and-tcpip-models/">
+        </link>
+        <updated>2025-09-04T09:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>本篇是计算机网络系列的第七篇。在前面的文章中，我们已经分别探讨了 IP、DNS、DHCP、TCP、HTTP 等具体的技术点。然而，这些技术并非孤立存在，它们是一个庞大而精密的系统中的有机组成部分。为了理解它们如何协同工作，我们需要一个宏观的框架来审视整个网络世界。这个框架，就是网络分层模型。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>本篇是计算机网络系列的第七篇。在前面的文章中，我们已经分别探讨了 IP、DNS、DHCP、TCP、HTTP 等具体的技术点。然而，这些技术并非孤立存在，它们是一个庞大而精密的系统中的有机组成部分。为了理解它们如何协同工作，我们需要一个宏观的框架来审视整个网络世界。这个框架，就是网络分层模型。</p>
+<!-- more -->
+<blockquote>
+<p>终于轮到分层模型了。其实在绝大多数讲计算机网络的文章中都会在一开始就介绍分层模型，但是我每次读到这种文章时，都会被其庞大的架构所阻拦 —— 它太完美，也太完整，我貌似没法一下子完全理解与接受。所以本系列文章并没有选择从分层模型入手，也有这方面的原因。</p>
+</blockquote>
+<p>本文将作为系列的一个阶段性总结，涉及到业界最核心的两个网络模型——OSI 七层模型和 TCP/IP 模型。我们不仅将理解它们是什么，更将探讨它们为何如此设计、关键协议的内部细节、设计哲学的差异，以及它们在现实世界中的局限性，帮助你将先前学到的知识“融会贯通”，构建一个系统性的网络知识体系。</p>
+<p>其余几篇的目录：</p>
+<ul>
+<li><a href="/computer-network-ip-and-port/">计算机网络之一 - IP 与端口</a></li>
+<li><a href="/computer-network-url-and-dns/">计算机网络之二 - URL 与 DNS</a></li>
+<li><a href="/computer-network-dhcp-and-intranet-penetration/">计算机网络之三 - DHCP 与内网穿透</a></li>
+<li><a href="/computer-network-virtual-nic-and-wireguard/">计算机网络之四 - 虚拟网卡与 WireGuard</a></li>
+<li><a href="/computer-network-http-and-https/">计算机网络之五 - HTTP 与 HTTPS</a></li>
+<li><a href="/computer-network-tcp-and-udp/">计算机网络之六 - 可靠的 TCP 与高效的 UDP</a></li>
+</ul>
+<hr>
+<h2 id="为什么需要网络分层">为什么需要网络分层</h2>
+<p>在深入模型细节之前，我们首先要回答一个根本问题：为什么网络通信需要“分层”？</p>
+<p>想象一个极其复杂的跨国寄送包裹的流程。如果我们将整个流程视为一个单一的、巨大的任务，那么任何一个环节的微小变动（例如更换了运送卡车），都可能需要重新设计整个系统，这无疑是低效且脆弱的。</p>
+<p>一个更合理的设计是将其模块化，即分层。每一层都只关心自己的任务，并为上一层提供服务，同时使用下一层提供的服务。这种设计带来了几个显而易见的好处：</p>
+<ul>
+<li><strong>简化问题</strong>：将一个复杂的大问题分解为多个简单的小问题。</li>
+<li><strong>标准化</strong>：每一层都可以建立统一的标准（如 RFC），只要接口不变，任何一方的内部实现变化都不会影响其他层。</li>
+<li><strong>解耦合</strong>：不同层的技术可以独立发展和演进。例如，我们可以将物理传输从电缆升级到光纤，而无需改变上层的网页浏览体验。</li>
+<li><strong>易于教学和排错</strong>：当网络出现问题时，我们可以逐层排查，极大地提高了故障定位的效率。</li>
+</ul>
+<p>当然，分层也并非没有代价，例如数据在各层之间传递会带来一定的性能开销。但在绝大多数场景下，其带来的结构性优势远大于性能上的微小损失。</p>
+<h2 id="osi-七层参考模型理论的丰碑">OSI 七层参考模型：理论的丰碑</h2>
+<p><strong>OSI 模型（Open Systems Interconnection model）</strong> 是由国际标准化组织（ISO）提出的一个概念模型，旨在为计算机网络提供一个标准的、通用的体系架构。它被誉为理论上最完整、最严谨的网络模型，虽然在商业上并未取得绝对的成功，但它对于理解网络通信的各个环节具有极高的指导价值。</p>
+<p>OSI 模型将网络通信精确地划分为了七个层次。下面我们自顶向下逐层解析其功能与核心协议。</p>
+<ul>
+<li>
+<p><strong>第七层：应用层 (Application Layer)</strong><br>
+这是用户最直接接触的一层，负责为应用程序提供网络服务。它定义了应用程序之间如何交换和解释数据。正如我们在 <a href="/computer-network-http-and-https/">《计算机网络之五 - HTTP 与 HTTPS》</a> 中探讨的 HTTP 协议，就工作在这一层。</p>
+</li>
+<li>
+<p><strong>第六层：表示层 (Presentation Layer)</strong><br>
+表示层主要处理数据的格式化、加密和压缩，确保一个系统的应用层所发送的数据能被另一个系统的应用层正确理解。它如同一个“翻译官”。</p>
+</li>
+<li>
+<p><strong>第五层：会话层 (Session Layer)</strong><br>
+这一层负责建立、管理和终止不同设备间的会话（Session）。</p>
+</li>
+<li>
+<p><strong>第四层：传输层 (Transport Layer)</strong><br>
+传输层为两个主机之间提供端到端（end-to-end）的数据传输服务。其协议数据单元（PDU）称为<strong>数据段 (Segment)</strong>。</p>
+</li>
+<li>
+<p><strong>第三层：网络层 (Network Layer)</strong><br>
+网络层负责在复杂的网络环境中，为数据包选择最佳的路由路径，实现逻辑地址（IP 地址）的寻址。其 PDU 称为<strong>数据包 (Packet)</strong>。</p>
+</li>
+<li>
+<p><strong>第二层：数据链路层 (Data Link Layer)</strong><br>
+数据链路层负责在<strong>相邻</strong>的两个网络节点之间传输数据帧。它处理物理地址（MAC 地址）的寻址。其 PDU 称为<strong>数据帧 (Frame)</strong>。</p>
+</li>
+<li>
+<p><strong>第一层：物理层 (Physical Layer)</strong><br>
+这是模型的最底层，负责传输原始的二进制比特流（0和1）。其 PDU 称为<strong>比特 (Bit)</strong>。</p>
+</li>
+</ul>
+<h2 id="tcpip-模型实践的胜利者">TCP/IP 模型：实践的胜利者</h2>
+<p>与 OSI 的理论性不同，<strong>TCP/IP 模型</strong>是伴随着互联网的实践发展而来的，是当前事实上的工业标准。在深入其结构之前，我们先回答一个问题：它为什么叫 “TCP/IP” 模型？</p>
+<h3 id="名字的由来">名字的由来</h3>
+<p>这个模型得名于其体系中的两个最核心、最基础的协议：</p>
+<ol>
+<li><strong>TCP (传输控制协议)</strong>：工作在传输层，提供可靠的、面向连接的数据传输服务。它如同网络通信的“质量总监”。</li>
+<li><strong>IP (网际协议)</strong>：工作在网络层，负责数据包的寻址和路由。它如同网络通信的“全球邮政系统”。</li>
+</ol>
+<p>TCP 和 IP 的重要性如此之高，以至于它们成为了整个协议族（Protocol Suite）的代名词。因此，描述这个协议族架构的模型，也就自然而然地被称为 “TCP/IP 模型”。</p>
+<h3 id="分层结构">分层结构</h3>
+<p>TCP/IP 模型更加简洁和实用，通常被描述为四层或五层模型。</p>
+<h4 id="tcpip-四层模型">TCP/IP 四层模型</h4>
+<p>这是最经典的 TCP/IP 模型划分，它将功能相近的几个层进行了合并，更侧重于描述协议簇的宏观结构：</p>
+<ul>
+<li><strong>应用层 (Application Layer)</strong>：对应 OSI 的应用层、表示层、会话层。包含了所有高层协议，如 HTTP, FTP, DNS 等。</li>
+<li><strong>传输层 (Transport Layer)</strong>：对应 OSI 的传输层。负责端到端的通信，核心是 TCP 和 UDP 协议。</li>
+<li><strong>网际层 (Internet Layer)</strong>：对应 OSI 的网络层。核心是 IP 协议，负责数据包的寻址和路由。</li>
+<li><strong>网络接口层 (Network Interface Layer)</strong>：对应 OSI 的数据链路层和物理层。负责处理与物理网络媒介（如以太网、Wi-Fi）相关的所有事务。</li>
+</ul>
+<h4 id="tcpip-五层模型">TCP/IP 五层模型</h4>
+<p>为了教学和理解上的便利，业界更常使用一个五层模型。它实际上是 OSI 和 TCP/IP 四层模型的一个折中，将四层模型中的“网络接口层”重新拆分为“数据链路层”和“物理层”，从而能更清晰地描述底层的工作原理。<strong>这个五层模型也是我们后续文章将主要参照的结构</strong>。</p>
+<ul>
+<li><strong>应用层 (Application Layer)</strong>：同四层模型，对应 OSI 的上三层。</li>
+<li><strong>传输层 (Transport Layer)</strong>：同四层模型，对应 OSI 的传输层。</li>
+<li><strong>网络层 (Network Layer)</strong>：同四层模型的网际层，对应 OSI 的网络层。</li>
+<li><strong>数据链路层 (Data Link Layer)</strong>：对应 OSI 的数据链路层。</li>
+<li><strong>物理层 (Physical Layer)</strong>：对应 OSI 的物理层。</li>
+</ul>
+<p>下面的表格清晰地展示了三者之间的映射关系：</p>
+<table style="width:100%; border-collapse: collapse; text-align: center;">
+  <thead style="background-color:#f2f2f2;">
+    <tr>
+      <th style="width:33%; border: 1px solid #ddd; padding: 8px;">OSI 七层参考模型</th>
+      <th style="width:33%; border: 1px solid #ddd; padding: 8px;">TCP/IP 五层模型</th>
+      <th style="width:33%; border: 1px solid #ddd; padding: 8px;">TCP/IP 四层模型</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="border: 1px solid #ddd; padding: 8px;"><b>应用层</b></td>
+      <td rowspan="3" style="border: 1px solid #ddd; padding: 8px; vertical-align: middle;"><b>应用层</b></td>
+      <td rowspan="3" style="border: 1px solid #ddd; padding: 8px; vertical-align: middle;"><b>应用层</b></td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #ddd; padding: 8px;"><b>表示层</b></td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #ddd; padding: 8px;"><b>会话层</b></td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #ddd; padding: 8px;"><b>传输层</b></td>
+      <td style="border: 1px solid #ddd; padding: 8px;"><b>传输层</b></td>
+      <td style="border: 1px solid #ddd; padding: 8px;"><b>传输层</b></td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #ddd; padding: 8px;"><b>网络层</b></td>
+      <td style="border: 1px solid #ddd; padding: 8px;"><b>网络层</b></td>
+      <td style="border: 1px solid #ddd; padding: 8px;"><b>网际层</b></td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #ddd; padding: 8px;"><b>数据链路层</b></td>
+      <td style="border: 1px solid #ddd; padding: 8px;"><b>数据链路层</b></td>
+      <td rowspan="2" style="border: 1px solid #ddd; padding: 8px; vertical-align: middle;"><b>网络接口层</b></td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #ddd; padding: 8px;"><b>物理层</b></td>
+      <td style="border: 1px solid #ddd; padding: 8px;"><b>物理层</b></td>
+    </tr>
+  </tbody>
+</table>
+<h2 id="核心协议深度剖析">核心协议深度剖析</h2>
+<p>理解了分层，我们还需要深入协议的内部，看看它们是如何通过精巧的设计来完成各自使命的。</p>
+<h3 id="网络层核心ipv4-头部结构">网络层核心：IPv4 头部结构</h3>
+<p>我们在 <a href="/computer-network-ip-and-port/">《计算机网络之一 - IP 与端口》</a> 中已经初步认识了 IP 协议，它是整个网络层的核心。为了更深入地理解数据包是如何被路由的，我们有必要详细剖析其头部结构：</p>
+<pre><code>    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |Version|  IHL  |Type of Service|          Total Length         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |         Identification        |Flags|      Fragment Offset    |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |  Time to Live |    Protocol   |         Header Checksum       |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                       Source Address                          |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                    Destination Address                        |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                    Options                    |    Padding    |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</code></pre>
+<ul>
+<li><strong>版本 (Version)</strong>：4位，指明协议版本，对 IPv4 来说就是 4。</li>
+<li><strong>首部长度 (IHL)</strong>：4位，表示 IP 头部有多少个 32 位字（4字节）。由于该字段最大值为 15，所以 IP 头部最长为 <code>15 * 4 = 60</code> 字节。</li>
+<li><strong>服务类型 (Type of Service)</strong>：8位，用于指定数据包的服务质量（QoS），例如低延迟、高吞吐量或高可靠性。现在通常被定义为 DSCP（差分服务代码点）。</li>
+<li><strong>总长度 (Total Length)</strong>：16位，指明整个 IP 数据包（头部+数据）的总长度，单位是字节。最大长度为 65535 字节。</li>
+<li><strong>标识 (Identification)</strong>、<strong>标志 (Flags)</strong> 和 <strong>片偏移 (Fragment Offset)</strong>：这三个字段共同用于 IP 分片。当一个数据包的大小超过了链路的最大传输单元（MTU）时，它必须被分割成多个小的数据包（分片）。
+<ul>
+<li><code>标识</code>：16位，唯一标识一个原始数据包。同一原始数据包的所有分片都具有相同的标识号。</li>
+<li><code>标志</code>：3位。第一位保留；第二位是 <code>DF</code> (Don't Fragment)，如果置 1，表示禁止分片；第三位是 <code>MF</code> (More Fragments)，如果置 1，表示后面还有更多分片，如果是最后一个分片则为 0。</li>
+<li><code>片偏移</code>：13位，指明当前分片的数据部分在原始数据包中的位置。</li>
+</ul>
+</li>
+<li><strong>生存时间 (Time to Live, TTL)</strong>：8位，数据包在网络中的“寿命”。每经过一个路由器，TTL 值减 1。当 TTL 变为 0 时，数据包被丢弃。这有效防止了数据包在网络中因路由错误而无限循环。</li>
+<li><strong>协议 (Protocol)</strong>：8位，指明该数据包承载的上层协议是什么。例如，<code>6</code> 代表 TCP，<code>17</code> 代表 UDP。接收方据此决定将数据交给哪个上层模块处理。</li>
+<li><strong>首部校验和 (Header Checksum)</strong>：16位，用于检验 IP 头部的完整性，不包含数据部分。由于 TTL 在每一跳都会改变，所以路由器需要重新计算校验和。</li>
+<li><strong>源地址/目标地址 (Source/Destination Address)</strong>：各 32 位，标识了数据包的发送方和接收方。</li>
+<li><strong>选项 (Options)</strong> 和 <strong>填充 (Padding)</strong>：选项是可变长的，用于一些特殊处理，如记录路由。填充用于确保整个 IP 头部是 32 位的整数倍。</li>
+</ul>
+<h3 id="传输层核心tcp-与-udp">传输层核心：TCP 与 UDP</h3>
+<p>传输层负责端到端的通信，其两大核心协议 TCP 和 UDP，我们已在之前的文章中做了详细的探讨。</p>
+<p>TCP 通过序列号、确认号、标志位等头部关键字段，以及<strong>三次握手</strong>和<strong>四次挥手</strong>等严谨的连接管理机制，提供了可靠的、面向连接的服务。关于这些内部工作细节，强烈建议您回顾 <strong><a href="/computer-network-tcp-and-udp/">《计算机网络之六 - 可靠的 TCP 与高效的 UDP》</a></strong>，本文不再赘述。</p>
+<h3 id="网络层的路由协议">网络层的路由协议</h3>
+<p>IP 协议只负责数据包的投递，但如何确定投递路径，则是由<strong>路由协议</strong>决定的。路由协议在路由器之间运行，共同构建和维护路由表。它们主要分为两大流派：</p>
+<ul>
+<li><strong>距离矢量协议 (Distance-Vector)</strong>：如 <code>RIP</code>。每个路由器只知道与它直接相邻的邻居，并与它们交换整个路由表。它关心的是“到某个目的地有多远（距离）”和“应该从哪个方向（矢量）走”。这种方式简单，但容易产生路由环路且收敛慢。</li>
+<li><strong>链路状态协议 (Link-State)</strong>：如 <code>OSPF</code>。每个路由器都拥有整个网络的拓扑图。当网络状态变化时，路由器会向所有其他路由器广播这个变化。它关心的是“整个网络的连接状态”。这种方式更复杂，但收敛快且不易产生环路。</li>
+</ul>
+<h2 id="osi-与-tcpip一场理论与实践的赛跑">OSI 与 TCP/IP：一场理论与实践的赛跑</h2>
+<p>一个经典问题是：为什么理论上更完美的 OSI 模型，在实践中却输给了更“粗糙”的 TCP/IP 模型？</p>
+<ol>
+<li>
+<p><strong>时机决定一切</strong>：TCP/IP 诞生于 20 世纪 70 年代，与美国国防部的 ARPANET 项目紧密结合，经过了长期的实践检验。当 OSI 模型在 80 年代后期完成其标准化工作时，TCP/IP 早已在学术界和军事领域广泛部署，形成了强大的事实标准。</p>
+</li>
+<li>
+<p><strong>哲学差异</strong>：OSI 遵循“先制定标准，再进行实现”的学院派哲学，力求大而全，导致其过于复杂。而 TCP/IP 则源于“先有可用实现，再提炼标准”的工程师哲学，更注重解决实际问题，因此更简洁、高效。</p>
+</li>
+<li>
+<p><strong>实现复杂度</strong>：OSI 模型的复杂性（尤其是会话层和表示层）使得其实现难度和运行开销都很大。相比之下，TCP/IP 将这些功能交由应用层自行处理，大大降低了核心网络的复杂度。</p>
+</li>
+</ol>
+<p>最终，这场赛跑以实践派的胜利告终。OSI 虽然输掉了市场，但它清晰的层次划分和严谨的定义，使其成为了网络教育和理论分析不可或缺的“教科书”。</p>
+<h2 id="应用模型从理论到实践">应用模型：从理论到实践</h2>
+<p>理解了分层模型这一“地图”，我们便拥有了分析和诊断网络问题的框架。接下来，我们将通过两个具体的案例，将这些抽象的层次和协议应用到实际场景中。第一个案例将展示一次标准网络请求的完整流程，第二个案例则将剖析一个常见的开发陷阱，以展示分层模型在排错中的指导价值。</p>
+<h3 id="案例一一次完整的-http-请求">案例一：一次完整的 HTTP 请求</h3>
+<p>这个案例将追踪一次典型的、访问外部网站的 HTTP 请求，以展示数据包如何穿越互联网。</p>
+<p><strong>场景设定</strong>：</p>
+<ul>
+<li><strong>你的电脑</strong>：IP <code>192.168.1.100</code> (此地址通常通过 DHCP 服务动态获取，相关细节请回顾 <a href="/computer-network-dhcp-and-intranet-penetration/">《计算机网络之三 - DHCP 与内网穿透》</a>), MAC <code>AA:AA:AA:AA:AA:AA</code></li>
+<li><strong>家庭路由器</strong>：内网 IP <code>192.168.1.1</code>, MAC <code>BB:BB:BB:BB:BB:BB</code>；公网 IP <code>123.123.123.123</code></li>
+<li><strong>目标网站服务器</strong>：IP <code>216.58.200.46</code>, MAC <code>CC:CC:CC:CC:CC:CC</code></li>
+</ul>
+<p><strong>旅程开始</strong>：</p>
+<ol start="0">
+<li>
+<p><strong>DNS 查询</strong>：在一切开始之前，浏览器需要知道 <code>example.com</code> 的 IP 地址。它会向 DNS 服务器发起查询，将域名解析为 IP 地址 <code>216.58.200.46</code>。关于 DNS 的详细工作原理，请参阅 <a href="/computer-network-url-and-dns/">《计算机网络之二 - URL 与 DNS》</a>。</p>
+</li>
+<li>
+<p><strong>应用层</strong>：你在浏览器输入 <code>http://example.com</code>。浏览器构建一个 HTTP GET 请求报文。</p>
+</li>
+<li>
+<p><strong>传输层</strong>：操作系统为该请求分配一个临时的<strong>源端口</strong>（如 <code>54321</code>），目标端口为 HTTP 的标准端口 <code>80</code>。然后，它将 HTTP 报文封装进一个 TCP 数据段，并写入 TCP 头部（包含源/目标端口等信息）。</p>
+</li>
+<li>
+<p><strong>网络层</strong>：操作系统继续封装，添加 IP 头部，形成 IP 数据包。头部信息包括<strong>源 IP</strong> (<code>192.168.1.100</code>) 和<strong>目标 IP</strong> (<code>216.58.200.46</code>)。</p>
+</li>
+<li>
+<p><strong>数据链路层 (第一跳：电脑 -&gt; 路由器)</strong>：</p>
+<ul>
+<li>操作系统查询路由表，发现目标 IP <code>216.58.200.46</code> 不在本地网络，需发往<strong>默认网关</strong> (<code>192.168.1.1</code>)。</li>
+<li>操作系统使用 <a href="/computer-network-dhcp-and-intranet-penetration/">ARP 协议</a>查询 <code>192.168.1.1</code> 对应的 MAC 地址，得到路由器的 MAC <code>BB:BB:BB:BB:BB:BB</code>。</li>
+<li>最终，它构建一个以太网帧，头部包含<strong>源 MAC</strong> (<code>AA:AA...</code>) 和<strong>目标 MAC</strong> (<code>BB:BB...</code>)，并将 IP 数据包作为其“货物”。</li>
+</ul>
+</li>
+<li>
+<p><strong>物理层</strong>：电脑网卡将该数据帧转换为电信号，通过网线发送出去。</p>
+</li>
+<li>
+<p><strong>在路由器上 (关键中转)</strong>：</p>
+<ul>
+<li>路由器的数据链路层接收到数据帧，检查目标 MAC 是自己，于是“拆开”帧，取出 IP 数据包，并将其向上传递到网络层。</li>
+<li>路由器的网络层执行 <strong>NAT (网络地址转换)</strong>。它将 IP 包的<strong>源 IP</strong> 从 <code>192.168.1.100</code> 修改为自己的<strong>公网 IP</strong> <code>123.123.123.123</code>，并记录下这个映射关系，以便响应回来时能正确转发。</li>
+<li>路由器准备将修改后的 IP 包发往互联网。它查询自己的路由表，找到下一跳的地址，并构建一个新的数据链路层帧（此时的目标 MAC 将是下一个路由器的 MAC），然后发送出去。</li>
+</ul>
+</li>
+<li>
+<p><strong>在互联网中</strong>：数据包经过多个路由器的多次转发，每一跳都重复着“解封装-查路由-再封装”的过程，但 IP 头部的源/目标 IP 始终不变（除了 NAT 网关）。</p>
+</li>
+<li>
+<p><strong>抵达服务器</strong>：服务器接收到数据，自底向上进行解封装，最终将 HTTP 请求报文送达 Web 服务器应用。服务器处理请求后，再以同样的方式将响应数据封装并发回。</p>
+</li>
+</ol>
+<h3 id="案例二从-localhost-到局域网的连接问题">案例二：从 <code>localhost</code> 到局域网的连接问题</h3>
+<p>本博客基于 <a href="https://github.com/getgridea/gridea">Gridea</a> 实现，该客户端提供了一个便捷的“预览”功能，点击后会在浏览器中打开 <code>http://localhost:4000</code> 这样的地址，用于实时查看文章效果。这个过程在本地电脑上运行良好，但当作者希望使用其他设备（如手机）预览地址文章时就显得力不从心了，因为这个地址在其他设备上是 “打不开” 的。</p>
+<p><strong>问题的演进</strong></p>
+<ol>
+<li>
+<p><strong>初次尝试</strong>：一个直接的想法是在手机浏览器中输入 <code>http://localhost:4000</code>。这个尝试必然会失败。其原因是 <code>localhost</code> 是一个特殊的环回地址，它指向设备自身。手机访问 <code>localhost</code>，访问的是手机自己，而非提供服务的电脑。</p>
+</li>
+<li>
+<p><strong>二次尝试</strong>：在理解了 <code>localhost</code> 的局限性后，基于咱们已经学习过的计算机网络知识，下一步自然是尝试使用电脑的局域网 IP 地址。在 macOS 上我们可以通过 “设置 -&gt; 网络” 查到电脑的 IP，假设为 <code>192.168.1.100</code>，于是在手机上访问 <code>http://192.168.1.100:4000</code>。然而，这种尝试也会失败，浏览器会显示连接超时或无法访问。</p>
+</li>
+</ol>
+<p>这就引出了问题的核心：在网络层面上，数据包已经能够从手机路由到目标主机，为什么连接依然无法建立？这表明问题很可能出在更高层，即运行在主机上的服务程序本身。</p>
+<ol>
+<li>
+<p><strong>验证网络层 (Layer 3) 及以下是否通畅</strong><br>
+在怀疑上层应用问题之前，我们必须百分之百确认基础网络是连通的。<code>ping</code> 命令是验证网络层连通性的最佳工具，它使用 ICMP 协议工作。我们可以在 iPhone 上安装任意一款网络调试工具（比如 <a href="https://apps.apple.com/cn/app/inettools-ping-dns-portscan/id561659975">iNetTools</a>）然后执行：</p>
+<pre><code class="language-bash">ping 192.168.1.100
+</code></pre>
+<p>如果 <code>ping</code> 成功收到回复，我们将获得一条至关重要的信息：从手机到电脑的 <strong>网络层及以下的物理层、数据链路层是完全通畅的</strong>。数据包确实已经成功抵达了目标主机的网络协议栈。这就允许我们排除掉所有底层网络问题（如 Wi-Fi 隔离、IP 冲突、子网错误等），将注意力集中到更高层次。</p>
+</li>
+<li>
+<p><strong>聚焦传输层 (Layer 4) 的可能性</strong><br>
+既然网络路径没有问题，数据包在传输层“消失”的可能性就大大增加。在这一层，主要有两个实体在工作：<strong>操作系统内核（防火墙）</strong> 和 <strong>应用程序本身</strong>。</p>
+<ul>
+<li><strong>可能性 A：被防火墙拦截</strong>。电脑的防火墙可能设定了规则，允许 ICMP 包（<code>ping</code>）通过，但阻止了针对 <code>4000</code> 端口的 TCP 连接请求。这是一个非常合理的怀疑点。</li>
+<li><strong>可能性 B：端口上没有服务在监听</strong>。应用程序在启动时，需要向操作系统内核申请监听一个或多个具体的“地址-端口”对。如果程序只申请监听 <code>127.0.0.1:4000</code>，那么当一个目标地址是 <code>192.168.1.100:4000</code> 的数据包到达时，内核会发现没有任何程序在等待这个数据包，于是只能将其丢弃。</li>
+</ul>
+</li>
+<li>
+<p><strong>使用工具做出最终裁定</strong><br>
+现在，我们需要一个工具来区分到底是可能性 A 还是 B。<code>lsof</code> 命令的作用正在于此，它能直接查询操作系统内核，告诉我们“哪个进程正在监听哪个地址的哪个端口”，从而绕过所有猜测。</p>
+<pre><code class="language-bash">lsof -i :4000
+</code></pre>
+<p>其输出结果：</p>
+<pre><code>COMMAND     PID   USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+Gridea    13682 rakuyo   50u  IPv4 0x7e41bc65e0e51533      0t0  TCP localhost:terabase (LISTEN)
+</code></pre>
+<p>这个结果明确地告诉我们，<code>Gridea</code> 进程监听的地址是 <code>localhost</code>。这直接证实了<strong>可能性 B</strong>。数据包并非被防火墙拦截，而是在到达内核后，因找不到对应的监听程序而被丢弃。至此，问题根源被精准定位。</p>
+</li>
+</ol>
+<p><strong>解决方案</strong></p>
+<p>诊断出根源后，解决方案便是在服务层面进行修正。但是很可惜的是 Gridea 并没有提供修改的选项。否则我们可以将默认的 <code>localhost</code> 或 <code>127.0.0.1</code> 修改为 <code>0.0.0.0</code>，实现监听地址的修改。</p>
+<blockquote>
+<p><code>0.0.0.0</code> 是一个特殊的地址，它指示操作系统监听本机所有可用的网络接口，包括环回地址和所有局域网地址。</p>
+</blockquote>
+<p>这个排查过程清晰地展示了分层模型在解决实际问题时的指导作用。若不理解网络层的地址和监听机制，开发者可能会陷入反复检查防火墙、网络设置的无效循环中。而通过运用正确的理论知识和诊断工具，则可以快速、精准地定位问题根源。</p>
+<h2 id="分层视角下的网络安全">分层视角下的网络安全</h2>
+<p>分层模型也为我们理解和应对网络安全问题提供了一个清晰的框架。攻击可能发生在任何一层：</p>
+<ul>
+<li><strong>数据链路层安全</strong>：攻击者在局域网内，可以通过 <strong>ARP 欺骗</strong>来冒充网关，窃听或篡改流量；或者通过 <strong>MAC 泛洪攻击</strong>耗尽交换机的 MAC 地址表，使其变为“集线器”，从而嗅探整个网络的流量。</li>
+<li><strong>网络层安全</strong>：攻击者可以伪造源 IP 地址（<strong>IP 欺骗</strong>）来隐藏身份或嫁祸他人。经典的 <strong>DDoS 攻击</strong>（如 SYN Flood）也利用了 IP 层的机制，发送大量伪造源 IP 的连接请求，耗尽服务器资源。</li>
+<li><strong>传输层安全</strong>：<strong>端口扫描</strong>是黑客探测目标主机开放服务的主要手段，它直接作用于传输层的端口。</li>
+<li><strong>应用层安全</strong>：这是最广为人知的攻击面，包括 <strong>SQL 注入</strong>、<strong>跨站脚本（XSS）</strong>、<strong>CSRF</strong> 等，它们都利用了应用程序自身的逻辑漏洞。</li>
+</ul>
+<p>为了应对这些威胁，安全协议也作用于不同层面。例如，<strong>IPsec</strong> 工作在网络层，提供端到端的加密和认证。而我们熟知的 <strong>TLS/SSL</strong> 则比较特殊，它逻辑上位于应用层和传输层之间，为上层的应用数据提供加密、完整性保护和身份认证。此外，另一种强大的安全工具是 VPN（虚拟专用网络）。技术如 <strong>WireGuard</strong> 通过创建一张虚拟网卡，并在网络层对所有数据进行加密封装，形成一个安全的“隧道”。所有进出你设备的流量都通过这个隧道传输，从而有效地保护了通信的私密性和完整性，抵御了中间人攻击。更深入的探讨可以参见 <a href="/computer-network-virtual-nic-and-wireguard/">《计算机网络之四 - 虚拟网卡与 WireGuard》</a>。</p>
+<h2 id="模型的局限性与争议">模型的局限性与争议</h2>
+<p>分层模型是完美的吗？并非如此。在学术和工程实践中，它们也存在一些争议：</p>
+<ul>
+<li><strong>归属争议</strong>：有些重要协议难以被完美地归入某一层。例如，<strong>ARP</strong> 协议通过 IP 地址查询 MAC 地址，它似乎横跨了网络层和数据链路层。<strong>ICMP</strong> 协议（<code>ping</code> 命令所使用的协议）被 IP 协议承载，但它本身是为网络层提供控制和错误信息的，其位置也存在争议。</li>
+<li><strong>效率问题</strong>：严格的分层会带来性能开销。在一些高性能计算场景中，为了追求极致的低延迟，可能会出现“跨层”操作，绕过某些协议栈以加速数据处理。</li>
+<li><strong>模型与现实的脱节</strong>：OSI 模型的会话层和表示层在现实中很少被独立实现，它们的功能往往被应用层自身所包含，这也是 TCP/IP 模型将其合并的原因。</li>
+</ul>
+<p>理解这些局限性，能帮助我们更辩证地看待这些模型，认识到它们是用于理解复杂系统的强大工具，而非一成不变的教条。</p>
+<h2 id="总结">总结</h2>
+<p>通过本文的深度剖析，我们不仅了解了 OSI 和 TCP/IP 模型是什么，更探讨了它们的设计哲学、历史演进、协议细节、实践流程乃至理论局限。</p>
+<p>网络分层模型，本质上是一种“分而治之”的工程智慧。它将一个不可能完成的复杂任务，拆解为一系列定义清晰、可以管理的子任务。理解这些分层模型，就像是拿到了一张高精度的网络世界地图。当我们再去审视之前文章中讨论的 HTTP、TCP、IP、DHCP 等协议时，便能清晰地知道它们在整个通信流程中所处的位置和扮演的角色。有了这个“世界观”，我们后续探索更复杂的网络技术时，才能做到胸有成竹，游刃有余。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Vibe Coding 的两面：一周体验的甜蜜与挣扎]]></title>
+        <id>https://blog.rakuyo.dev/vibe-coding-sweet-struggle/</id>
+        <link href="https://blog.rakuyo.dev/vibe-coding-sweet-struggle/">
+        </link>
+        <updated>2025-09-02T12:21:27.000Z</updated>
+        <summary type="html"><![CDATA[<p>Vibe Coding，也就是 “氛围编程” 这个概念已经火了很长一段时间了，可惜主包之前碍于种种原因一直没能找到机会亲自试一下。不过就在上周正好要做一个新的系统，给了我尝试 Vibe Coding 的机会。现在系统已经搭建完毕，本文就用来记录这一周多一点的 “氛围编程” 体验吧。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>Vibe Coding，也就是 “氛围编程” 这个概念已经火了很长一段时间了，可惜主包之前碍于种种原因一直没能找到机会亲自试一下。不过就在上周正好要做一个新的系统，给了我尝试 Vibe Coding 的机会。现在系统已经搭建完毕，本文就用来记录这一周多一点的 “氛围编程” 体验吧。</p>
+<!-- more -->
+<h2 id="什么是氛围编程-vibe-coding">什么是氛围编程 (vibe coding)？</h2>
+<p>引用 Google Cloud 上<a href="https://cloud.google.com/discover/what-is-vibe-coding?hl=zh-CN">对 Vibe Coding 的介绍</a>：</p>
+<blockquote>
+<p>氛围编程 (vibe coding) 是一种新兴的软件开发实践，它使用人工智能 (AI) 根据自然语言提示生成功能代码，从而加快开发速度，并让应用构建变得更加容易，对于那些编程经验有限的用户尤其如此。</p>
+<p>该术语由 AI 研究人员 Andrej Karpathy 于 2025 年初创造，用于描述一种工作流，其中开发者的主要角色从逐行编写代码转变为通过对话风格更浓的过程指导 AI 助理生成、完善和调试应用。这样，您就可以腾出时间和精力思考大方向或应用的主要目标，而 AI 则负责编写实际代码。</p>
+</blockquote>
+<p>在实践中，氛围编程通常有两种主要的应用方式：</p>
+<ul>
+<li>
+<p><strong>“纯”氛围编程</strong>：在这种最探索性的形式中，用户可能会完全信任 AI 的输出能够按预期工作。正如 <a href="https://x.com/karpathy/status/1886192184808149383?">Karpathy 所描述的那样</a>，这就好比是“忘记了代码的存在”，因此它最适合用于快速构思，或者他所说的“周末即兴项目”，在这些场景中，速度是首要目标。</p>
+</li>
+<li>
+<p><strong>Responsible AI 辅助开发</strong>：这是该概念的实际专业应用。在这种模式下，AI 工具充当功能强大的协作者或“编程搭档”。用户会指导 AI 操作，然后审查、测试并理解 AI 生成的代码，因此对最终产品拥有完全的所有权。</p>
+</li>
+</ul>
+<p>在我这一周多的工作时间里，我才用的算是介于这两种模式中间的第三种模式：</p>
+<ul>
+<li>向 AI 描述任务，指导 AI 操作，设定架构（哪些代码该放在哪个文件夹下），同时框定限制（比如些许代码格式）。</li>
+<li>一些并不全面的审查，然后尽量不去理解 AI 所编写的代码的具体细节。</li>
+</ul>
+<p>打个比方就是：</p>
+<blockquote>
+<p>我要求 AI 收拾书架，第一层放编程类书籍，第二层放小说，第三层... 并且按照从高到低排序。<br>
+最终 AI 排好了，我看了一眼确实是从高到低排序，也是按照编程类、小说... 的顺序放置。<br>
+但是我没有去具体的了解<strong>每层都有哪些书</strong>。</p>
+</blockquote>
+<h2 id="我做了个什么系统">我做了个什么系统？</h2>
+<p>我这个的任务是要开发一个小系统，它的作用是尽可能地将 “GitLab MR Review” 这件事自动化起来，并且接入 AI 与<a href="https://www.merico.cn/">思码逸</a>辅助 Review。这套系统的运行流程基本如下图所示：</p>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyo.dev/post-images/1756888415451.svg" alt="" loading="lazy"></figure>
+<!--
+graph TD
+    subgraph "3 开发审核完成与通知"
+        Z[开发移除自己名字的标签] &#45; AA{Webhook 监听标签变更};
+        AA &#45; BB{只剩下 '开发审核中' 标签?};
+        BB -- "是" &#45; CC[设置标签: '审核通过'];
+        CC &#45; DD[通知作者: '审核完成'];
+    end
+
+    subgraph "2 开发审核流程"
+        V[作者评论: 艾特developer1 艾特developer2 review] &#45; W{Webhook 监听评论};
+        W &#45; X[为 MR 添加标签: 'developer1', 'developer2'];
+        X &#45; Y[通知各个 developer];
+    end
+
+    subgraph "1 自动化审核流程"
+        A[作者创建 MR] &#45; B[作者评论: 艾特Gitlab-MR-Robot-ZZKF review];
+        B &#45; C{Webhook 监听评论};
+        C &#45; D[为 MR 设置标签: '自动化审核中'];
+        D &#45; E[触发 CI 流水线];
+
+        subgraph "审查执行"
+            E &#45; F{执行 AI/思码逸 Review};
+
+            %% AI 处理流程 (现在直接在主子图内)
+            F -- "执行 AI" &#45; L[AI 服务调用];
+            L &#45; M[AI API 异步回调];
+            M &#45; N[AI 回调处理器];
+
+            %% 思码逸处理流程 (现在直接在主子图内)
+            F -- "执行思码逸" &#45; G1[思码逸服务调用];
+            G1 &#45; G2[思码逸 API 同步回调];
+        end
+
+        subgraph "处理审核结果"
+            G2 &#45; Common_Post_Comment[在 MR 中发送评论];
+            N &#45; Common_Post_Comment;
+            Common_Post_Comment &#45; Common_Review_Failed{审核失败?};
+            Common_Review_Failed -- "是" &#45; Common_Add_Failed_Label[设置标签: '自动化审核失败'];
+            Common_Add_Failed_Label &#45; Common_Notify_Failed[通知作者: '自动化审核失败'];
+            Common_Review_Failed -- "否" &#45; T[设置标签: '开发审核中'];
+            T &#45; U[通知作者: '自动化审核成功'];
+        end
+    end
+
+    style A fill:#DCDCFF,stroke:#333,stroke-width:2px
+    style B fill:#DCDCFF,stroke:#333,stroke-width:2px
+    style V fill:#DCDCFF,stroke:#333,stroke-width:2px
+    style Z fill:#DCDCFF,stroke:#333,stroke-width:2px
+
+    style D  fill:#428BCA,stroke:#333
+    style X  fill:#F0AD4E,stroke:#333
+    style T  fill:#F0AD4E,stroke:#333
+    style CC fill:#5CB85C,stroke:#333
+    style Common_Add_Failed_Label fill:#D9534F,stroke:#333
+-->
+<h3 id="任务拆解">任务拆解</h3>
+<p>从流程图上来看，这个系统需要实现以下功能：</p>
+<ul>
+<li>它需要部署到服务器上，这里我选择的是 Docker。</li>
+<li>有一系列围绕 GitLab 的功能。
+<ul>
+<li>监听 MR 中的一些行为事件。
+<ul>
+<li>评论的发布。</li>
+<li>标签的修改。</li>
+</ul>
+</li>
+<li>在 MR 中发布评论。</li>
+<li>为 MR 评论评论添加 emoji（未在流程图中体现）。</li>
+<li>为 MR 设置标签。</li>
+<li>通过 api 触发 GitLab-CI 流水线。</li>
+</ul>
+</li>
+<li>封装多个 Review 辅助系统。
+<ul>
+<li>AI api。</li>
+<li>思码逸 api。</li>
+</ul>
+</li>
+<li>第三方通知系统。
+<ul>
+<li>这里我接入的是其他部门提供的企业微信机器人发送消息接口。</li>
+</ul>
+</li>
+</ul>
+<h3 id="技术栈">技术栈</h3>
+<p>熟悉我的都知道，我之前有 python + Flask 开发后端系统的经验，所以本次这个小型系统主包也采用了相同的系统架构设计。</p>
+<p>其余三方库方面主要用到了以下这些：</p>
+<ul>
+<li>flask-redis</li>
+<li>python-gitlab</li>
+<li>python-dotenv</li>
+<li>dynaconf</li>
+<li>dataclasses-json</li>
+</ul>
+<p>其中最后两个是 AI 推荐使用的，主包之前并未接触过。</p>
+<p>AI 客户端方面我主要的以下这些：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">客户端</th>
+<th style="text-align:center">模型</th>
+<th style="text-align:center">是否免费</th>
+<th style="text-align:center">使用占比</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">Gemini-CLI</td>
+<td style="text-align:center">gemini-2.5-pro</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">75%</td>
+</tr>
+<tr>
+<td style="text-align:center">Gemini-CLI</td>
+<td style="text-align:center">gemini-2.5-flash</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">10%</td>
+</tr>
+<tr>
+<td style="text-align:center">Qwen-Code CLI</td>
+<td style="text-align:center">Qwen/Qwen3-Coder-480B-A35B-Instruct</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">15%</td>
+</tr>
+</tbody>
+</table>
+<p>也就是说交给 AI 的工作中，75% 是使用 “<strong>免费版的 Gemini-CLI + gemini-2.5-pro 模型</strong>” 完成的。</p>
+<blockquote>
+<p>之所以用免费的 AI，主要原因还是穷。非要说得好听一点就是想看看 AI 的下限在哪里，又或者大部分人应该用的都是免费的 AI。</p>
+</blockquote>
+<p>另外需要说明的是，在这次工作我没有使用任何的 mcp，也没有使用任何的 AI 配置文件，比如 <code>GEMINI.md</code> 等。</p>
+<h2 id="最终效果怎么样">最终效果怎么样？</h2>
+<p>抛去项目初始框架的搭建以及部署，几乎所有业务逻辑我都是提供任务描述之后 让 AI 给我实现的。那么结论也就像标题说的这样，对于我这样一个初次尝试 Vibe Coding 的小白而言，可以说是 “<strong>又爱又恨</strong>”，感觉也是和互联网上大部分人的感受一样。</p>
+<h3 id="爱在哪里">爱在哪里？</h3>
+<p>AI 的强大无需多言，可以说 80% 的任务它都完成的很好：</p>
+<ul>
+<li>我没有看过 <code>python-gitlab</code> 的文档，我只需要告诉 AI 要使用这个框架，它几乎就可以使用正确的 API，而就在去年，网页版免费的 ChatGPT 还做不到这一点。</li>
+<li>只需要告诉 AI “我希望实现配置热更新，这样在我修改配置时就不需要再重启 Docker 服务了”。它就给我推荐了 <code>dynaconf</code> 这个框架，代替搜索引擎的同时还帮我实现了需求。</li>
+</ul>
+<p>这个小系统虽然简单，但是它也有一个需要用到算法的地方：在使用 AI 辅助 Review 时，如果代码 diff 过长会导致超出模型的上下文，此时需要分片多次提问。在这点上 AI 处理的也很好，让我真正感受到了什么是 “面向结果而不面向实现细节”。</p>
+<h3 id="恨又在哪里">恨又在哪里？</h3>
+<ul>
+<li>调用 <code>python-gitlab</code> 中的方法时，有过好几次使用了错误的返回值的情况。需要我手动查看源码后再告诉 AI 正确的返回类型是什么。</li>
+<li>AI 稳定性可以说是让人捉摸不透：它能很好的推荐你通过 <code>dataclasses-json</code> 解决 “接口参数驼峰式命名” 与 “python 属性下划线式命名” 的矛盾，但是它想不到将 Model 转 JSON 时使用的方法改为 <code>dataclasses-json</code> 专用的方法。</li>
+<li>对于 <code>&quot;\n&quot;</code> 换行符会犯一些难以理解的错误，特别是处理多行字符串时，会直接使用换行来代替字符串的 <code>&quot;\n&quot;</code>。</li>
+<li>...</li>
+</ul>
+<p>如果说上面的还是一些 “小细节”，那么接下来的就是针对 Qwen 的吐槽了：</p>
+<p>Qwen-Code CLI 虽说是基于开源的 Gemini-CLI 进行开发，但是这两者的差距还是很大。在开发思码逸 API 封装模块时，我直接让 AI 去读完整的 swagger json 文档，这份文档非常大，足足有 <strong>3万 8 千行</strong> 之多。我一开始让 Qwen-Code CLI 去读取，直接占用了将近 20% 的上下文，而且读取时间非常长（Qwen 的模型是分批多次读取）。后来我试了以下用 Gemini-CLI 去读取，结果发现占用的占下文非常小，而且读取速度非常快，同时也能根据文档准确回答出我的问题，完成后续的任务开发。</p>
+<p>并且在我让 Qwen 根据这份 swagger 文档所描述的，思码逸 api 所提供的能力，来回答我能否实现某些需求时，它也给出了错误的答案：实际上是不能满足我的需求的。叠加当时我因为缺少 api-key 无法直接验证 AI 编写的逻辑，最终导致了将近两天的工作<strong>完全白做</strong>。</p>
+<p>Gemini 虽说比 Qwen 要强，但是在 “提问的艺术” 方面也有一些需要注意点的：</p>
+<ul>
+<li>你需要尽可能地提及所有细节，就像是上面提到的 <code>dataclasses-json</code> 的例子，你没有在提问时说 “同时修改所有 Model 转 JSON 时使用的方法”，那么 AI 就有可能不会去修改 —— 但是如果你像我一样第一次使用这个库，不知道要去修改这个地方，那就会像我一样遇到这个问题；又或者把它写入到一个通用规则里：每次类似的修改，都要检查调用逻辑是否需要修改。</li>
+<li>先列出方案再实际修改，会比一开始就让它修改效果好很多。这一点在过去很多人的文章中都有提到，事实也是如此，这不光能减少代码回滚的次数，也能让你去审查 AI 是否真正的理解了你的需求。</li>
+<li>只让 AI 使用中文回答还不够，这不足以让它理解它是在为一个中国人打工。你还需要告诉它 “日志和注释都使用中文”。</li>
+<li>意外的，合理使用标点符号，比如句号，可以让 AI 更好的理解你的意思，比如这句话是否结束了？</li>
+<li>...</li>
+</ul>
+<p>诸如此类的点还有很多，总的来说就是：</p>
+<p><strong>你真的真的真的真的需要向 AI 描述的很细很细很细</strong>，有的时候这真的很累很辛苦。</p>
+<p>以上种种导致的问题就是：</p>
+<ul>
+<li>如果你是一个偶尔丢失一些小细节，或者根本就是一个粗心大意的人，那么 AI 的使用体验将会<strong>大打折扣</strong>；</li>
+<li>光有严谨还不够，你还需要足够的耐心去组织每次的提问内容，还要有一定程度上的语文表达能力、语言组织能力（绝不止大家平时日常的口头交流）。对于那些平时在互联网上习惯使用书面表达方式而非口语化描述的人来说会有一定的优势。相反则会面临不少的问题。</li>
+</ul>
+<p>另外，光让 AI 列出计划还不够，它还有一个喜欢 “<strong>胡编</strong>” 的通病。对此我的解决方案是告诉它 “<strong>如果有哪些不确定，或者是推测东西，请使用 <code># TODO</code> 标记，并在修改完成后向我汇报。</strong>”，这样它虽然还会执行一些推测，但是至少我可以更好的分辨哪些是它推测的东西，以便在后续的对话中帮助它解决这些 TODO。</p>
+<h2 id="prompt">Prompt</h2>
+<p>在这里贴一下我做这个项目时最常用的提示词：</p>
+<blockquote>
+<p>我每完成一个任务，都会 <code>/clear</code>，然后使用新的提示词开启一个新的会话。</p>
+</blockquote>
+<pre><code class="language-markdown">你是一位资深的 python 开发工程师，尤其熟悉 flask 框架。现在我们所处的工作目录正是一个 flask python 后端项目。
+
+&lt;!-- 描述具体的需求或者任务 --&gt;
+
+一些规范要求：
+1. 始终用中文回复我，并且日志、代码注释都使用中文。
+2. 所以日志都应该使用 `logging` 框架实现，比如 `logging.info(f&quot;...&quot;)`。
+3. python 文件的开头不需要包含 python 版本注释的内容。
+4. 私有方法放在文件的最后面，越是工具性质的方法越靠后。
+5. 调用方法时候，如果参数多于两个，则必须显式指定参数；如果只有一个，那么不要添加参数名称。
+6. 一个方法的参数的数量最多为 5 个（包括 `self`），如果超过，则应该以**类型**的方式去定义，并放在对应模块的 `/models/param` 文件夹中，并且每个属性都应该有注释。
+7. 如果有哪些不确定，或者是推测东西，请使用 `# TODO` 标记，并在修改完成后向我汇报。
+8. 请你做任何修改前，先向我确认你的计划，当我认可你的计划后，再实施你的修改。
+9. 不要创建 `Optional[List[...]]` 可选值数组，使用空数组 `[]` 代替。
+10. 文件的末尾要有一个单独的空行。
+11. 注释使用 Google 风格。
+</code></pre>
+<h2 id="聊一些-理想主义">聊一些 “理想主义”</h2>
+<p>说我上班不为了钱是假的，但是我也是真的喜欢敲代码，喜欢通过代码去做产品。</p>
+<p>最早的时候让我回答为什么选择做程序员而不是产品经理，我的回答是 “<strong>相比较产品，程序员可以通过自己双手亲自实现自己的想法，这更酷</strong>”。但是做了这么多年程序员，写了这么多年代码之后，<strong>我已经不知道我是更喜欢敲代码还是更喜欢做产品了</strong>。</p>
+<p>Vibe Coding 对于我而言就像是 “产品经理让 AI 帮我实现了我的想法”，我觉得这也能算是 “亲手”，但是就感觉... 有点奇怪。在过去我很喜欢回过头去对着自己写的框架或组件 “犯花痴”，感慨我真厉害，能写出这么优雅的代码，同时欣赏整个产出。我觉得这不算自大，只是成就感与满足感的一种体现，对外我还是会虚心接受任何的批评的。</p>
+<p>但是对于 AI 产出的代码，我觉得它很难让我产生成就感与满足感，目前还没有发现原因。或许等到哪天我能用 AI 开发软件并且挣到钱的时候，我的想法才能有所改观？感觉我现在还处于 “写代码 = 玩玩具”，或者是 “做玩具” 的阶段，至于在这个阶段里加上 AI 后会变成什么，我暂时还没办法很好的去表达描述它。</p>
+<h2 id="总结">总结</h2>
+<p>AI 编程 100% 可以在实际工作中使用，而 Vibe Coding 在某种程度上也能很好的完成工作。</p>
+<p>“熟悉编程的人” 与 “会编程的人” 在使用 AI 进行开发时最终应该都能完成工作，但是效率绝对是会有很大很大的差别的，至于 “不会编程的人” 能不能利用 AI 来完成一个项目，就不得而知了（笑）。至少，在当下这个时间节点，我是这么认为的。</p>
+<!--
+我身边也有很多人积极拥抱 AI；也有很少使用 AI 的；还有 all in AI，痛骂不愿放弃传统编程的。这些声音配着这一周的 AI 开发体验让我想了很多，也写了很多。
+-->]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[计算机网络之六 - 可靠的 TCP 与高效的 UDP]]></title>
+        <id>https://blog.rakuyo.dev/computer-network-tcp-and-udp/</id>
+        <link href="https://blog.rakuyo.dev/computer-network-tcp-and-udp/">
+        </link>
+        <updated>2025-08-21T02:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>TCP 与 UDP 是网络传输层的两大核心协议，它们以截然不同的方式定义了数据在应用程序间的传输。TCP 如同一次通话，追求可靠与完整；UDP 则像一张明信片，主张高效与迅捷。正是这两种设计哲学的差异，决定了它们在网页浏览、文件传输、视频会议、在线游戏等不同场景下的应用。本文将深入解析二者的核心机制与关键差异。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>TCP 与 UDP 是网络传输层的两大核心协议，它们以截然不同的方式定义了数据在应用程序间的传输。TCP 如同一次通话，追求可靠与完整；UDP 则像一张明信片，主张高效与迅捷。正是这两种设计哲学的差异，决定了它们在网页浏览、文件传输、视频会议、在线游戏等不同场景下的应用。本文将深入解析二者的核心机制与关键差异。</p>
+<!-- more -->
+<p>本系列其余几篇的目录：</p>
+<ul>
+<li><a href="/computer-network-ip-and-port/">计算机网络之一 - IP 与端口</a></li>
+<li><a href="/computer-network-url-and-dns/">计算机网络之二 - URL 与 DNS</a></li>
+<li><a href="/computer-network-dhcp-and-intranet-penetration/">计算机网络之三 - DHCP 与内网穿透</a></li>
+<li><a href="/computer-network-virtual-nic-and-wireguard">计算机网络之四 - 虚拟网卡与 WireGuard</a></li>
+<li><a href="/computer-network-http-and-https">计算机网络之五 - HTTP 与 HTTPS</a></li>
+<li><a href="/computer-network-osi-and-tcpip-models">计算机网络之七 - OSI 与 TCP/IP 分层模型</a></li>
+</ul>
+<hr>
+<h2 id="tcp可靠的电话通话">TCP：可靠的“电话通话”</h2>
+<p>如果说 UDP 像一张随手寄出的明信片，那么 TCP (Transmission Control Protocol, 传输控制协议) 就是一通严谨的国际长途电话。在通话开始前，你必须先拨号、等待对方接听、双方确认身份并都说“喂，听得到吗？”之后，才会开始真正的交谈。通话结束后，还要礼貌地道别，确保双方都知晓通话结束。</p>
+<p>这个过程虽然繁琐，但它确保了整个对话的<strong>完整性</strong>和<strong>有序性</strong>，这正是 TCP 的核心设计哲学。</p>
+<h3 id="核心特性面向连接与可靠">核心特性：面向连接与可靠</h3>
+<ul>
+<li><strong>面向连接 (Connection-Oriented)</strong>：在发送任何应用数据之前，通信双方（客户端和服务器）必须先通过一个标准化的过程建立一个虚拟的连接。所有后续的数据交换都在这个已建立的连接上进行。</li>
+<li><strong>可靠传输 (Reliable)</strong>：TCP 提供了一系列复杂的机制来保证数据能够准确、有序地从发送方传输到接收方。它承诺“<strong>不丢包、不失序、无差错、无重复</strong>”。</li>
+</ul>
+<p>这一切的可靠性，都始于那个著名的“<strong>三次握手</strong>”过程。但在深入流程之前，我们必须先了解构成这次“握手”的几个关键“零件”。</p>
+<h3 id="tcp-报文一次通话的信封">TCP 报文：一次通话的“信封”</h3>
+<p>TCP 通信的数据单元被称为<strong>报文段 (Segment)</strong>。你可以把它想象成一个高度结构化的信封，其“信封皮”，也就是 <strong>TCP 头部 (Header)</strong>，包含了所有用于控制通信的元信息。下表是其主要字段的概览：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">字段</th>
+<th style="text-align:left">英文名称</th>
+<th style="text-align:left">简称</th>
+<th style="text-align:left">大小</th>
+<th style="text-align:left">描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">源端口</td>
+<td style="text-align:left">Source Port</td>
+<td style="text-align:left"><code>sport</code></td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">标识发送方应用程序的端口号</td>
+</tr>
+<tr>
+<td style="text-align:left">目标端口</td>
+<td style="text-align:left">Destination Port</td>
+<td style="text-align:left"><code>dport</code></td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">标识接收方应用程序的端口号</td>
+</tr>
+<tr>
+<td style="text-align:left">序列号</td>
+<td style="text-align:left">Sequence Number</td>
+<td style="text-align:left"><code>seq</code></td>
+<td style="text-align:left">32 bits</td>
+<td style="text-align:left">标记本报文段数据第一个字节在数据流中的位置</td>
+</tr>
+<tr>
+<td style="text-align:left">确认号</td>
+<td style="text-align:left">Acknowledgment Number</td>
+<td style="text-align:left"><code>ack</code></td>
+<td style="text-align:left">32 bits</td>
+<td style="text-align:left">期望收到的对方下一个报文段的序列号</td>
+</tr>
+<tr>
+<td style="text-align:left">数据偏移</td>
+<td style="text-align:left">Data Offset</td>
+<td style="text-align:left">-</td>
+<td style="text-align:left">4 bits</td>
+<td style="text-align:left">TCP 头部自身的长度，单位为4字节（32位）</td>
+</tr>
+<tr>
+<td style="text-align:left">保留</td>
+<td style="text-align:left">Reserved</td>
+<td style="text-align:left">-</td>
+<td style="text-align:left">6 bits</td>
+<td style="text-align:left">未使用的保留位，必须为 0</td>
+</tr>
+<tr>
+<td style="text-align:left">标志位</td>
+<td style="text-align:left">Flags</td>
+<td style="text-align:left">-</td>
+<td style="text-align:left">6 bits</td>
+<td style="text-align:left">用于控制连接状态，如 <code>SYN</code>, <code>ACK</code>, <code>FIN</code></td>
+</tr>
+<tr>
+<td style="text-align:left">窗口大小</td>
+<td style="text-align:left">Window Size</td>
+<td style="text-align:left"><code>win</code></td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">用于流量控制，表示接收方还能接收多少数据</td>
+</tr>
+<tr>
+<td style="text-align:left">校验和</td>
+<td style="text-align:left">Checksum</td>
+<td style="text-align:left"><code>csum</code></td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">用于检查头部和数据的传输错误</td>
+</tr>
+<tr>
+<td style="text-align:left">紧急指针</td>
+<td style="text-align:left">Urgent Pointer</td>
+<td style="text-align:left">-</td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">当<code>URG</code>标志位为1时有效</td>
+</tr>
+<tr>
+<td style="text-align:left">选项</td>
+<td style="text-align:left">Options</td>
+<td style="text-align:left">-</td>
+<td style="text-align:left">可变</td>
+<td style="text-align:left">用于携带额外的控制信息</td>
+</tr>
+</tbody>
+</table>
+<p>在理解后续的握手流程时，我们无需关注所有细节，只需将注意力集中在最重要的四个“角色”上：<strong><code>SYN</code></strong> 和 <strong><code>ACK</code></strong> 这两个<strong>标志位</strong>，以及 <strong><code>seq</code></strong> 和 <strong><code>ack</code></strong> 这两个<strong>核心编号</strong>。</p>
+<p><code>SYN</code> 和 <code>ACK</code> 是 TCP 报文头中的两个非常重要的标志位 (Flags)，它们就像是通信双方用来表达意图的“信号旗”。</p>
+<ul>
+<li>
+<p><strong>SYN (Synchronize Sequence Numbers - 同步序列号)</strong></p>
+<ul>
+<li><strong>含义</strong>：这个标志位用于<strong>发起和建立连接</strong>。当一方想要与另一方建立连接时，它会发送一个 <code>SYN</code> 标志位置为 1 的报文。这可以理解为在说：“你好，我想和你建立通信，我们来同步一下初始的序列号吧！”</li>
+</ul>
+</li>
+<li>
+<p><strong>ACK (Acknowledgment - 确认)</strong></p>
+<ul>
+<li><strong>含义</strong>：这个标志位用于<strong>确认收到数据</strong>。当 <code>ACK</code> 标志位置为 1 时，意味着报文中的“确认号”字段有效。它告诉对方：“你之前发送的数据我已经收到了。” 在连接建立之后，几乎所有的 TCP 报文都会将 <code>ACK</code> 位置为 1。</li>
+</ul>
+</li>
+</ul>
+<p>而 <code>seq</code> 和 <code>ack</code> 是 TCP 实现可靠传输的基石，它们共同解决了一个核心问题：在不可靠的网络上，如何保证数据<strong>不丢、不乱、不重</strong>。</p>
+<ul>
+<li>
+<p><strong>seq (Sequence Number - 序列号)</strong></p>
+<ul>
+<li><strong>作用</strong>：它的核心作用是<strong>给数据包进行编号</strong>。TCP 把要传输的数据看作一个连续的字节流，<code>seq</code> 就是这个流中<strong>每一个数据包里第一个字节的编号</strong>。</li>
+<li><strong>设计原因</strong>：
+<ol>
+<li><strong>保证顺序</strong>：网络传输中，数据包可能会因为路由不同而失序到达。接收方可以根据 <code>seq</code> 号对数据包进行重新排序，从而恢复出原始的、有序的数据。</li>
+<li><strong>丢包检测</strong>：接收方如果发现收到的 <code>seq</code> 号不连续（比如收到了 100 和 300，但没收到 200），就知道中间有数据包丢失了，可以请求发送方重传。</li>
+</ol>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>ack (Acknowledgment Number - 确认号)</strong></p>
+<ul>
+<li><strong>作用</strong>：它的作用是<strong>告诉发送方我期望接收的下一个字节的序列号是多少</strong>。这个设计非常巧妙，因为它<strong>隐含地确认了在这个编号之前的所有数据都已成功收到</strong>。</li>
+<li><strong>设计原因</strong>：
+<ol>
+<li><strong>高效确认</strong>：如果发送方发送了 100、200、300 三个包，接收方只需回复一个 <code>ack=400</code>，就代表“100、200、300 我都收到了，请从 400 开始发”。这比为每个包都单独回复一次确认要高效得多。</li>
+<li><strong>建立可靠连接</strong>：它是发送方判断对方是否成功收到数据的唯一依据。</li>
+</ol>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="三次握手同步序列号与交换能力">三次握手：同步序列号与交换能力</h3>
+<p>理解了上述几个核心“词汇”后，我们再来审视三次握手的过程，它的每一步都变得有据可循。其本质，是通过三次通信，完成两个核心任务：</p>
+<ol>
+<li><strong>交换并确认双方的初始序列号 (ISN)</strong>，为后续数据的有序传输打下基础。</li>
+<li><strong>确认双方都具备可靠的发送和接收能力</strong>。</li>
+</ol>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyo.dev/post-images/1755777540140.svg" alt="" loading="lazy"></figure>
+<!--
+sequenceDiagram
+    participant 客户端
+    participant 服务器
+
+    客户端->>服务器: SYN=1, seq=x
+    Note right of 客户端: 请求建立连接
+
+    服务器-&#45;->>客户端: SYN=1, ACK=1, seq=y, ack=x+1
+    Note left of 服务器: 同意连接，并确认收到
+
+    客户端->>服务器: ACK=1, seq=x+1, ack=y+1
+    Note right of 客户端: 确认收到，连接建立
+-->
+<ol>
+<li>
+<p><strong>第一次握手 (Client -&gt; Server)</strong>:</p>
+<ul>
+<li><strong>内容</strong>: 客户端发送一个 TCP 报文，其中 <code>SYN</code> 标志位置为 1，并选择一个随机的初始序列号 <code>seq=x</code>。</li>
+<li><strong>目的</strong>: 客户端向服务器表明“我想要建立连接”，并告知自己的起始序列号。</li>
+<li><strong>状态</strong>: 客户端进入 <code>SYN_SENT</code> 状态。</li>
+</ul>
+</li>
+<li>
+<p><strong>第二次握手 (Server -&gt; Client)</strong>:</p>
+<ul>
+<li><strong>内容</strong>: 服务器收到客户端的 <code>SYN</code> 包后，回复一个报文。该报文中 <code>SYN</code> 和 <code>ACK</code> 标志位都置为 1。服务器也选择一个自己的随机初始序列号 <code>seq=y</code>，同时将确认号 <code>ack</code> 设置为 <code>x+1</code>。</li>
+<li><strong>目的</strong>: 服务器通过 <code>ACK=1</code> 和 <code>ack=x+1</code> 告诉客户端：“你的请求我收到了”。通过 <code>SYN=1</code> 和 <code>seq=y</code> 表明：“我也同意建立连接，这是我的起始序列号”。</li>
+<li><strong>状态</strong>: 服务器进入 <code>SYN_RCVD</code> 状态。此时，服务器已确认客户端的发送能力正常。</li>
+</ul>
+</li>
+<li>
+<p><strong>第三次握手 (Client -&gt; Server)</strong>:</p>
+<ul>
+<li><strong>内容</strong>: 客户端收到服务器的 <code>SYN-ACK</code> 包后，发送最后一个确认报文。该报文 <code>ACK</code> 标志位置为 1，<code>seq</code> 设置为 <code>x+1</code>，并将确认号 <code>ack</code> 设置为 <code>y+1</code>。</li>
+<li><strong>目的</strong>: 客户端通过 <code>ACK=1</code> 和 <code>ack=y+1</code> 告诉服务器：“你的回应我已收到，现在我们可以开始通信了”。</li>
+<li><strong>状态</strong>: 此报文发送后，客户端进入 <code>ESTABLISHED</code> 状态。服务器收到后，也进入 <code>ESTABLISHED</code> 状态。连接正式建立。此时，双方都确认了对方的收发能力正常。</li>
+</ul>
+</li>
+</ol>
+<p>说到这里，我有一个问题：“为什么要交换 <code>seq</code> 和 <code>ack</code> 呢？”</p>
+<blockquote>
+<p><strong>本质是双向确认</strong>：TCP 是一个<strong>全双工</strong>的协议，意味着通信双方都可以同时发送和接收数据。因此，<strong>每一方都必须有自己的 <code>seq</code> 号来标记自己发送的数据，也必须有自己的 <code>ack</code> 号来确认收到的对方数据</strong>。<br>
+<strong>三次握手就是交换和确认彼此的初始序列号（ISN）的过程</strong>：</p>
+<ol>
+<li><strong>第一次握手</strong>：客户端发送 <code>SYN</code> 和自己的 <code>seq=x</code>。它在说：“我的初始序列号是 x，你收到了吗？”</li>
+<li><strong>第二次握手</strong>：服务器回复 <code>SYN</code>、自己的 <code>seq=y</code> 和 <code>ack=x+1</code>。它在说：“我收到了你的 x，所以我确认你的下一个应该是 x+1。同时，我的初始序列号是 y，你收到了吗？”</li>
+<li><strong>第三次握手</strong>：客户端回复 <code>ACK</code> 和 <code>ack=y+1</code>。它在说：“我收到了你的 y，所以我确认你的下一个应该是 y+1。”</li>
+</ol>
+</blockquote>
+<p><strong>为什么必须是三次握手，而不是两次？</strong></p>
+<p>最核心的原因，是为了<strong>防止早已失效的、旧的连接请求突然又送达服务器，从而引发错误</strong>。</p>
+<p>想象一个网络有些延迟的场景：</p>
+<ol>
+<li>客户端发送了第一个连接请求 <code>SYN</code>（我们称之为 <code>请求A</code>），但它在网络中被卡住了，迟迟没有到达服务器。</li>
+<li>客户端等了一会儿没收到回应，以为丢包了，于是又发送了一个新的连接请求 <code>SYN</code>（<code>请求B</code>）。</li>
+<li><code>请求B</code> 顺利到达，服务器正常回应，双方通过三次握手建立了连接，传输数据，然后正常关闭了连接。</li>
+<li>就在这时，那个被卡了很久的 <code>请求A</code> 终于抵达了服务器。</li>
+</ol>
+<p>如果只有两次握手，服务器收到 <code>请求A</code> 后，会误以为是客户端又发起了一个新的连接请求。它会立即分配资源，建立连接，然后傻傻地等待客户端发来数据。但此时的客户端对此一无所知，它根本不会理会服务器的确认，更不会发送任何数据。</p>
+<p>结果就是，服务器单方面开启了一个“空连接”，白白浪费了系统资源，直到超时后才关闭。而三次握手，通过增加第三次客户端的最终确认，完美地解决了这个问题。服务器只有在收到客户端对自己的 <code>SYN</code> 的最终 <code>ACK</code> 之后，才会确信这是一个有效的、全新的连接请求。</p>
+<p>这个过程可以用下面的时序图来表示：<br>
+<img src="https://blog.rakuyo.dev/post-images/1755777759557.svg" alt="" loading="lazy"></p>
+<!--
+```mermaid
+sequenceDiagram
+    participant 客户端
+    participant 服务器
+
+    客户端->>服务器: SYN (请求A, 网络延迟)
+    Note right of 客户端: 发起第一次连接尝试
+
+    客户端--x服务器: (请求A 在网络中滞留)
+
+    Note over 客户端: 等待超时...
+
+    客户端->>服务器: SYN (请求B)
+    Note right of 客户端: 没收到回应，再试一次
+
+    服务器-&#45;->>客户端: SYN-ACK (回应请求B)
+    客户端->>服务器: ACK (确认请求B)
+    Note over 客户端,服务器: 双方建立连接，正常通信...
+
+    Note over 客户端,服务器: 通信结束，连接关闭。
+
+    critical [延迟的] 请求A 最终抵达服务器
+        服务器-&#45;->>客户端: SYN-ACK (回应请求A)
+        Note left of 服务器: 以为是新请求，分配资源并等待...
+        Note right of 客户端: 客户端早已关闭或无意连接，<br>直接丢弃或拒绝此SYN-ACK。
+    end
+    Note over 服务器: 服务器的资源被白白浪费。
+```
+-->
+<h3 id="tcp-可靠性的基石">TCP 可靠性的基石</h3>
+<p>TCP 的可靠性并非单一功能，而是一个由多种机制协同工作的复杂系统。这些机制相互配合，共同确保了数据传输的完整性、有序性、无差错和高效性。</p>
+<ul>
+<li>
+<p><strong>序列号 (Sequence Numbers) 与确认应答 (Acknowledgements, ACK)</strong>：TCP 将发送的数据分割成一个个小的数据段（Segment），并为每个字节都分配一个唯一的序列号。接收方收到数据后，会发送一个 <code>ACK</code> 报文作为回应，其中包含一个确认号，告诉发送方“我已经收到了你到哪个序列号为止的所有数据，请从下一个序列号开始发”。这种“有问有答”的机制是保证数据不丢失的基础。</p>
+</li>
+<li>
+<p><strong>超时重传 (Timeout Retransmission)</strong>：如果在发送数据后的一段时间内（这个时间是动态计算的）没有收到对方的 <code>ACK</code>，发送方就会认为数据包可能在路上丢失了，于是会重新发送这个数据包。</p>
+</li>
+<li>
+<p><strong>流量控制 (Flow Control)</strong>：接收方会通过 TCP 头部中的“窗口大小 (Window Size)”字段，告诉发送方自己当前还能接收多少数据。发送方则根据这个窗口大小来调整自己的发送速率，确保不会因为发送过快而导致接收方处理不过来，造成数据溢出。</p>
+</li>
+<li>
+<p><strong>拥塞控制 (Congestion Control)</strong>：流量控制关心的是“点对点”的速率匹配，而拥塞控制则着眼于整个网络的健康状况。TCP 通过一系列算法（如慢启动、拥塞避免等）来探测网络的拥堵程度，并主动调整发送速率，避免因自身流量过大而加剧网络拥堵，最终导致大规模丢包。</p>
+</li>
+</ul>
+<h3 id="四次挥手礼貌地挂断电话">四次挥手：礼貌地“挂断电话”</h3>
+<p>与建立连接同样重要的是，如何安全、完整地断开连接。这个过程被称为“<strong>四次挥手</strong>”，因为它需要四次信息交换来确保双方的数据都已传输完毕。</p>
+<figure data-type="image" tabindex="2"><img src="https://blog.rakuyo.dev/post-images/1755787655071.svg" alt="" loading="lazy"></figure>
+<!--
+sequenceDiagram
+    participant 客户端
+    participant 服务器
+
+    客户端->>服务器: FIN (seq=u)
+    Note right of 客户端: 我这边的数据都发完了，准备关闭连接了
+
+    服务器-&#45;->>客户端: ACK (ack=u+1)
+    Note left of 服务器: 好的，收到了。但我这边可能还有数据要发，<br/>请稍等
+
+    Note left of 服务器: (服务器继续发送剩余数据...)
+
+    服务器-&#45;->>客户端: FIN (seq=v)
+    Note left of 服务器: 我这边的数据也发完了，可以关闭连接了
+
+    客户端->>服务器: ACK (ack=v+1)
+    Note right of 客户端: 好的，收到了。连接正式关闭
+-->
+<ol>
+<li>
+<p><strong>第一次挥手 (FIN)</strong>：客户端决定关闭连接，向服务器发送一个 <code>FIN</code> 报文，表示“我的数据已经全部发送完毕了”。此时客户端进入 <code>FIN_WAIT_1</code> 状态。</p>
+</li>
+<li>
+<p><strong>第二次挥手 (ACK)</strong>：服务器收到 <code>FIN</code> 报文后，回复一个 <code>ACK</code> 报文，表示“收到了你的关闭请求”。但此时服务器可能还有未发送完的数据，所以它还不能立即关闭连接。此时，服务器进入 <code>CLOSE_WAIT</code> 状态，客户端收到 <code>ACK</code> 后进入 <code>FIN_WAIT_2</code> 状态。</p>
+</li>
+<li>
+<p><strong>第三次挥手 (FIN)</strong>：服务器将所有剩余数据发送完毕后，会向客户端发送一个 <code>FIN</code> 报文，表示“我这边的数据也发完了，可以关闭了”。服务器随之进入 <code>LAST_ACK</code> 状态。</p>
+</li>
+<li>
+<p><strong>第四次挥手 (ACK)</strong>：客户端收到服务器的 <code>FIN</code> 报文后，回复最后一个 <code>ACK</code> 报文进行确认。发送完毕后，客户端会进入 <code>TIME_WAIT</code> 状态，等待一段时间（通常是 2MSL，两倍的最大报文段生存时间）以确保服务器收到了这个 <code>ACK</code>，防止网络中可能存在的延迟报文造成问题。服务器收到 <code>ACK</code> 后则直接进入 <code>CLOSED</code> 状态。至此，连接被完全断开。</p>
+</li>
+</ol>
+<p><strong>一定是挥四次手吗 👋？</strong></p>
+<p>我们可以分别从<strong>逻辑上</strong>以及<strong>行为上</strong>来看待“四次挥手”这件事：</p>
+<ul>
+<li><strong>从逻辑上看</strong>：TCP 协议一定会按照逻辑进行完整的四个过程，所以从这个角度上来看，一定是“四次挥手”。四个过程分别是：
+<ol>
+<li>客户端关闭发送通道。</li>
+<li>服务器确认客户端关闭发送通道。</li>
+<li>服务器关闭发送通道。</li>
+<li>客户端确认服务器关闭发送通道。</li>
+</ol>
+</li>
+<li><strong>从行为上看</strong>：但是如果抓包的话，你可能会发现只有三个报文段的情况，并且这种情况还不少见。这是因为当第二次挥手时，如果服务器没有剩余要发送给客户端的数据，那么 TCP 就会将第二、三次挥手进行合并，所以最终只有三个报文段。相关逻辑如下图所示：<br>
+<img src="https://blog.rakuyo.dev/post-images/1755789374627.svg" alt="" loading="lazy"></li>
+</ul>
+<!--
+sequenceDiagram
+    participant 客户端
+    participant 服务器
+
+    客户端->>服务器: FIN (seq=u)
+    Note right of 客户端: 我这边的数据都发完了，准备关闭发送通道
+
+    服务器-&#45;->>客户端: ACK (ack=u+1), FIN (seq=v)
+    Note left of 服务器: 好的，收到了你的关闭请求。<br>同时，我这边也没有数据要发了，<br>也准备关闭发送通道
+
+    客户端->>服务器: ACK (ack=v+1)
+    Note right of 客户端: 好的，收到了。连接正式关闭
+-->
+<h3 id="tcp-状态机连接的生命周期">TCP 状态机：连接的生命周期</h3>
+<p>三次握手和四次挥手描述了 TCP 连接建立和断开的关键时刻。但一个完整的 TCP 连接生命周期，远不止这几个瞬间。它由一系列精确定义的状态组成，这些状态之间的转换共同构成了一个“<strong>状态机 (State Machine)</strong>”。这个模型清晰地展示了从连接的萌芽到最终消亡的全过程。</p>
+<p>下面的流程图描绘了 TCP 中所有状态以及它们之间可能的转换：<br>
+<img src="https://blog.rakuyo.dev/post-images/1755791473918.svg" alt="" loading="lazy"></p>
+<!--
+graph TD
+    subgraph "连接过程"
+        CLOSED_C[CLOSED] -- 主动打开 / 发送SYN -&#45;-> SYN_SENT[SYN_SENT]
+        CLOSED_S[CLOSED] -- 被动打开 -&#45;-> LISTEN[LISTEN]
+        LISTEN -- 收到SYN / 发送SYN,ACK -&#45;-> SYN_RCVD[SYN_RCVD]
+        SYN_SENT -- 收到SYN,ACK / 发送ACK -&#45;-> ESTABLISHED[ESTABLISHED]
+        SYN_RCVD -- 收到ACK -&#45;-> ESTABLISHED
+    end
+
+    subgraph "数据传输"
+        ESTABLISHED
+    end
+
+    subgraph "关闭过程"
+        ESTABLISHED -- 主动关闭 / 发送FIN -&#45;-> FIN_WAIT_1[FIN_WAIT_1]
+        ESTABLISHED -- 收到FIN / 发送ACK -&#45;-> CLOSE_WAIT[CLOSE_WAIT]
+        FIN_WAIT_1 -- 收到ACK -&#45;-> FIN_WAIT_2[FIN_WAIT_2]
+        FIN_WAIT_2 -- 收到FIN / 发送ACK -&#45;-> TIME_WAIT[TIME_WAIT]
+        CLOSE_WAIT -- 主动关闭 / 发送FIN -&#45;-> LAST_ACK[LAST_ACK]
+        LAST_ACK -- 收到ACK -&#45;-> CLOSED_END[CLOSED]
+        TIME_WAIT -- 等待2MSL -&#45;-> CLOSED_END
+    end
+
+    style ESTABLISHED fill:#9f9,stroke:#333,stroke-width:2px
+-->
+<p>这张图看起来复杂，但它其实是将我们之前讨论的握手和挥手过程，以及一些中间状态，串联成了一幅完整的地图。我们可以将这些状态归为几类来理解：</p>
+<ul>
+<li>
+<p><strong>连接建立</strong>:</p>
+<ul>
+<li><code>LISTEN</code>: 仅存在于服务端。当服务器应用程序调用 <code>listen()</code> 函数后，进入此状态，表示已准备好接收来自客户端的连接请求。一旦收到客户端的 <code>SYN</code> 报文，将发送 <code>SYN+ACK</code> 并进入 <code>SYN_RCVD</code> 状态。</li>
+<li><code>SYN_SENT</code>: 客户端在调用 <code>connect()</code> 函数后，发送 <code>SYN</code> 报文请求建立连接，随即进入此状态。在此状态下，客户端等待接收服务器的 <code>SYN+ACK</code> 报文。如果收到，则发送 <code>ACK</code> 并进入 <code>ESTABLISHED</code> 状态；如果超时未收到，则会重传 <code>SYN</code> 报文。</li>
+<li><code>SYN_RCVD</code>: 服务端在 <code>LISTEN</code> 状态下收到客户端的 <code>SYN</code> 报文后，会发送 <code>SYN+ACK</code> 报文并进入此状态。在此状态下，服务端等待接收客户端的最终 <code>ACK</code> 报文。一旦收到 <code>ACK</code>，连接即建立，进入 <code>ESTABLISHED</code> 状态。</li>
+</ul>
+</li>
+<li>
+<p><strong>数据传输</strong>:</p>
+<ul>
+<li><code>ESTABLISHED</code>: 连接已成功建立，双方可以自由地进行双向数据传输。这是 TCP 连接最主要、最活跃的状态，在三次握手完成后进入此状态。</li>
+</ul>
+</li>
+<li>
+<p><strong>连接断开</strong>:</p>
+<ul>
+<li><code>FIN_WAIT_1</code>: 主动关闭方（即发起关闭连接的一方，可能是客户端也可能是服务端）发送 <code>FIN</code> 报文后进入此状态。在此状态下，主动关闭方等待接收对方对 <code>FIN</code> 报文的 <code>ACK</code>。一旦收到 <code>ACK</code>，则进入 <code>FIN_WAIT_2</code> 状态。</li>
+<li><code>CLOSE_WAIT</code>: 被动关闭方（即收到对方 <code>FIN</code> 报文的一方）在收到 <code>FIN</code> 报文后进入此状态。此时，TCP 层已经接收到对方关闭发送通道的请求，并向应用层报告连接已中断。在此状态下，被动关闭方会等待本地应用层处理完所有剩余数据并调用 <code>close()</code> 函数，然后发送自己的 <code>FIN</code> 报文，进入 <code>LAST_ACK</code> 状态。</li>
+<li><code>FIN_WAIT_2</code>: 主动关闭方在收到对方对其 <code>FIN</code> 报文的 <code>ACK</code> 后进入此状态。此时，主动关闭方已经完成了数据发送，并且也收到了对方对其关闭请求的确认。在此状态下，它将等待接收被动关闭方发送的 <code>FIN</code> 报文。一旦收到对方的 <code>FIN</code> 报文，主动关闭方将发送最终的 <code>ACK</code> 并进入 <code>TIME_WAIT</code> 状态。</li>
+<li><code>LAST_ACK</code>: 被动关闭方在发送完所有剩余数据并发送自己的 <code>FIN</code> 报文后进入此状态。在此状态下，被动关闭方等待接收主动关闭方对其 <code>FIN</code> 报文的最终 <code>ACK</code>。一旦收到此 <code>ACK</code>，连接即完全关闭，进入 <code>CLOSED</code> 状态。</li>
+<li><code>TIME_WAIT</code>: 主动关闭方在收到对方的 <code>FIN</code> 并发送了最后一个 <code>ACK</code> 后进入此状态。这是状态机中一个至关重要的状态。</li>
+</ul>
+</li>
+</ul>
+<h4 id="time_wait-状态的深意"><code>TIME_WAIT</code> 状态的深意</h4>
+<p><code>TIME_WAIT</code> 状态，也常被称为 <code>2MSL</code> 等待状态，是 TCP 可靠性的最后一道屏障。主动关闭连接的一方，在发送最后一个 <code>ACK</code> 后，必须在这个状态停留两倍的 <strong>MSL (Maximum Segment Lifetime, 最大报文段生存时间)</strong>。MSL 是网络中任何 IP 数据包能够存活的最长时间。</p>
+<p>这个等待机制有两个核心目的：</p>
+<ol>
+<li><strong>确保最后一个 <code>ACK</code> 报文能够到达对方</strong>：如果这个 <code>ACK</code> 在网络中丢失了，对方（处于 <code>LAST_ACK</code> 状态）会因为收不到确认而超时重传 <code>FIN</code> 报文。如果主动关闭方此时已经彻底关闭（进入 <code>CLOSED</code>），它将无法响应这个重传的 <code>FIN</code>，导致对方无法正常关闭。<code>TIME_WAIT</code> 状态的存在，确保了它有足够的时间来处理这种情况，重新发送 <code>ACK</code>，帮助对方顺利关闭。</li>
+<li><strong>防止“旧连接”的延迟报文干扰新连接</strong>：假设没有 <code>TIME_WAIT</code>，一个连接（例如，源端口 10000 -&gt; 目标端口 80）刚关闭，马上又用完全相同的四元组（源IP、源端口、目标IP、目标端口）建立了一个新连接。此时，如果前一个连接中迷路的、延迟的数据包突然到达，它可能会被新连接错误地接收，造成数据混乱。等待 <code>2MSL</code> 的时间，足以让本次连接中所有在网络中“游荡”的报文段都自行消亡，从而保证新连接的环境是“干净”的。</li>
+</ol>
+<h2 id="udp轻快的明信片">UDP：轻快的“明信片”</h2>
+<p>与 TCP 严谨的通话模式截然相反，UDP (User Datagram Protocol, 用户数据报协议) 奉行的是极简主义。你可以把它想象成一张明信片：写好地址、贴上邮票，然后直接投进邮筒。你不会先打电话确认收件人是否在家，也不会收到对方的回信确认。</p>
+<p>这种“发完即走”的模式，正是 UDP 的核心。</p>
+<h3 id="核心特性无连接与尽力而为">核心特性：无连接与尽力而为</h3>
+<ul>
+<li><strong>无连接 (Connectionless)</strong>：UDP 在发送数据之前，不需要进行三次握手来建立连接。它直接将数据打包成“数据报 (Datagram)”就发送出去。</li>
+<li><strong>尽力而为 (Best-Effort)</strong>：UDP 不提供任何可靠性保证。它不保证数据包一定能到达目的地，不保证数据包的顺序，也不会进行流量控制或拥塞控制。如果网络拥堵导致丢包，UDP 不会进行重传。这种看似“不负责任”的特性，正是其速度和效率的来源。</li>
+</ul>
+<h3 id="udp-报文结构">UDP 报文结构</h3>
+<p>UDP 的极简主义也体现在其报文头部上。它的头部固定只有 8 个字节，开销极小，所有字段一目了然：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">字段</th>
+<th style="text-align:left">英文名称</th>
+<th style="text-align:left">简称</th>
+<th style="text-align:left">大小</th>
+<th style="text-align:left">描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">源端口</td>
+<td style="text-align:left">Source Port</td>
+<td style="text-align:left"><code>sport</code></td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">标识发送方应用程序的端口号（此字段可选）</td>
+</tr>
+<tr>
+<td style="text-align:left">目标端口</td>
+<td style="text-align:left">Destination Port</td>
+<td style="text-align:left"><code>dport</code></td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">标识接收方应用程序的端口号</td>
+</tr>
+<tr>
+<td style="text-align:left">长度</td>
+<td style="text-align:left">Length</td>
+<td style="text-align:left"><code>len</code></td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">UDP 头部和数据的总长度（以字节为单位）</td>
+</tr>
+<tr>
+<td style="text-align:left">校验和</td>
+<td style="text-align:left">Checksum</td>
+<td style="text-align:left"><code>csum</code></td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">用于简单的错误检测（此字段可选）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="适用场景">适用场景</h3>
+<p>UDP 的高效和低延迟特性，使其在以下场景中备受青睐：</p>
+<ul>
+<li><strong>实时通信</strong>：在线游戏、视频会议、语音通话（VoIP）、直播等。在这些应用中，最新的数据远比旧数据重要。我们更能容忍画面偶尔的花屏（丢包），也无法接受为了等一个丢失的数据包而导致整个画面卡住。</li>
+<li><strong>查询类协议</strong>：如 DNS（域名系统）查询。客户端向服务器发送一个简短的查询请求，服务器返回一个简短的响应。这种“一问一答”的模式使用 UDP 效率极高。</li>
+<li><strong>广播与多播</strong>：当需要向网络中的多个节点发送相同的信息时，UDP 的无连接特性使其非常适合用于广播和多播。</li>
+</ul>
+<h2 id="对比与选择tcp-vs-udp">对比与选择：TCP vs. UDP</h2>
+<p>现在，我们可以通过一个清晰的表格来总结 TCP 和 UDP 的核心差异，这将帮助我们理解在不同场景下该如何做出选择。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">特性</th>
+<th style="text-align:left">TCP (传输控制协议)</th>
+<th style="text-align:left">UDP (用户数据报协议)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><strong>连接性</strong></td>
+<td style="text-align:left">面向连接</td>
+<td style="text-align:left">无连接</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>可靠性</strong></td>
+<td style="text-align:left">可靠</td>
+<td style="text-align:left">不可靠（尽力而为）</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>传输效率</strong></td>
+<td style="text-align:left">慢，开销大</td>
+<td style="text-align:left">快，开销小</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>头部大小</strong></td>
+<td style="text-align:left">至少 20 字节</td>
+<td style="text-align:left">固定 8 字节</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>控制机制</strong></td>
+<td style="text-align:left">流量控制、拥塞控制</td>
+<td style="text-align:left">无</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>应用场景</strong></td>
+<td style="text-align:left">网页(HTTP/S)、文件传输(FTP)、邮件(SMTP)</td>
+<td style="text-align:left">视频会议、在线游戏、DNS、直播</td>
+</tr>
+</tbody>
+</table>
+<p><strong>选择的艺术</strong>：从上表可以看出，TCP 和 UDP 之间没有绝对的优劣之分。它们是为解决不同问题而设计的两种工具。选择哪种协议，完全取决于应用场景对可靠性和实时性的权衡。如果你的应用（如银行转账）绝不能容忍任何数据差错，那么 TCP 是不二之选；如果你的应用（如在线游戏）更看重实时反馈，可以容忍偶尔的数据丢失，那么 UDP 将是更明智的选择。</p>
+<h2 id="新的挑战与未来quic">新的挑战与未来：QUIC</h2>
+<p>既然 TCP 如此可靠，为什么像 HTTP/3 这样的现代协议反而开始转向基于 UDP 构建？这引出了 TCP 一个长期存在的痛点。</p>
+<p>在系列第五篇<a href="/computer-network-http-and-https">《计算机网络之五 - HTTP 与 HTTPS》</a>中我们提到，HTTP/2 虽然通过多路复用技术，解决了应用层的队头阻塞，但它无法解决其底层 TCP 协议自身的<strong>队头阻塞 (Head-of-Line Blocking)</strong> 问题。在一条 TCP 连接中，如果一个数据包丢失了，那么后续所有的数据包（即使已经到达）都必须排队等待，直到那个丢失的包被成功重传。对于高并发的现代 Web 应用来说，这是一个巨大的性能瓶颈。</p>
+<p>为了从根本上解决这个问题，<strong>QUIC (Quick UDP Internet Connections)</strong> 协议应运而生。它是一个构建在 UDP 之上的、全新的传输层协议。</p>
+<p>QUIC 的设计非常巧妙，它相当于在 UDP 的“快车道”上，重新实现了一套现代化的可靠传输机制：</p>
+<ul>
+<li><strong>内置多路复用</strong>：QUIC 的流是独立的，一个流的丢包完全不会影响其他流的传输，从根本上解决了队头阻塞。</li>
+<li><strong>更快的连接建立</strong>：它将 TCP 的三次握手和 TLS 的加密握手过程合并，大大减少了建立安全连接所需的往返时间。</li>
+<li><strong>更好的拥塞控制</strong>：拥有比传统 TCP 更先进的拥塞控制算法。</li>
+</ul>
+<p>QUIC 代表了传输层协议的未来演进方向，它试图将 TCP 的可靠性与 UDP 的低延迟优势集于一身，为下一代互联网应用提供更坚实的基础。</p>
+<h2 id="总结">总结</h2>
+<p>TCP 和 UDP 是互联网传输层最核心的两个协议，它们各自代表了一种截然不同的设计哲学。</p>
+<ul>
+<li><strong>TCP</strong> 如同一位严谨的工程师，通过三次握手、序列号、确认应答、超时重传等一系列复杂机制，构建了一个几乎万无一失的可靠数据通道。它的座右铭是：“<strong>宁可慢，不出错</strong>”。</li>
+<li><strong>UDP</strong> 则像一位追求极致速度的信使，它卸下了所有保证可靠性的“包袱”，以最轻量、最直接的方式投递数据。它的信条是：“<strong>天下武功，唯快不破</strong>”。</li>
+</ul>
+<p>正是这两种协议的差异化设计与共存，才共同支撑起了我们今天这个既需要高度可靠（如在线交易）又需要极致实时（如视频直播）的、丰富多彩的互联网世界。</p>
+]]></content>
+    </entry>
+</feed>

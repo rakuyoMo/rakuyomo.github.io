@@ -1,0 +1,320 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>Objective-C 中的 nullable、__nullable 和 _Nullable | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    Objective-C 中的 nullable、__nullable 和 _Nullable
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2017-09-06 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/objective-c/" class="post-tags">
+                            # Objective-C
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>这次的内容是关于 <code>nullable</code>、<code>__nullable</code> 和 <code>_Nullable</code> 的。对于我们这样的初学者，在看第三方框架或者官方文档的时候经常会看到这样的字样。然而平时也没有去研究它到底是什么，这次就来好好记录一下一下吧。</p>
+<blockquote>
+<p>本次的内容转载自参考1，感觉原作者的分享与贡献。</p>
+</blockquote>
+<!--more-->
+<h1 id="前言">前言</h1>
+<p>在 <strong>Swift</strong> 中，我们会使用 <code>?</code> 和 <code>!</code> 去<strong>显式声明</strong>一个对象或者方法的参数是 <code>optional</code> 还是 <code>non-optional</code> ，而在 <strong>Objective-C</strong> 中则没有这一区分，这样就会带来一个问题：在 <strong>Swift</strong> 与 <strong>Objective-C</strong> 混编时，<strong>Swift</strong> 编译器并不知道一个 <strong>Objective-C</strong> 对象或者一个方法的参数到底是 <code>optional</code> 还是 <code>non-optional</code> ，因此这种情况下编译器会隐式地都当成是 <code>non-optional</code> 来处理，这显然是不太好的。</p>
+<h1 id="解决方案">解决方案</h1>
+<p>为了解决这个问题，苹果在 <strong>Xcode 6.3</strong> 引入了一个 <strong>Objective-C</strong> 的新特性：<code> Nullability Annotations</code> ，这一新特性的核心是两个新的类型修饰： <code>__nullable</code> 和 <code>__nonnull</code> 。从字面上我们可知， <code>__nullable</code> 表示对象可以是 <code>NULL</code> 或 <code>nil</code>，而 <code>__nonnull</code> 表示对象不应该为空。当我们不遵循这一规则时，编译器就会给出警告。</p>
+<p>在 <strong>Xcode 7</strong> 中，为了避免与第三方库潜在的冲突，苹果把<code> __nonnull/__nullable</code> 改成 <code>_Nonnull/_Nullable</code> 。再加上苹果同样支持了没有下划线的写法 <code>nonnull/nullable</code> ，于是就造成现在有三种写法这样混乱的局面。</p>
+<p>但是这三种写法本质上都是互通的，只是放的位置不同，举例如下：</p>
+<p><strong>方法返回值</strong>修饰：</p>
+<pre><code class="language-objc">- (nullable NSString *)method;
+- (NSString* __nullable)method;
+- (NSString* _Nullable)method;
+</code></pre>
+<p><strong>声明属性</strong>的修饰：</p>
+<pre><code class="language-objc">@property (nonatomic, copy, nullable) NSString *aString;
+@property (nonatomic, copy) NSString *__nullable aString;
+@property (nonatomic, copy) NSString *_Nullable aString;
+</code></pre>
+<p><strong>方法参数</strong>修饰：</p>
+<pre><code class="language-objc">- (void)methodWithString:(nullable NSString*)aString;
+- (void)methodWithString:(NSString * _Nullable)aString;
+- (void)methodWithString:(NSString * __nullable)aString;
+</code></pre>
+<p>而对于 <strong>双指针类型对象</strong> 、 <code>Block</code> <strong>的返回值</strong> 、 <code>Block</code> <strong>的参数</strong> 等，这时候就不能用 <code>nonnull/nullable</code> 修饰，只能用带下划线的 <code>__nonnull/__nullable</code> 或者 <code>_Nonnull/_Nullable</code> ：</p>
+<pre><code class="language-objc">- (void)methodWithError:(NSError* _Nullable * _Nullable)error
+- (void)methodWithError:(NSError* __nullable* __null_unspecified)error;
+// 以及其他的组合方式
+</code></pre>
+<pre><code class="language-objc">- (void)methodWithBlock:(nullable void(^)())block;
+// 注意上面的 nullable 用于修饰方法传入的参数 Block 可以为空，而不是修饰 Block 返回值；
+- (void)methodWithBlock:(void(^ _Nullable)())block;
+- (void)methodWithBlock:(void(^ __nullable)())block;
+</code></pre>
+<pre><code class="language-objc">- (void)methodWithBlock:(nullable id __nonnull(^)(id __nullable params))block;
+// 注意上面的 nullable 用于修饰方法传入的参数 Block 可以为空，而 __nonnull 用于修饰 Block 返回值 id 不能为空；
+- (void)methodWithBlock:(id __nonnull(^ __nullable)(id __nullable params))block;
+- (void)methodWithBlock:(id _Nonnull (^ _Nullable)(id _Nullable params))block;
+// the method accepts a nullable block that returns a nonnull value
+// there are some more combinations here, you get the idea
+</code></pre>
+<h1 id="使用规范">使用规范</h1>
+<p>在看了原生 <code>iOS SDK</code> 里 <code>Foundation</code> 和 <code>UIKit</code> 的头文件以及<strong>苹果的博文</strong> <a href="https://developer.apple.com/swift/blog/?id=25">《Nullability and Objective-C》</a> ，我们总结如下<strong>使用规范</strong>：</p>
+<ul>
+<li>对于<strong>属性</strong>、<strong>方法返回值</strong>、<strong>方法参数</strong>的修饰，使用： <code>nonnull/nullable</code>；</li>
+<li>对于 <strong>C 函数的参数</strong>、<code>Block</code><strong>的参数</strong>、<code>Block</code><strong>返回值的修饰</strong>，使用：<code> _Nonnull/_Nullable</code>， 建议弃用 <code>__nonnull/__nullable</code> 。</li>
+</ul>
+<h1 id="nonnull-audited-regions">Nonnull Audited Regions</h1>
+<p>如果需要每个属性或每个方法都去指定 <code>nonnull</code> 和 <code>nullable</code> ，将是一件非常繁琐的事。</p>
+<p>苹果为了减轻我们的工作量，专门提供了两个宏： <code>NS_ASSUME_NONNULL_BEGIN</code> 和 <code>NS_ASSUME_NONNULL_END</code> 。在这两个宏之间的代码，所有简单指针对象都被假定为 <code>nonnull</code> ，因此我们只需要去指定那些 <code>nullable</code> 指针对象即可。如下代码所示：</p>
+<pre><code class="language-objc">NS_ASSUME_NONNULL_BEGIN
+
+@interface myClass()
+
+@property (nonatomic, copy)NSString *aString;
+
+- (id)methodWithString:(nullable NSString*)str;
+
+@end
+
+NS_ASSUME_NONNULL_END
+</code></pre>
+<p>在上面的代码中， <code>aString</code> 属性默认是 <code>nonnull</code> 的， <code>methodWithString:</code>方法的返回值也是 <code>nonnull</code> ，而方法的参数 <code>str</code> 被显式指定为 <code>nullable</code> 。</p>
+<p>不过，<strong>为了安全起见</strong>，苹果还<strong>制定了以下几条规则</strong>：</p>
+<p>通过 <code>typedef</code> 定义的类型的 <code>nullability</code> 特性通常依赖于上下文，即使是在 <code>Audited Regions</code> 中，也不能假定它为 <code>nonnull</code>；<br>
+对于复杂的指针类型（如 <code>id *</code> ）必须显式去指定是 <code>nonnull</code> 还是 <code>nullable</code>。例如，指定一个指向 <code>nullable</code> 对象的 <code>nonnull</code> 指针，可以使用<code> __nullable id * __nonnull</code> ；<br>
+我们经常使用的 <code>NSError **</code> 通常是被假定为一个指向 <code>nullable NSError</code> 对象的 <code>nullable</code> 指针</p>
+<h1 id="疑问">疑问</h1>
+<p>虽然在 <strong>Xcode 7</strong> 里面，苹果建议我们放弃使用 <code>__nonnull/__nullable</code> ，改用 <code>_Nonnull/_Nullable</code> 来修饰对象可否为空，但即使是在最新 <code>ios 9.3 SDK</code> 的 <code>Foundation</code> 和 <code>UIKit</code> 的头文件里我们可以看到官方原生类的方法参数仍然在用 <code>__nonnull/__nullable</code> 修饰。</p>
+<p>另外为什么已经有了 <code>nonnull/nullable</code> ，为什么还要增加 <code>_Nonnull/_Nullable</code> ？这到底是出于什么考虑？苹果在它的博文 <a href="https://developer.apple.com/swift/blog/?id=25">《Nullability and Objective-C》</a> 中也没有具体解释，于是 StackOverflow 上有个关于此问题的讨论： <a href="https://stackoverflow.com/questions/32452889/difference-between-nullable-nullable-and-nullable-in-objective-c">Difference between nullable, __nullable and _Nullable in Objective-C</a> 。</p>
+<hr>
+<h1 id="参考">参考</h1>
+<ol>
+<li><a href="http://blog.csdn.net/bravegogo/article/details/52458403">nullable、__nullable、_Nullable 究竟有什么区别呢？——bravegogo</a></li>
+</ol>
+<p><em>注意</em>：上面的blog标准该博文未转帖，然而并没有标注原帖地址，故只能在此放出转帖地址。</p>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/objc-block-basic-usage/" class="post-title gt-a-link">
+                    Objective-C 之 Block 基础用法
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

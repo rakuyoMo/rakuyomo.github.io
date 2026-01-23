@@ -1,0 +1,1267 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>iOS自编面试题 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    iOS自编面试题
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2023-03-03 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/mian-shi/" class="post-tags">
+                            # 面试
+                        </a>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tags">
+                            # ios
+                        </a>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/HEvQ-e7X7/" class="post-tags">
+                            # swift
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>最近要负责面试，于是各处搜罗了一些面试题，用于当面面试使用（非笔试题），也当作自己的一个复习。同时提供了一个我自己角度的评判，仅供参考。</p>
+<!-- more -->
+<p>笔试题部分请参考：<a href="/ios-self-paced-test-questions/">iOS自编笔试题</a></p>
+<blockquote>
+<p>以下所以答案，如果面试时未能回答，作为补充问题回答正确后，相应分值 - 1。<br>
+回答了其他答案，正确且合理的情况下，酌情给分。</p>
+</blockquote>
+<h1 id="swift-相关">Swift 相关</h1>
+<p>主要考察Swift语法相关内容</p>
+<h2 id="基础">基础</h2>
+<h3 id="什么是swift方法默认值什么情况下会使用它">什么是Swift方法默认值？什么情况下会使用它？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>在定义函数时给参数赋一个默认值，调用该函数时可以不传该参数值</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>减少函数重载的需要</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>避免在调用函数时多次输入相同的值</td>
+</tr>
+</tbody>
+</table>
+<h3 id="什么是optional类型它的作用是什么如何使用optional类型">什么是Optional类型，它的作用是什么？如何使用Optional类型？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>用来表示一个值可能存在，也可能不存在的情况</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>Optional 类型的作用是为避免因为没有处理 nil 而导致程序崩溃的问题</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>Optional 类型可以通过在类型名后加一个 ? 来定义</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>如果一个 Optional 类型的变量有值，那么可以使用可选绑定 （if let）将其取出</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>在使用 Optional 类型时，尽量避免使用强制解包</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>Optional 的实际实现是一个枚举</td>
+</tr>
+</tbody>
+</table>
+<h3 id="swift中的struct和class有什么区别什么情况下应该使用struct">Swift中的struct和class有什么区别？什么情况下应该使用struct？</h3>
+<p>区别：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>class 支持继承，而 struct 不支持继承</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>class 支持类型转换，而 struct 不支持类型转换</td>
+<td>这里的类型转换指的是子类和父类之间的隐式类型转换</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>class 是引用类型，而 struct 是值类型</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<p>使用情况：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>如果对象的复杂度较高，并需要支持继承和类型转换，应该使用 class</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>如果对象比较简单，并且需要高性能，可以考虑使用 struct</td>
+</tr>
+</tbody>
+</table>
+<h3 id="什么是-swift-中的访问控制access-control它有哪些级别">什么是 Swift 中的访问控制（Access Control）？它有哪些级别？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1/3</td>
+<td>Open: 可以被同一模块内和外部模块的代码访问，允许被继承和重写</td>
+<td>提到外部模块计3分，否则1分</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1/3</td>
+<td>Public: 可以被同一模块内和外部模块的代码访问，但是在外部模块不能被重写或继承，内部模块可以</td>
+<td>提到外部模块计3分，否则1分</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1/3</td>
+<td>Internal: 只能被同一模块内的代码访问，不能被外部模块访问（默认访问级别）</td>
+<td>提到是默认权限计3分，否则1分</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>fileprivate: 只能被同一源文件内的代码访问</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>private: 只能在所定义的作用域内访问（比如函数、方法、类、结构体等），不能被同一文件中的其他作用域访问。</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>Xcode 生成的 struct 的初始化方法是 Internal 属性，有外部访问需求的话要手动实现 init 方法</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<h3 id="什么是-swift属性观察器property-observer">什么是 Swift属性观察器（Property Observer）？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>知道属性观察器是 willSet 和 didSet</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>只能应用于存储属性，而不能应用于计算属性</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2+1</td>
+<td>如果属性是在初始化期间（init和定义时赋值）设置的，则不会调用 willSet 和 didSet 观察器</td>
+<td>回答 init，2分，回答定义时，1分，总分3分</td>
+</tr>
+</tbody>
+</table>
+<h3 id="swift中一个方法如何返回多个值">Swift中一个方法如何返回多个值？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>可以使用元组（Tuple）来实现一个方法返回多个值的效果</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">0</td>
+<td>自定义类型、数组、字典等</td>
+</tr>
+</tbody>
+</table>
+<h3 id="什么是-swift-中的-extension扩展如何使用-extension">什么是 Swift 中的 Extension（扩展）？如何使用 Extension？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>允许开发者向已有的类型添加新的方法、计算属性等，而无需继承子类或使用 Objective-C runtime</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>不能添加存储属性或属性观察器</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>扩展中的方法不能和已有方法重名</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>使得代码更加模块化，易于维护</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>也可以对第三方类进行扩展，而无需改动原代码，更加方便地满足自己的需求</td>
+</tr>
+</tbody>
+</table>
+<h3 id="swift中的协议protocol是什么它有什么作用">Swift中的协议（protocol）是什么？它有什么作用？</h3>
+<blockquote>
+<p>如果回答中包含了协议中的范型等内容，参考 <a href="#%E4%BB%80%E4%B9%88%E6%98%AF%E6%B3%9B%E5%9E%8Bgeneric%E7%B1%BB%E5%9E%8B%E5%AE%83%E4%BB%AC%E5%9C%A8swift%E4%B8%AD%E6%9C%89%E4%BB%80%E4%B9%88%E4%BD%9C%E7%94%A8">什么是范型</a> 一题中的分值。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>协议定义了一组方法、属性</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>可以被类、结构体和枚举类型实现，然后实现方就可以使用协议中提供的内容</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>提高代码的模块化程度、可重用性和可维护性，减少代码的耦合性</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1/2</td>
+<td>可以扩展协议，为协议添加默认实现</td>
+<td>如果面试者没有提，可以进行提问“Swift 协议如何做默认实现？”</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">5</td>
+<td>习惯使用扩展遵循协议，而不是在声明类型时</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">-5</td>
+<td>习惯在声明类型时遵循协议</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1/3/10</td>
+<td>提到了面向协议编程</td>
+<td>仅仅提到，计1分；有对应描述、解释，计3分；描述详细，并配合示例，计10分</td>
+</tr>
+</tbody>
+</table>
+<h3 id="什么是泛型generic类型它们在swift中有什么作用">什么是泛型（Generic）类型？它们在Swift中有什么作用？</h3>
+<blockquote>
+<p>笔试题中包含范型擦出，所以本题主要考察面试者有没有 “用范型提高代码可读性、维护性” 的意识。<br>
+在这里不必回答范型擦出。回答范型擦出不额外计分。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>可以用于定义函数、类、结构体、枚举等多种类型的通用类型机制</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>泛型类型可以用于消除代码重复，提高代码的可读性和可维护性</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>定义协议时，可以使用关联类型来实现更加灵活的数据处理</td>
+</tr>
+</tbody>
+</table>
+<h3 id="什么是swift字面量协议">什么是Swift字面量协议？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>ExpressibleByNilLiteral</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>ExpressibleByIntegerLiteral：允许类型从整数字面量创建实例。</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>ExpressibleByFloatLiteral：允许类型从浮点数字面量创建实例。</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>ExpressibleByBooleanLiteral：允许类型从布尔字面量创建实例。</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>ExpressibleByStringLiteral：允许类型从字符串字面量创建实例。</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>ExpressibleByArrayLiteral：允许类型从数组字面量创建实例。</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>ExpressibleByDictionaryLiteral：允许类型从字典字面量创建实例。</td>
+</tr>
+</tbody>
+</table>
+<p>只要提到有这么几个协议（不用说出具体的名字），可以通过数字、字符串、Bool、数组、字典字面量来初始化对应的类型即可。</p>
+<h3 id="什么是延迟加载懒加载lazy-loading在swift中你一般什么时候使用它">什么是延迟加载（懒加载，Lazy Loading）？在Swift中你一般什么时候使用它？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>在Swift中，延迟加载可以通过使用 lazy 关键字来实现</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>lazy 关键字可以用于属性</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>在第一次访问该变量或属性时，系统会执行相应的代码进行初始化</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">5</td>
+<td>几乎无脑使用懒加载来定义任何的属性</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<h3 id="swift中的高阶函数higher-order-function有哪些请分别说明它们的作用">Swift中的高阶函数（Higher Order Function）有哪些？请分别说明它们的作用。</h3>
+<blockquote>
+<p>主要包含以下几个即可，其余的例如 contains、allSatisfy 等说了也计1分。<br>
+如果只说出了函数名，没有说明作用，依然得分。或者能说出来功能，具体函数名拼不全也可。</p>
+<p>如果下面这些没有说全，面试官可提示 “还有没有了？”</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>map：将一个集合中的每个元素通过一个函数映射为另一个元素，返回一个新的集合</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>filter：过滤一个集合中符合特定条件的元素，返回一个新的集合</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>reduce：通过对一个集合中的所有元素进行累加或累积操作，返回一个最终的结果</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>flatMap：将一个集合中的每个元素通过一个函数映射为另一个集合，然后将所有集合中的元素合并为一个新的集合</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>compactMap：对一个序列进行变换操作，并返回一个新的序列，该序列将所有的 nil 元素去除</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>sorted：对一个集合中的元素进行排序，返回一个新的排序后的集合</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>forEach：对一个集合中的每个元素执行一段特定的代码</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<h3 id="flatmap-和-compactmap-这两个之间有什么区别">flatMap 和 compactMap 这两个之间有什么区别？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>flatMap 用于高维数组的降维，例如二维数组拍平为一维数组</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>compactMap 用于过滤数组中的可选值，去掉所有返回 nil 的元素</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>Swift 4.2 中将这两个函数拆开，不可混用</td>
+<td>提到不可混用即可</td>
+</tr>
+</tbody>
+</table>
+<h2 id="进阶">进阶</h2>
+<h3 id="在swift中如何实现一段代码在整个程序的生命周期内只会执行一次">在Swift中如何实现一段代码在整个程序的生命周期内只会执行一次？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">0</td>
+<td>dispatch_once</td>
+<td>不得分，Swift 3 及以上版本已废弃</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">0</td>
+<td>单例</td>
+<td>不得分，题目要求的是 “一段代码”，而不是一个对象</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>(lazy var)/static + Void 类型的属性，定义时使用 {}() 包括需要执行的代码。借助了懒加载的特性</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="swift中的类型推断type-inference是什么请说明它的作用">Swift中的类型推断（Type Inference）是什么？请说明它的作用</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>编译器能够推断出变量或常量的类型而不需要显式声明其类型</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>使代码更加简洁，减少了类型声明的冗余，同时也减少了因类型声明错误而引起的编译错误的可能性</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">-10</td>
+<td>不建议使用</td>
+<td>如果面试者说建议显式声明类型（除非是为了解决Xcode代码提示的bug），否则扣10分</td>
+</tr>
+</tbody>
+</table>
+<h3 id="swift中的final关键字是什么意思它的作用是什么">Swift中的final关键字是什么意思？它的作用是什么？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1+2+2</td>
+<td>final 关键字可以修饰类、方法和变量</td>
+<td>提到类计1分；提到方法、变量每个2分，总分5分</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>final 修饰后不可集成、不可重写</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>private 的类型，其内的属性和方法会在编译时自动添加 final</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<h3 id="swift中的string类型和objc中的nsstring类型有什么区别">Swift中的String类型和ObjC中的NSString类型有什么区别？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>底层实现不同，Swift 的 String 类型是一个值类型，而ObjC的 NSString 类型是一个类</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>Swift的 String 类型可以无缝地与ObjC中的 NSString 类型互相转换</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>Swift中的字符串是Unicode兼容的，可以直接使用Unicode字符和表情符号，而ObjC中的字符串是基于ASCII编码的，无法直接处理Unicode字符和表情符号</td>
+</tr>
+</tbody>
+</table>
+<h3 id="swift中的枚举相比较objc中的枚举有什么优势">Swift中的枚举相比较ObjC中的枚举有什么优势？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>每个枚举成员可以有自己的关联值，这使得枚举更加灵活。而ObjC中的枚举只能包含整数</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>枚举是一等公民，它和类、结构体等类型一样，可以有自己的方法，甚至遵循协议。</td>
+</tr>
+</tbody>
+</table>
+<h3 id="swift中的延迟defer语句有什么作用">Swift中的延迟（Defer）语句有什么作用？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">0/2/3</td>
+<td>Defer语句可以用来在函数/作用域执行完毕之前执行一些清理工作</td>
+<td>回答 “函数” 0分，“作用域” 2分，能给出作用域的例子，例如 if 中使用的情况，3分。如果面试者没提到作用域问题，则可以当作<strong>进阶</strong>问题抛出</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>Defer语句可以用来执行一些清理工作</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>无论函数是正常返回还是抛出异常，都会执行</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>虽然形式上像是闭包，但更像是语法糖，所以不会捕获变量</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>当函数内有多个 defer 语句时，将按照倒序的顺序执行，即最后一个 defer 先执行</td>
+<td>如果面试者没回答，则可以当作<strong>进阶</strong>问题抛出</td>
+</tr>
+</tbody>
+</table>
+<h3 id="什么是swift方法派发有哪几种">什么是Swift方法派发？有哪几种？</h3>
+<blockquote>
+<p>方法调度和方法派发是一回事，不同的翻译</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>宏观上分为静态（直接）派发和动态派发两种</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>其中动态派发又包含两种：表派发/函数表派发和消息派发</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">5/6</td>
+<td>静态派发：编译时找到指令所在的位置。所以执行速度快，还允许编译期做各种优化，例如内联</td>
+<td>提到内联，额外加1分，共6分</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">5/6</td>
+<td>表派发：运行时决定实现方式，理论上速度也很快，编译期决定函数表</td>
+<td>提到编译期决定寒暑表，额外加1分，共6分</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">5</td>
+<td>消息派发：Objective-C 的逻辑，可以在运行时修改消息接收对象</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">5</td>
+<td>会通过看 SIL 确定派发方式</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<!-- 
+
+常见的消息派发情况：
+
+| | 直接调用 | Table | Message |
+|:---:|-----|-----|-----|
+| 明确执行 | final, static | - | dynamic |
+| 值类型 | 所有方法 | - | - |
+| 协议 | 拓展中的方法（不包含默认实现） | 定义的方法 | - |
+| 类 | 拓展中的方法 | 定义的方法 | 带有 @objc 的扩展 |
+
+因为比较复杂，上述表格也不全面，所以总体计10分，具体得分由面试官视情况而定。
+
+ -->
+<h3 id="请说明swift中array类型的底层实现方式">请说明Swift中Array类型的底层实现方式</h3>
+<blockquote>
+<p>总分值10分</p>
+</blockquote>
+<p>Array 使用了一个名为“缓冲区”（buffer）的数据结构来存储元素。</p>
+<p>缓冲区由三个部分组成：</p>
+<ol>
+<li>指向元素存储位置的指针</li>
+<li>缓冲区的容量大小</li>
+<li>缓冲区的元素个数</li>
+</ol>
+<h3 id="swift的switch语法和objc的switch语法在底层实现方式上有什么区别">Swift的switch语法和ObjC的switch语法，在底层实现方式上有什么区别？</h3>
+<blockquote>
+<p>总分值10分</p>
+</blockquote>
+<p>ObjC 的 switch 还是某种意义上的 goto 语法，命中的时候会跳到对应的代码的地址，这段代码是连续的，需要 break 来决定执行到哪里。这种实现方式主要是为了方便从早期 C 语言中继承而来。</p>
+<p>而 swift 的 switch 会被编译成类似 if else 的语法，作用域更明确。</p>
+<h3 id="sil是什么怎么将swift代码转换为sil代码">SIL是什么？怎么将Swift代码转换为SIL代码？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>SIL是Swift中间语言，是源代码和机器代码之间的一种中间代码</td>
+<td>-</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1/2</td>
+<td>编译器会将Swift代码编译成SIL，然后对SIL进行优化和转换，最后将其编译成机器代码</td>
+<td>提到编译器对 SIL 进行优化，计2分，否则计1分</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>使用 swiftc -emit-sil + &lt;file_name.swift&gt; 将 swift 文件转换为 SIL 代码</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<h3 id="请简述-swift-extension-的实现原理">请简述 Swift extension 的实现原理</h3>
+<blockquote>
+<p>总分10分</p>
+</blockquote>
+<p>在 Swift 内部，每个类或结构体都有一个名为 vtable（虚函数表）的表格，其中记录了类或结构体的方法的地址。当 Swift 调用一个方法时，它会先检查类或结构体的类型，然后查找该类型的 vtable 表格，以获取该方法的地址并调用它。</p>
+<p>当我们在 Extension 中定义一个新方法时，Swift 编译器会将其添加到 vtable 表格中，并根据需要重新生成 vtable 表格，以确保所有方法都在正确的位置。这就是 Swift Extension 实现的底层原理。</p>
+<h1 id="ios-开发相关">iOS 开发相关</h1>
+<p>主要考察 iOS 开发相关知识点，和具体开发语言没有太大的关系。</p>
+<h2 id="基础-2">基础</h2>
+<h3 id="请简述ios开发中apns的推送机制">请简述iOS开发中，APNS的推送机制</h3>
+<blockquote>
+<p>总分5分</p>
+</blockquote>
+<p>APNS的推送机制包括以下几个步骤：</p>
+<ol>
+<li>
+<p>应用程序在设备上注册远程通知。注册成功后，设备会产生一个唯一的令牌（device token），用于标识该设备。</p>
+</li>
+<li>
+<p>应用程序将令牌发送给后台服务器，后台服务器将令牌与设备绑定起来。</p>
+</li>
+<li>
+<p>当需要向设备发送通知时，后台服务器发送一个推送通知请求到APNS服务器。</p>
+</li>
+<li>
+<p>APNS服务器将推送通知发送到指定的设备上。</p>
+</li>
+<li>
+<p>设备接收到推送通知后，根据推送通知的内容执行相应的操作，例如打开应用程序、显示提醒等。</p>
+</li>
+</ol>
+<h3 id="常见的触发离屏渲染的场景有哪些">常见的触发离屏渲染的场景有哪些？</h3>
+<blockquote>
+<p>总分10分</p>
+</blockquote>
+<h2 id="进阶-2">进阶</h2>
+<h3 id="离屏渲染是什么为什么会触发离屏渲染">离屏渲染是什么？为什么会触发离屏渲染</h3>
+<blockquote>
+<p>总分15分</p>
+</blockquote>
+<h3 id="什么是runlooprunloop的运行模式有哪几种">什么是RunLoop？RunLoop的运行模式有哪几种？</h3>
+<blockquote>
+<p>总分10分</p>
+</blockquote>
+<p>RunLoop是iOS中的一个事件循环机制，负责处理用户事件，如触摸事件、定时器事件、网络请求事件等，同时还要处理UI更新、线程通信等任务。<br>
+RunLoop会将事件源分发到相应的处理器进行处理，如果RunLoop没有事件需要处理，那么它会进入休眠状态，直到有新的事件到来。</p>
+<p>常见的RunLoop运行模式有以下几种：</p>
+<ol>
+<li>
+<p>DefaultRunLoopMode：默认模式，处理UI事件、定时器、网络事件等。</p>
+</li>
+<li>
+<p>UITrackingRunLoopMode：处理UIScrollView滑动过程中的事件，优先级高于DefaultRunLoopMode。</p>
+</li>
+<li>
+<p>CommonModes：是一个集合模式，可以添加多个模式，包括DefaultRunLoopMode和UITrackingRunLoopMode等，用于处理需要同时响应多个模式下的事件。</p>
+</li>
+</ol>
+<p>在运行RunLoop时，需要指定一个运行模式，如果没有指定，则会使用DefaultRunLoopMode。</p>
+<h3 id="ios开发中的响应链机制是什么请举例说明">iOS开发中的响应链机制是什么？请举例说明</h3>
+<blockquote>
+<p>总分15分</p>
+</blockquote>
+<p>在iOS应用中，将用户的触摸事件（touch event）传递到正确的视图（view）或者控制器（controller）的过程就是响应链。</p>
+<p>当用户在屏幕上进行触摸时，触摸事件会被UIWindow捕获，并从UIWindow开始向下传递，直到找到合适的响应者处理事件为止。</p>
+<p>当用户触摸到界面上的按钮时，iOS系统会将此事件封装成一个 UIEvent 对象，并通过 UIApplication 对象将该事件发送给当前 UIWindow 对象。接着，该 UIWindow 对象会将该事件发送给最前端的 UIResponder 对象，即当前展示在屏幕上的 UIViewController 的 view 属性对应的 UIView 对象。这一过程即为响应链的开始。</p>
+<p>接着，该 UIView 对象会通过 hitTest:withEvent: 方法判断当前触摸点是否在该 UIView 对象内。如果在，则该 UIView 对象会将该事件传递给自己的 touchesBegan:withEvent: 方法进行处理。如果不在，则该 UIView 对象会将该事件传递给其子视图进行处理。这一过程就是响应链的传递过程。</p>
+<p>当子视图接收到事件后，会按照相同的方式进行处理。如果该子视图的 userInteractionEnabled 属性为 NO，则该视图将不会响应该事件，并将该事件传递给下一个响应者。如果子视图的 userInteractionEnabled 属性为 YES，则该视图会先进行 hitTest:withEvent: 方法的判断，如果触摸点在该视图内，则该视图将该事件传递给自己的 touchesBegan:withEvent: 方法进行处理，否则将该事件传递给下一个响应者。</p>
+<p>最终，如果所有的子视图都没有处理该事件，则该事件会传递给该 UIView 对象的父视图进行处理，一直传递到 UIWindow 对象和 UIApplication 对象。如果该事件都没有被处理，则该事件将被丢弃。</p>
+<h1 id="架构相关">架构相关</h1>
+<p>主要考察架构、设计能力</p>
+<h2 id="基础-3">基础</h2>
+<h3 id="什么是mvc架构它的组成部分是什么在ios开发中如何实现mvc架构">什么是MVC架构？它的组成部分是什么？在iOS开发中，如何实现MVC架构？</h3>
+<blockquote>
+<p>总分10分</p>
+</blockquote>
+<h3 id="什么是mvvm架构它的组成部分是什么在ios开发中如何实现mvvm架构">什么是MVVM架构？它的组成部分是什么？在iOS开发中，如何实现MVVM架构？</h3>
+<blockquote>
+<p>总分15分</p>
+</blockquote>
+<h3 id="什么是装饰器decorator模式在swift中如何使用">什么是装饰器（Decorator）模式？在Swift中如何使用？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">1</td>
+<td>装饰器模式允许开发者在不修改对象结构的情况下，动态地添加行为。</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>在 Swift 中，装饰器模式可以通过使用协议和扩展来实现。</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">5</td>
+<td>具体来说，可以定义一个协议来表示被装饰者的基本行为，然后创建一个装饰器协议，该协议继承自被装饰者协议，并添加了额外的行为。最后，可以使用一个类来实现装饰器协议，该类通过存储被装饰者对象的引用来实现对被装饰者对象的包装。</td>
+</tr>
+</tbody>
+</table>
+<h2 id="进阶-3">进阶</h2>
+<h3 id="什么是尾递归优化tail-call-optimization在swift中如何实现尾递归优化">什么是尾递归优化（Tail-Call Optimization）？在Swift中如何实现尾递归优化？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>尾递归优化是一种优化技术，它可以避免在递归算法中出现栈溢出的问题</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>在递归函数的最后一个操作是调用自身，并且没有其他操作时，尾递归优化可以将递归转换为循环，避免了栈的增长</td>
+</tr>
+</tbody>
+</table>
+<h3 id="什么是函数柯里化function-currying在swift中如何实现函数柯里化">什么是函数柯里化（Function Currying）？在Swift中如何实现函数柯里化？</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">得分</th>
+<th style="text-align:center">分值</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">2</td>
+<td>函数柯里化是一种将多个参数的函数转换为一系列只有单个参数的函数的技术</td>
+</tr>
+<tr>
+<td style="text-align:center"></td>
+<td style="text-align:center">3</td>
+<td>在swift中，可以通过将函数返回值声明为闭包类型，将原本需要的参数放到返回值的闭包中，来实现函数柯里化</td>
+</tr>
+</tbody>
+</table>
+<h2 id="设计">设计</h2>
+<h3 id="在你的项目中你是如何划分模块module和层级layer的请举例说明">在你的项目中，你是如何划分模块（Module）和层级（Layer）的？请举例说明。</h3>
+<blockquote>
+<p>总分10分</p>
+</blockquote>
+<p>开放式题目。</p>
+<h3 id="不用-target-action-的方式如何设计一个路由组件">不用 target-action 的方式如何设计一个路由组件？</h3>
+<blockquote>
+<p>总分20分</p>
+</blockquote>
+<p>开放式题目。</p>
+<h3 id="当你从objc转到swift之后你最大的感触是什么">当你从ObjC转到Swift之后，你最大的感触是什么？</h3>
+<blockquote>
+<p>总分20分</p>
+</blockquote>
+<p>开放式题目。</p>
+<h3 id="当你从objc转到swift之后你做了哪些事让你的swift代码看上去不那么objc">当你从ObjC转到Swift之后，你做了哪些事让你的Swift代码看上去不那么ObjC？</h3>
+<blockquote>
+<p>总分30分</p>
+</blockquote>
+<p>开放式题目。下面提供几个示例：</p>
+<ol>
+<li>使用Swift的数据结构和类型：使用Swift的Array、Dictionary等数据结构，避免使用NSArray和NSDictionary等。</li>
+<li>使用Swift的可选型（Optional）：使用可选型来处理变量是否存在的情况，而不是定义0，空字符串，或者使用ObjC中的nil或NSNotFound等。</li>
+<li>使用Swift的语言特性：使用Swift中的高阶函数和闭包等语言特性，避免使用ObjC中的循环和函数指针等。</li>
+<li>减少使用全局变量：尽量避免使用全局变量，而采用更具体和局部的方式来传递数据。</li>
+<li>减少使用强制类型转换：尽量避免使用强制类型转换，而采用更安全和优雅的方式来处理类型转换。</li>
+</ol>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/simple-use-of-python-celery/" class="post-title gt-a-link">
+                    Python：Celery 的简单使用
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

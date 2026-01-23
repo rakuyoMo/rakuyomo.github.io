@@ -1,0 +1,625 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>从使用 Combine 拦截 delegate 看 Runtime 消息转发 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    从使用 Combine 拦截 delegate 看 Runtime 消息转发
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2025-04-11 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/runtime/" class="post-tags">
+                            # runtime
+                        </a>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/objective-c/" class="post-tags">
+                            # Objective-C
+                        </a>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tags">
+                            # ios
+                        </a>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/HEvQ-e7X7/" class="post-tags">
+                            # swift
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p><a href="https://github.com/CombineCommunity/CombineCocoa">CombineCocoa</a> 已有一段时间未更新，但其中许多代码仍能正常工作，比如 Delegate 的这部分。</p>
+<p>今天我们先从这部分代码入手，看看如何使用 Combine 拦截 UIKit 中的各类 delegate 对象，再深入探讨其背后的 Runtime 实现。</p>
+<!-- more -->
+<h2 id="使用-combine-拦截-delegate">使用 Combine 拦截 delegate</h2>
+<blockquote>
+<p>下面的代码和 CombineCocoa 中的不完全一致，我会做一些调整以及格式上的修改。</p>
+</blockquote>
+<p>首先，我们需要明确最终想要实现的效果，这是做框架时常用的逆向思考方法。比如我们想要一个这样的方法去调用：</p>
+<pre><code class="language-swift">// 代替 `UITableViewDelegate.tableView(_:willDisplay:forRowAt:)`
+tableView.willDisplayCellPublisher.sink { ... }
+
+/// Combine wrapper for tableView(_:willDisplay:forRowAt:)`
+public var willDisplayCellPublisher: AnyPublisher&lt;(cell: UITableViewCell, indexPath: IndexPath), Never&gt; {
+    return /* 一个 Publisher 对象 */
+}
+</code></pre>
+<p><code>willDisplayCellPublisher</code> 的定义位于 CombineCocoa 仓库的 <a href="https://github.com/CombineCommunity/CombineCocoa/blob/7300c75ff9e072aa7fd0fccefcc88f74aae9bf56/Sources/CombineCocoa/Controls/UITableView%2BCombine.swift#L18">UITableView+Combine.swift</a> 文件。关键代码如下所示：</p>
+<pre><code class="language-swift">@available(iOS 13.0, *)
+public extension UITableView {
+    /// Combine wrapper for `tableView(_:willDisplay:forRowAt:)`
+    var willDisplayCellPublisher: AnyPublisher&lt;(cell: UITableViewCell, indexPath: IndexPath), Never&gt; {
+        let selector = #selector(UITableViewDelegate.tableView(_:willDisplay:forRowAt:))
+        return delegateProxy.interceptSelectorPublisher(selector)
+            .map { ($0[1] as! UITableViewCell, $0[2] as! IndexPath) }
+            .eraseToAnyPublisher()
+    }
+
+    override var delegateProxy: DelegateProxy {
+        TableViewDelegateProxy.createDelegateProxy(for: self)
+    }
+}
+
+@available(iOS 13.0, *)
+private class TableViewDelegateProxy: DelegateProxy, UITableViewDelegate, DelegateProxyType {
+    func setDelegate(to object: UITableView) {
+        object.delegate = self
+    }
+}
+</code></pre>
+<p>实现看起来稍显复杂，我们逐步分析，先来看 <code>willDisplayCellPublisher</code> 这个计算属性。从 <code>interceptSelectorPublisher</code> 方法的字面含义上来看，猜测它是拦截了 <code>#selector(UITableViewDelegate.tableView(_:willDisplay:forRowAt:))</code> 方法，将相关调用封装为 Publisher 供外部订阅。</p>
+<p><code>delegateProxy</code> 属性本质上是 <code>TableViewDelegateProxy</code> 类型，其直接父类为 <code>DelegateProxy</code>，而它的父类最终是 <code>ObjcDelegateProxy</code>，这是一个纯 Objective‑C 类型。</p>
+<p>让我们先跳过 <code>DelegateProxy</code>，看看 <code>ObjcDelegateProxy</code> 都干了些什么。</p>
+<blockquote>
+<p>在看之前我们应该就能想到，它里面一定涉及到了 ObjC runtime 的使用，否则没有必要特地使用 ObjC</p>
+</blockquote>
+<p>相关代码位于 <a href="https://github.com/CombineCommunity/CombineCocoa/tree/main/Sources/Runtime">Runtime</a> 目录下。</p>
+<pre><code class="language-objective-c">//  Runtime/include/ObjcDelegateProxy.h
+
+#import &lt;Foundation/Foundation.h&gt;
+
+@interface ObjcDelegateProxy: NSObject
+
+@property (nonnull, strong, atomic, readonly) NSSet &lt;NSValue *&gt; *selectors;
+
+/// 当拦截到对应选择子时被调用，参数为方法名和参数列表
+- (void)interceptedSelector:(SEL _Nonnull)selector arguments:(NSArray * _Nonnull)arguments;
+- (BOOL)respondsToSelector:(SEL _Nonnull)aSelector;
+- (BOOL)canRespondToSelector:(SEL _Nonnull)selector;
+
+@end
+</code></pre>
+<p>从接口设计上来说这个类型暴露了比较多的方法，其中 <code>interceptedSelector</code> 方法是在 <code>willDisplayCellPublisher</code> 中用到的那个，一会儿重点关注一下。</p>
+<p>再看看 .m 文件中的实现：</p>
+<blockquote>
+<p>我省略了查找方法选择子相关方法的实现，本文重点关注方法转发相关的部分。</p>
+</blockquote>
+<pre><code class="language-objective-c">/// Runtime/ObjcDelegateProxy.m
+
+#import &lt;Foundation/Foundation.h&gt;
+#import &quot;include/ObjcDelegateProxy.h&quot;
+#import &lt;objc/runtime.h&gt;
+
+/// 辅助宏：将对象包装成 NSValue，以非保留方式持有
+#define OBJECT_VALUE(object) [NSValue valueWithNonretainedObject:(object)]
+
+/// 全局静态字典：Key 为代理类，Value 为该类声明的所有拦截选择子集合
+static NSMutableDictionary&lt;NSValue *, NSSet&lt;NSValue *&gt; *&gt; *allSelectors;
+
+@implementation ObjcDelegateProxy
+
+- (NSSet *)selectors {
+    return allSelectors[OBJECT_VALUE(self.class)];
+}
+
++ (void)initialize
+{
+    @synchronized (ObjcDelegateProxy.class) {
+        if (!allSelectors) {
+            allSelectors = [NSMutableDictionary new];
+        }
+        // 获取本类及其父类中所有 returnType 为 void 的方法选择子
+        allSelectors[OBJECT_VALUE(self)] = [self selectorsOfClass:self
+                     withEncodedReturnType:[NSString stringWithFormat:@&quot;%s&quot;, @encode(void)]];
+    }
+}
+
+- (BOOL)respondsToSelector:(SEL _Nonnull)aSelector {
+    return [super respondsToSelector:aSelector] || [self canRespondToSelector:aSelector];
+}
+
+- (BOOL)canRespondToSelector:(SEL _Nonnull)selector {
+    for (id current in allSelectors[OBJECT_VALUE(self.class)]) {
+        if (selector == (SEL) [current pointerValue]) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+- (void)interceptedSelector:(SEL _Nonnull)selector arguments:(NSArray * _Nonnull)arguments {
+    // 默认实现，子类可重写以处理拦截到的方法
+}
+
+- (void)forwardInvocation:(NSInvocation *)anInvocation
+{
+    NSArray * _Nonnull arguments = unpackInvocation(anInvocation);
+    [self interceptedSelector:anInvocation.selector arguments:arguments];
+}
+
+/// 从一个 NSInvocation 对象中提取出参数值，并包装为一个 NSArray&lt;id&gt; 返回
+NSArray * _Nonnull unpackInvocation(NSInvocation * _Nonnull invocation) {
+    NSUInteger numberOfArguments = invocation.methodSignature.numberOfArguments;
+    NSMutableArray *arguments = [NSMutableArray arrayWithCapacity:numberOfArguments - 2];
+
+    // 忽略前两个参数：self 和 _cmd（Objective-C 的默认前两个参数）
+    for (NSUInteger index = 2; index &lt; numberOfArguments; ++index) {
+        const char *argumentType = [invocation.methodSignature getArgumentTypeAtIndex:index];
+
+        // Skip const type qualifier.
+        if (argumentType[0] == 'r') {
+            argumentType++;
+        }
+
+        // 辅助宏：判断参数类型
+        #define isArgumentType(type) \
+            strcmp(argumentType, @encode(type)) == 0
+
+        // 辅助宏：提取基础数值类型参数，并转为 NSNumber
+        #define extractTypeAndSetValue(type, value) \
+            type argument = 0; \
+            [invocation getArgument:&amp;argument atIndex:index]; \
+            value = @(argument); \
+
+        id _Nonnull value;
+
+        // 引用类型或 block 类型，直接解包
+        if (isArgumentType(id) || isArgumentType(Class) || isArgumentType(void (^)(void))) {
+            __unsafe_unretained id argument = nil;
+            [invocation getArgument:&amp;argument atIndex:index];
+            value = argument;
+        }
+
+        // 以下全部是基本类型，统一转为 NSNumber
+        else if (isArgumentType(char)) {
+            extractTypeAndSetValue(char, value);
+        }
+        else if (isArgumentType(short)) {
+            extractTypeAndSetValue(short, value);
+        }
+        else if (isArgumentType(int)) {
+            extractTypeAndSetValue(int, value);
+        }
+        else if (isArgumentType(long)) {
+            extractTypeAndSetValue(long, value);
+        }
+        else if (isArgumentType(long long)) {
+            extractTypeAndSetValue(long long, value);
+        }
+        else if (isArgumentType(unsigned char)) {
+             extractTypeAndSetValue(unsigned char, value);
+        }
+        else if (isArgumentType(unsigned short)) {
+            extractTypeAndSetValue(unsigned short, value);
+        }
+        else if (isArgumentType(unsigned int)) {
+            extractTypeAndSetValue(unsigned int, value);
+        }
+        else if (isArgumentType(unsigned long)) {
+            extractTypeAndSetValue(unsigned long, value);
+        }
+        else if (isArgumentType(unsigned long long)) {
+            extractTypeAndSetValue(unsigned long long, value);
+        }
+        else if (isArgumentType(float)) {
+            extractTypeAndSetValue(float, value);
+        }
+        else if (isArgumentType(double)) {
+            extractTypeAndSetValue(double, value);
+        }
+        else if (isArgumentType(BOOL)) {
+            extractTypeAndSetValue(BOOL, value);
+        }
+        else if (isArgumentType(const char *)) {
+            extractTypeAndSetValue(const char *, value);
+        }
+
+        // 如果不是任何已知类型，就用 NSValue 包裹原始数据，比如 CGRect、CGSize
+        else {
+            NSUInteger size = 0;
+            NSGetSizeAndAlignment(argumentType, &amp;size, NULL);
+            NSCParameterAssert(size &gt; 0);
+
+            // 使用栈内存来存储未知数据
+            uint8_t data[size];
+            [invocation getArgument:&amp;data atIndex:index];
+
+            value = [NSValue valueWithBytes:&amp;data objCType:argumentType];
+        }
+
+        [arguments addObject:value];
+    }
+
+    return arguments;
+}
+
++ (NSSet &lt;NSValue *&gt; *) selectorsOfClass: (Class _Nonnull __unsafe_unretained) class
+                   withEncodedReturnType: (NSString *) encodedReturnType {
+    // 省略相关实现
+}
+
++ (NSSet &lt;NSValue *&gt; *) selectorsOfProtocol: (Protocol * __unsafe_unretained) protocol
+                       andEncodedReturnType: (NSString *) encodedReturnType {
+    // 省略相关实现
+}
+
++ (NSSet &lt;NSValue *&gt; *) selectorsOfProtocolPointer: (Protocol * __unsafe_unretained * _Nullable) pointer
+                                             count: (NSInteger) count
+                       andEncodedReturnType: (NSString *) encodedReturnType {
+    // 省略相关实现
+}
+
++ (NSString *)encodedMethodReturnTypeForMethod: (struct objc_method_description) method {
+    return [[NSString alloc] initWithBytes:method.types length:1 encoding:NSASCIIStringEncoding];
+}
+
+@end
+</code></pre>
+<p>从源码得知，<code>ObjcDelegateProxy</code> 及其子类在初始化类型时调用 <code>initialize</code> 方法，方法内会以类型为 key，将所有返回类型为 <code>void</code> 的方法存储到 <code>allSelectors</code> 这个私有静态全局属性中。</p>
+<p><code>respondsToSelector:</code> 会先调用 <code>canRespondToSelector:</code>，后者会在 <code>allSelectors</code> 中查找该 <code>selector</code>。如果找到了，就返回 <code>YES</code>，使得运行时认为此方法已被实现，从而跳过消息转发的后续流程。</p>
+<p>实际情况肯定是不会实现相关方法，接着就会通过消息转发流程执行 <code>forwardInvocation</code> 方法，将通过 <code>unpackInvocation</code> 方法拿到的参数，和方法选择子一起交给 <code>interceptedSelector</code> 方法，供子类覆写使用。</p>
+<p>大致的流程如下所示：</p>
+<pre><code class="language-markdown">[系统调用 delegate 方法]
+           ↓
+[调用 respondsToSelector:]
+           ↓
+ObjcDelegateProxy 判断是否支持该 selector（从协议中收集）
+           ↓
+系统继续调用该方法，但 proxy 未实现 ——&gt;
+           ↓
+触发 forwardInvocation
+           ↓
+unpackInvocation -&gt; 拿到参数
+           ↓
+interceptedSelector -&gt; 子类处理
+           ↓
+发出事件或自定义逻辑
+</code></pre>
+<blockquote>
+<p>相信现在你应该能明白为什么特地使用 ObjC 来实现了：Swift 不支持 <code>NSInvocation</code>，也无法重写 <code>forwardInvocation</code> 进行完整的消息转发。</p>
+</blockquote>
+<p>回到 <code>TableViewDelegateProxy</code>，它除了间接继承自 <code>ObjcDelegateProxy</code> 之外，还遵循了 <code>DelegateProxyType</code> 协议，这个 swift 协议的定义就比较简单常见了：</p>
+<pre><code class="language-swift">import Foundation
+
+private var associatedKey = &quot;delegateProxy&quot;
+
+public protocol DelegateProxyType {
+    associatedtype Object
+
+    func setDelegate(to object: Object)
+}
+
+@available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+public extension DelegateProxyType where Self: DelegateProxy {
+    static func createDelegateProxy(for object: Object) -&gt; Self {
+        // 确保线程安全，避免在多线程环境下重复创建/状态竞争。
+        objc_sync_enter(self)
+        defer { objc_sync_exit(self) }
+
+        let delegateProxy: Self
+
+        if let associatedObject = objc_getAssociatedObject(object, &amp;associatedKey) as? Self {
+            delegateProxy = associatedObject
+        } else {
+            delegateProxy = .init()
+            objc_setAssociatedObject(object, &amp;associatedKey, delegateProxy, .OBJC_ASSOCIATION_RETAIN)
+        }
+
+        delegateProxy.setDelegate(to: object)
+
+        return delegateProxy
+    }
+}
+</code></pre>
+<p>通过这个协议，我们可以便捷地为 <code>DelegateProxy</code> 子类添加 <code>createDelegateProxy(_:)</code> 方法，方法内部使用懒加载，创建了一个关联对象，随后调用 <code>setDelegate(to:)</code> 方法，将这个关联对象设置为 <code>object</code> 的代理。</p>
+<p>看完这些前置条件，我们可以看一看 <code>DelegateProxy</code> 这个类型了（<a href="https://github.com/CombineCommunity/CombineCocoa/blob/main/Sources/CombineCocoa/DelegateProxy/DelegateProxy.swift">DelegateProxy.swift</a>）：</p>
+<pre><code class="language-swift">@available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+open class DelegateProxy: ObjcDelegateProxy {
+    private var dict: [Selector: [([Any]) -&gt; Void]] = [:]
+    private var subscribers = [AnySubscriber&lt;[Any], Never&gt;?]()
+
+    ...
+
+    public override func interceptedSelector(_ selector: Selector, arguments: [Any]) {
+        dict[selector]?.forEach { handler in
+            handler(arguments)
+        }
+    }
+
+    public func intercept(_ selector: Selector, _ handler: @escaping ([Any]) -&gt; Void) {
+        if dict[selector] != nil {
+            dict[selector]?.append(handler)
+        } else {
+            dict[selector] = [handler]
+        }
+    }
+
+    public func interceptSelectorPublisher(_ selector: Selector) -&gt; AnyPublisher&lt;[Any], Never&gt; {
+        DelegateProxyPublisher&lt;[Any]&gt; { subscriber in
+            // 为了在 deinit 中释放，需要先存储起来
+            self.subscribers.append(subscriber)
+            return self.intercept(selector) { args in
+                _ = subscriber.receive(args)
+            }
+        }.eraseToAnyPublisher()
+    }
+
+    deinit {
+        subscribers.forEach { $0?.receive(completion: .finished) }
+        subscribers = []
+    }
+}
+</code></pre>
+<p>现在我们可以明白，在 <code>willDisplayCellPublisher</code> 中调用的 <code>interceptSelectorPublisher(_:)</code> 方法，将 <code>#selector(UITableViewDelegate.tableView(_:willDisplay:forRowAt:))</code> 作为 key，用于发送数据的闭包作为 value，存储到 <code>dict</code> 这个字典属性中。这个过程可以看做一个 “注册” 流程。</p>
+<p>当消息转发被触发时，<code>interceptedSelector(_: _:)</code> 方法会被调用，通过参数 <code>selector</code><br>
+从 <code>dict</code> 中取出数据发送事件，再将参数作为 value 发送出去。</p>
+<p><code>DelegateProxyPublisher</code> 是一个比较简单的自定义 <code>Publisher</code> 对象，它被定义在 <a href="https://github.com/CombineCommunity/CombineCocoa/blob/main/Sources/CombineCocoa/DelegateProxy/DelegateProxyPublisher.swift">DelegateProxyPublisher</a>，这里就不对其做过多的描述，读者可以翻阅源码自行查看。</p>
+<h3 id="总结">总结</h3>
+<p>至此，相信大家已经清楚了 CombineCocoa 如何利用 Combine 封装 Objective‑C 消息转发来拦截 delegate 调用，它的本质就是使用 Combine 框架，封装消息转发的结果。至于关联对象的使用则是锦上添花。</p>
+<p>而且我们也可以明白，为什么 CombineCocoa 这套框架只能拦截没有返回值的代理方法，因为它的 <code>allSelectors</code> 属性里只存储了返回值为 <code>void</code> 的方法。</p>
+<p>说到这里，再看看标题，既然提到了 Runtime 的消息转发，就让我们再回顾一下消息转发的相关知识。</p>
+<h2 id="runtime-消息转发">Runtime 消息转发</h2>
+<p>在 ObjC 中，方法的调用都是通过 <code>objc_msgSend</code> 来进行，我们一般称之为 “发送消息”。整个发送消息的流程大致如下所示：</p>
+<pre><code>                ↓
+[1] objc_msgSend(obj, sel)
+                ↓
+[2] 方法未找到 -&gt; runtime 会调用：
+    +resolveInstanceMethod: 或 +resolveClassMethod:
+                ↓
+[3] 仍未处理？调用：
+    - forwardingTargetForSelector:
+    （提供另一个对象转发 selector）
+                ↓
+[4] 还不行？runtime 调用：
+    - methodSignatureForSelector:
+    ↓（你必须返回一个 NSMethodSignature）
+[5] 然后调用：
+    - forwardInvocation:
+                ↓
+[6] 如果 forwardInvocation 没处理，会 crash:
+    unrecognized selector sent to instance
+</code></pre>
+<p>这也就是我们常说的 “使用 ObjC 调用一个未实现的方法时，未必会触发崩溃”，因为我们可以在运行时动态添加实现，或者使用消息转发。</p>
+<h3 id="动态方法解析">动态方法解析</h3>
+<p>第一阶段被称之为 “动态方法解析”（Dynamic Method Resolution），即 <code>+resolveInstanceMethod:</code> 或 <code>+resolveClassMethod:</code> 方法中，在运行时动态地添加一个方法。</p>
+<h3 id="快速转发">快速转发</h3>
+<p>第二阶段被称之为 “快速转发”（Fast Forwarding），即 <code>-forwardingTargetForSelector:</code> 方法中把这次函数调用转发给另外一个对象。</p>
+<h3 id="完整消息转发">完整消息转发</h3>
+<p>如果这两步都没处理，则会触发第三阶段：“完整消息转发”（Full Message Forwarding），或者叫 “标准消息转发”（Standard Message Forwarding），也就是上文提到的 <code>-methodSignatureForSelector:</code> + <code>-forwardInvocation:</code> 这两个方法。</p>
+<p><code>-methodSignatureForSelector:</code> 是调用 <code>-forwardInvocation:</code> 的前提，该方法负责返回方法的签名信息，也就是参数数量、类型、返回值类型等，为 <code>NSMethodSignature</code> 类型。 NSObject 有一个默认的 <code>-methodSignatureForSelector:</code> 方法实现，默认实现会去当前类的 method list 中查找是否存在名为 <code>selector</code> 的方法，如果找到了，就创建并返回一个对应的 <code>NSMethodSignature</code>；否则返回 <code>nil</code>。如果你不重写它，而 <code>selector</code> 确实不存在，默认实现就会返回 <code>nil</code>，这会直接导致 runtime 抛出 <code>unrecognized selector sent to instance</code> 异常，不会进入 <code>-forwardInvocation:</code>。</p>
+<p>在 CombineCocoa 的场景中，<code>ObjcDelegateProxy</code> 没有覆写 <code>-methodSignatureForSelector:</code> 方法，但是因为其子类实现了对应的代理协议，比如 <code>UITableViewDelegate</code>，所以相关的 <code>@objc</code> 方法会被添加到方法列表中，所以 <code>-methodSignatureForSelector:</code> 能够生成正确的 <code>NSMethodSignature</code> 对象，进而调用到 <code>-forwardInvocation:</code> 方法。</p>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/swift-method-dispatch-via-overriding/" class="post-title gt-a-link">
+                    通过覆写方法看 Swift 方法派发
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,802 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>epoxy 源码笔记1：Diffing 算法 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    epoxy 源码笔记1：Diffing 算法
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2023-03-16 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/epoxy/" class="post-tags">
+                            # epoxy
+                        </a>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tags">
+                            # ios
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>最近开始阅读学习 <a href="https://github.com/airbnb/epoxy-ios">epoxy</a> 的源码，开个新的系列来记录一下学习成功。</p>
+<!-- more -->
+<blockquote>
+<p>本系列文章不对 epoxy 是什么进行讲解，直接讲解其中的部分源码内容。</p>
+</blockquote>
+<p>如果相比较文字，您更喜欢直接阅读代码+注释，那么您可以跳到文章末尾的 <a href="#%E6%80%BB%E7%BB%93">总结</a> 一节，该小节包含了一个完整的，带注释讲解的源码。</p>
+<h1 id="目录">目录</h1>
+<ul>
+<li><a href="#%E6%BA%90%E7%A0%81">源码</a></li>
+<li><a href="#contiguousarray"><code>ContiguousArray</code></a></li>
+<li><a href="#%E9%A2%84%E5%A1%AB%E5%85%85%E6%95%B0%E7%BB%84">预填充数组</a></li>
+<li><a href="#entries"><code>entries</code></a></li>
+<li><a href="#%E8%AE%B0%E5%BD%95%E6%96%B0%E5%85%83%E7%B4%A0">记录新元素</a>
+<ul>
+<li><a href="#entry-%E5%AF%B9%E8%B1%A1%E5%92%8C-tracknewindex_-%E6%96%B9%E6%B3%95"><code>Entry</code> 对象和 <code>trackNewIndex(_:)</code> 方法</a></li>
+</ul>
+</li>
+<li><a href="#%E8%AE%B0%E5%BD%95%E6%97%A7%E5%85%83%E7%B4%A0">记录旧元素</a></li>
+<li><a href="#newrecord--oldrecord"><code>NewRecord</code> &amp; <code>OldRecord</code></a></li>
+<li><a href="#%E7%A1%AE%E5%AE%9A%E5%85%83%E7%B4%A0%E5%8F%98%E5%8A%A8">确定元素变动</a></li>
+<li><a href="#%E4%B8%AD%E5%9C%BA%E4%BC%91%E6%81%AF">中场休息</a></li>
+<li><a href="#%E5%88%A0%E9%99%A4%E6%96%B0%E5%A2%9E%E4%B8%8E%E7%A7%BB%E5%8A%A8">删除、新增与移动</a>
+<ul>
+<li><a href="#%E5%88%A0%E9%99%A4">删除</a></li>
+<li><a href="#%E6%96%B0%E5%A2%9E%E5%92%8C%E7%A7%BB%E5%8A%A8">新增和移动</a></li>
+</ul>
+</li>
+<li><a href="#%E6%80%BB%E7%BB%93">总结</a></li>
+</ul>
+<h1 id="源码">源码</h1>
+<p>本文主要讲解 <a href="https://github.com/airbnb/epoxy-ios/blob/master/Sources/EpoxyCore/Diffing/Collection%2BDiff.swift">Collection+Diff.swift</a> 文件中的 <code>makeChangeset(from:)</code> 方法，该方法可以快速比较出两个集合之间的区别，同时返回增删改的索引集合。</p>
+<p>首先贴一下相关的源码：</p>
+<pre><code class="language-swift">// MARK: - Collection
+extension Collection where Element: Diffable, Index == Int {
+
+  /// Diffs two collections (e.g. `Array`s) of `Diffable` items, returning an `IndexChangeset`
+  /// representing the minimal set of changes to get from the other collection to this collection.
+  ///
+  /// - Parameters:
+  ///     - from other: The collection of old data.
+  public func makeChangeset(from other: Self) -&gt; IndexChangeset {
+    // Arranging the elements contiguously prior to diffing improves performance by ~40%.
+    let new = ContiguousArray(self)
+    let old = ContiguousArray(other)
+
+    /// The entries in both this and the other collection, keyed by their `dataID`s.
+    var entries = [AnyHashable: Entry](minimumCapacity: new.count)
+    var duplicates = [Entry]()
+
+    var newResults = ContiguousArray&lt;NewRecord&gt;()
+    newResults.reserveCapacity(new.count)
+
+    for index in new.indices {
+      let id = new[index].diffIdentifier
+      let entry = entries[id, default: Entry()]
+      if entry.trackNewIndex(index) {
+        duplicates.append(entry)
+      }
+      entries[id] = entry
+      newResults.append(NewRecord(entry: entry))
+    }
+
+    var oldResults = ContiguousArray&lt;OldRecord&gt;()
+    oldResults.reserveCapacity(old.count)
+
+    for index in old.indices {
+      let id = old[index].diffIdentifier
+      let entry = entries[id]
+      entry?.pushOldIndex(index)
+      oldResults.append(OldRecord(entry: entry))
+    }
+
+    for newIndex in new.indices {
+      let entry = newResults[newIndex].entry
+      if let oldIndex = entry.popOldIndex() {
+        let newItem = new[newIndex]
+        let oldItem = other[oldIndex]
+
+        if !oldItem.isDiffableItemEqual(to: newItem) {
+          entry.isUpdated = true
+        }
+
+        newResults[newIndex].correspondingOldIndex = oldIndex
+        oldResults[oldIndex].correspondingNewIndex = newIndex
+      }
+    }
+
+    var deletes = [Int]()
+    var deleteOffsets = [Int]()
+    deleteOffsets.reserveCapacity(old.count)
+    var runningDeleteOffset = 0
+
+    for index in old.indices {
+      deleteOffsets.append(runningDeleteOffset)
+
+      let record = oldResults[index]
+
+      if record.correspondingNewIndex == nil {
+        deletes.append(index)
+        runningDeleteOffset += 1
+      }
+    }
+
+    var inserts = [Int]()
+    var updates = [(Int, Int)]()
+    var moves = [(Int, Int)]()
+    var insertOffsets = [Int]()
+    insertOffsets.reserveCapacity(new.count)
+    var runningInsertOffset = 0
+
+    for index in new.indices {
+      insertOffsets.append(runningInsertOffset)
+
+      let record = newResults[index]
+
+      if let oldArrayIndex = record.correspondingOldIndex {
+        if record.entry.isUpdated {
+          updates.append((oldArrayIndex, index))
+        }
+
+        let insertOffset = insertOffsets[index]
+        let deleteOffset = deleteOffsets[oldArrayIndex]
+        if (oldArrayIndex - deleteOffset + insertOffset) != index {
+          moves.append((oldArrayIndex, index))
+        }
+
+      } else {
+        inserts.append(index)
+        runningInsertOffset += 1
+      }
+    }
+
+    EpoxyLogger.shared.assert(
+      old.count + inserts.count - deletes.count == new.count,
+      &quot;Failed sanity check for old count with changes matching new count.&quot;)
+
+    return IndexChangeset(
+      inserts: inserts,
+      deletes: deletes,
+      updates: updates,
+      moves: moves,
+      newIndices: oldResults.map { $0.correspondingNewIndex },
+      duplicates: duplicates.map { $0.newIndices })
+  }
+
+// MARK: - Entry
+/// A bookkeeping refrence type for the diffing algorithm.
+private final class Entry {
+
+  // MARK: Internal
+  private(set) var oldIndices = [Int]()
+  private(set) var newIndices = [Int]()
+  var isUpdated = false
+
+  /// Tracks an index from the new indices, returning `true` if this entry has previously tracked
+  /// a new index as a means to identify duplicates and `false` otherwise.
+  func trackNewIndex(_ index: Int) -&gt; Bool {
+    let previouslyEmpty = newIndices.isEmpty
+
+    newIndices.append(index)
+
+    // We've encountered a duplicate, return true so we can track it.
+    if !previouslyEmpty, newIndices.count == 2 {
+      return true
+    }
+
+    return false
+  }
+
+  func pushOldIndex(_ index: Int) {
+    oldIndices.append(index)
+  }
+
+  func popOldIndex() -&gt; Int? {
+    guard currentOldIndex &lt; oldIndices.endIndex else {
+      return nil
+    }
+    defer {
+      currentOldIndex += 1
+    }
+    return oldIndices[currentOldIndex]
+  }
+
+  // MARK: Private
+  private var currentOldIndex = 0
+}
+
+// MARK: - OldRecord
+/// A bookkeeping type for pairing up an old element with its new index.
+private struct OldRecord {
+  var entry: Entry?
+  var correspondingNewIndex: Int? = nil
+}
+
+// MARK: - NewRecord
+/// A bookkeeping type for pairing up a new element with its old index.
+private struct NewRecord {
+  var entry: Entry
+  var correspondingOldIndex: Int? = nil
+}
+</code></pre>
+<p><code>makeChangeset(from:)</code> 方法是 <code>Collection&lt;Diffable&gt;</code> 的一个扩展，实际使用时你可以简单的理解为一个 <code>[Diffable]</code>。方法接收一个同类型的集合，返回一个 <code>IndexChangeset</code> 类型的结构体。</p>
+<p>返回值暂且忽略，咱们直接来看函数体。</p>
+<h1 id="contiguousarray"><code>ContiguousArray</code></h1>
+<pre><code class="language-swift">let new = ContiguousArray(self)
+let old = ContiguousArray(other)
+</code></pre>
+<p>函数体内首先将 <code>self</code> 和 <code>other</code> 转换为 <code>ContiguousArray</code> 类型的数组。从变量名上我们可以得知，<code>self</code> 代表着新的集合，而 <code>other</code> 代表着旧的的集合，也就是被比较的集合。</p>
+<p><code>ContiguousArray</code> 和 <code>Array</code> 类似，区别在于 <code>ContiguousArray</code> 能保证<strong>子元素在内存中是连续存储</strong>的，也就是说它是一块连续的内存，这就允许 CPU 通过指针进行连续访问，大幅提升性能。而 <code>Array</code> 我们大家都知道，它的内部使用了 “缓冲区”，逻辑上是连续的，但是内存上未必是连续的。</p>
+<p>因为在后续的算法中，<code>self</code> 和 <code>other</code> 的大小是固定的，不会发生变化，所以这里将其转换为 <code>ContiguousArray</code> 是更好的选择。</p>
+<p>通过源码中的注释我们也能知道，将 <code>self</code> 和 <code>other</code> 转换为 <code>ContiguousArray</code> 类型，可以提升大约 40% 的性能。</p>
+<blockquote>
+<p>后文中，将使用 <code>new</code> 代表 <code>self</code>，使用 <code>old</code> 代表 <code>other</code>。和这里的变量声明保持同步。</p>
+</blockquote>
+<h1 id="预填充数组">预填充数组</h1>
+<p>毕竟是一个讲究效率的算法，后文中随处可见 <code>.init(minimumCapacity:)</code> 、 <code>reserveCapacity(_:)</code> 方法，这些方法的作用是一样的：设置数组的长度。</p>
+<p>我们都知道 Swift 数组扩容通常是直接 *2。上一节中我们有提到，整个算法中数据源的大小是已知的，那么作为一个讲究效率的算法，我们可以在创建数组的同时就设定好数组的大小，避免在后续操作中触发数组的自动扩容，减少因为扩容而带来的性能损耗。</p>
+<h1 id="entries"><code>entries</code></h1>
+<pre><code class="language-swift">var entries = [AnyHashable: Entry](minimumCapacity: new.count)
+</code></pre>
+<p><code>entries</code> 这个字典变量的作用是，将 <code>new</code> 和 <code>old</code> 中，使用相同 <code>id</code> 的元素索引值对应起来。</p>
+<p>现在这么讲可能比较抽象，后面结合逻辑一起来谈。</p>
+<h1 id="记录新元素">记录新元素</h1>
+<pre><code class="language-swift">var newResults = ContiguousArray&lt;NewRecord&gt;()
+newResults.reserveCapacity(new.count)
+
+for index in new.indices {
+  let id = new[index].diffIdentifier
+  let entry = entries[id, default: Entry()]
+  if entry.trackNewIndex(index) {
+    duplicates.append(entry)
+  }
+  entries[id] = entry
+  newResults.append(NewRecord(entry: entry))
+}
+</code></pre>
+<p>代码首先使用新序列的索引进行遍历，使用对应元素的 <code>id</code>，尝试去 <code>entries</code> 中查找元素。</p>
+<blockquote>
+<p>这里使用了一个小技巧：Dictionay 的 <code>default</code>。当不存在 id 对应的元素时，将返回 <code>default</code> 对应的内容。这里即是返回一个空的 <code>Entry</code> 对象。</p>
+</blockquote>
+<p>稍后讲解 <code>Entry</code> 对象和 <code>trackNewIndex(_:)</code> 方法的具体内容，先大致说一下：</p>
+<ul>
+<li><code>Entry</code> 对象用来记录 “拥有同一个 id 的两个元素，其在新、旧两个数组中的位置”。</li>
+<li><code>trackNewIndex(_:)</code> 方法接收索引作为参数，并存储到 <code>Entry</code> 对象中。同时该方法会返回这个 <code>Entry</code> 对象是否已经在之前出现过（相当于一个重复检查）。</li>
+</ul>
+<p>现在我们就可以知道这个 <code>for</code> 循环大致的含义和作用了：</p>
+<p>它遍历新数组，首先根据 <code>id</code> 将数组元素存储到 <code>entries</code> 对象中，其次对该数组做一个 “重复检查”，并记录下重复的次数。</p>
+<h2 id="entry-对象和-tracknewindex_-方法"><code>Entry</code> 对象和 <code>trackNewIndex(_:)</code> 方法</h2>
+<p><code>Entry</code> 对象是一个结构体，它的完整声明比较长，这里我就不再重复贴了，读者可以翻到<a href="#%E6%BA%90%E7%A0%81">最上面</a> 自行查看。</p>
+<p>我们先把目光集中在 <code>newIndices</code> 这个属性以及 <code>trackNewIndex(_:)</code> 方法上。</p>
+<p><code>trackNewIndex(_:)</code> 方法的实现为：</p>
+<pre><code class="language-swift">/// Tracks an index from the new indices, returning `true` if this entry has previously tracked a new index as a means to identify duplicates and `false` otherwise.
+func trackNewIndex(_ index: Int) -&gt; Bool {
+  let previouslyEmpty = newIndices.isEmpty
+
+  newIndices.append(index)
+
+  // We've encountered a duplicate, return true so we can track it.
+  if !previouslyEmpty, newIndices.count == 2 {
+    return true
+  }
+
+  return false
+}
+</code></pre>
+<p>该方法将参数存储到 <code>newIndices</code> 里。这是它的作用之一：记录该 <code>id</code> 在新数组（<code>new</code>）中的位置。</p>
+<p>然后判断，如果 <code>newIndices</code> 中的元素等于 <code>2</code>，则意味着出现了重复。这很好理解，<code>newIndices</code> 大于 <code>1</code> 意味着同一个 <code>id</code> 出现了两次。不过截止到发文我也没能理解，为什么是 <code>== 2</code> 而不是 <code>&gt;= 2</code>。结合后文推断，猜测是不希望 <code>duplicates</code> 中出现重复的元素。</p>
+<h1 id="记录旧元素">记录旧元素</h1>
+<pre><code class="language-swift">var oldResults = ContiguousArray&lt;OldRecord&gt;()
+oldResults.reserveCapacity(old.count)
+
+for index in old.indices {
+  let id = old[index].diffIdentifier
+  let entry = entries[id]
+  entry?.pushOldIndex(index)
+  oldResults.append(OldRecord(entry: entry))
+}
+</code></pre>
+<p>记录旧元素的逻辑比记录新元素的逻辑要简单一些：当我们通过 <code>id</code>，如果在 <code>entries</code> 映射表中查到对应元素时（意味着该 <code>id</code> 存在对应的新元素），则存储该元素在旧数据中的索引值。否则不进行存储（因为 <code>entries</code> 的意思是存储 “新-旧” 的对应关系，不存在新，那么旧就没有意义）。</p>
+<h1 id="newrecord-oldrecord"><code>NewRecord</code> &amp; <code>OldRecord</code></h1>
+<p>在遍历新集合和旧集合的循环中，末尾都是创建了一个对应的 <code>XXRecord</code> 对象。这两个类型的声明比较相似，除了存储对应的 <code>Entry</code> 之外，还带有一个 <code>Int?</code> 类型的 <code>correspondingXXXIndex</code> 属性，该属性默认是 <code>nil</code>。</p>
+<p><code>correspondingOldIndex</code> 意味着在新集合中，该元素在旧集合中的位置。<br>
+<code>correspondingNewIndex</code> 意味着在旧集合中，该元素在新集合中的位置。</p>
+<p>如果是 <code>nil</code>，则意味着该元素在另外的集合中不存在。</p>
+<p>这两个属性都在后面的算法中起到了重要的作用。</p>
+<h1 id="确定元素变动">确定元素变动</h1>
+<pre><code class="language-swift">for newIndex in new.indices {
+  let entry = newResults[newIndex].entry
+  if let oldIndex = entry.popOldIndex() {
+    let newItem = new[newIndex]
+    let oldItem = other[oldIndex]
+    
+    if !oldItem.isDiffableItemEqual(to: newItem) {
+      entry.isUpdated = true
+    }
+    
+    newResults[newIndex].correspondingOldIndex = oldIndex
+    oldResults[oldIndex].correspondingNewIndex = newIndex
+  }
+}
+</code></pre>
+<p>这个对新集合的遍历，确定了两个集合之间元素的变动。</p>
+<p>首先是对新集合的遍历，因为 <code>newResults</code> 可以说就是 <code>new</code> 通过 <code>map</code> 得到的，所以可以使用 <code>newIndex</code> 直接从 <code>newResults</code> 中进行取值，而不用担心是否会越界。</p>
+<p>你应该还记得，<code>entry</code> 对象中存储着该 <code>id</code> 对应的元素在新、老集合中对应的索引。如果在新、老集合中不存在，那么对应的索引也就不存在。所以通过 <code>popOldIndex()</code> 方法（通过方法名也能看出它的作用），可以通过 <code>entry</code> 对象判断是否存在旧的元素。</p>
+<p>到这一步我们应该能知道：如果 <code>newResults</code> 中的某一个元素的 <code>correspondingOldIndex</code> 是 <code>nil</code>，那么该元素就是新增的。那么反过来，<code>oldResults</code> 中的逻辑也是一样的。</p>
+<blockquote>
+<p>实际上<a href="#newrecord--oldrecord">上一节</a>中，关于 <code>correspondingOldIndex</code> 和 <code>correspondingNewIndex</code> 这两个属性的作用，也是我通过这个循环推断出来的。</p>
+</blockquote>
+<p>接着往下看。如果存在旧的元素，那么我们就要比较新旧两个元素是否一致，如果不一致，则通过 <code>entry.isUpdated</code> 记录该元素发生了更新。</p>
+<p>最后在 <code>newResults</code> 和 <code>oldResults</code> 中记录该元素在另外一个数组中的位置。</p>
+<h1 id="中场休息">中场休息</h1>
+<p>到了这里，其实我们可以小结一下，先总结一下 <code>newResults</code>、<code>oldResults</code> 和 <code>entries</code> 三个变量的作用。</p>
+<p><code>entries</code> 的主要就是将新旧两个数组，通过相同的 <code>id</code> 做一个匹配，同时记录相应的索引。匹配到一起之后用来创建 <code>newResults</code> 和 <code>oldResults</code> 对象。该变量主要作用于算法的前半部分，为创建 <code>newResults</code> 和 <code>oldResults</code> 而生，创建完之后它的任务就结束了。</p>
+<p><code>newResults</code> 和 <code>oldResults</code> 这两个变量最主要的作用，按我的理解就是：“通过一个Int 类型的可选值，记录了 entry 的前世今生”。</p>
+<p><code>correspondingXXXIndex</code> 的存在有两个含义：</p>
+<ul>
+<li>是否为空意味着有前世，或者有今生</li>
+<li>不只是有，还能拿到对应的位置</li>
+</ul>
+<blockquote>
+<p>感慨一下如果没有 “可选值” 这个概念，则需要借助 <code>Bool</code> + <code>Int</code> 两个变量来完成这个工作。或者判断一下 <code>nil</code>？</p>
+</blockquote>
+<h1 id="删除-新增与移动">删除、新增与移动</h1>
+<p>在得到 <code>newResults</code> 和 <code>oldResults</code> 两个对象后，要计算出两个集合之间的差异就比较简单了。</p>
+<h2 id="删除">删除</h2>
+<p>后面的算法首先处理的是删除操作。</p>
+<pre><code class="language-swift">var deletes = [Int]()
+var deleteOffsets = [Int]()
+deleteOffsets.reserveCapacity(old.count)
+var runningDeleteOffset = 0
+
+for index in old.indices {
+    deleteOffsets.append(runningDeleteOffset)
+    let record = oldResults[index]
+    if record.correspondingNewIndex == nil {
+        deletes.append(index)
+        runningDeleteOffset += 1
+    }
+}
+</code></pre>
+<p>其实上文已经做了解释：如果 <code>correspondingNewIndex</code> 是 <code>nil</code>，则意味着该元素是被删除的元素。所以这次是对 <code>old</code> 进行遍历，而不是遍历 <code>new</code> 。</p>
+<p>除了将被删除的元素记录到 <code>deletes</code> 之外，该循环还将 “在这个位置之前，有多少个被删除了多少个元素” 记录到了 <code>deleteOffsets</code> 数组中。</p>
+<p>例如 <code>[1, 2, 3, 4, 5, 6, 7]</code> 和 <code>[2, 3, 5, 7]</code> 这两个集合做比较，那么 <code>deleteOffsets</code> 的值就是 <code>[0, 1, 1, 1, 2, 2, 3]</code>。代表着 “<code>5</code>这个元素之前，有两个元素被删除掉了”。</p>
+<blockquote>
+<p>该算法是先将 <code>runningDeleteOffset</code> 添加到 <code>deleteOffsets</code> 里，再做递增操作。所以记录的是 “本元素之前，被删除了多少个元素”。</p>
+</blockquote>
+<h2 id="新增和移动">新增和移动</h2>
+<pre><code class="language-swift">var inserts = [Int]()
+var updates = [(Int, Int)]()
+var moves = [(Int, Int)]()
+var insertOffsets = [Int]()
+insertOffsets.reserveCapacity(new.count)
+var runningInsertOffset = 0
+
+for index in new.indices {
+  insertOffsets.append(runningInsertOffset)
+  
+  let record = newResults[index]
+  
+  if let oldArrayIndex = record.correspondingOldIndex {
+    if record.entry.isUpdated {
+      updates.append((oldArrayIndex, index))
+    }
+    
+    let insertOffset = insertOffsets[index]
+    let deleteOffset = deleteOffsets[oldArrayIndex]
+    if (oldArrayIndex - deleteOffset + insertOffset) != index {
+      moves.append((oldArrayIndex, index))
+    }
+    
+  } else {
+    inserts.append(index)
+    runningInsertOffset += 1
+  }
+}
+</code></pre>
+<p>首先我们发现遍历的开头，用了 <code>record.correspondingOldIndex</code> 来做判断，意味着 “该元素有没有对应的老元素”。</p>
+<p>然后从下往上看 <code>else</code> 的逻辑，和删除的时候一样，这次循环通过 <code>inserts</code> 记录了 “该元素之前，插入了多少个元素”。这里我就不用具体的例子举例了，大家应该可以明白。</p>
+<p>那么再回到 <code>if</code> 里的逻辑，首先 <code>isUpdated</code> 是之前已经判断过了的。</p>
+<p>那么 <code>(oldArrayIndex - deleteOffset + insertOffset) != index</code> 该怎么理解呢？</p>
+<p>首先我们明确每个参数的含义：</p>
+<ul>
+<li><code>index</code> 是某个元素在 “新集合” 中的位置。</li>
+<li><code>oldArrayIndex</code> 是该元素在 “旧集合” 中的位置。</li>
+<li><code>deleteOffset</code> 意味着该元素之前删除了几个元素。</li>
+<li><code>insertOffset</code> 意味着该元素之前添加了几个元素。</li>
+</ul>
+<p>那么我们就可以理解了：<strong>对于旧集合而言，如果去掉被删除的，再加上新增的，如果索引位置不变，那么该元素的位置没有发生移动</strong>。</p>
+<p>通过具体的例子来看一下：</p>
+<p><code>[1, 2, 3, 4, 5, 6, 7]</code> 和 <code>[2, 3, 7, 5]</code>。我们遍历的是后者，即新集合。<code>deleteOffsets</code> 是 <code>[0, 1, 1, 1, 2, 2, 3]</code>。</p>
+<p>假设此时我们遍历到了新集合中的 <code>3</code>。</p>
+<p>那么 <code>index</code> 是 1，<code>oldArrayIndex</code> 是 2，<code>deleteOffset</code> 是 1，<code>insertOffset</code> 是 0。表达式为 <code>2 - 1 - 0 == 1</code>，不符合条件（注意代码中用的是 <code>!=</code> 号），那么则不会添加到 <code>moves</code> 里，意味着 3 这个元素没有被<strong>移动</strong>。</p>
+<p>再假设此时我们遍历到了新集合中的 <code>7</code>。</p>
+<p>那么 <code>index</code> 是 2，<code>oldArrayIndex</code> 是 6，<code>deleteOffset</code> 是 3，<code>insertOffset</code> 是 0。表达式为 <code>6 - 3 - 0 != 2</code>，符合条件，所以判断 <code>7</code> 发生了移动。</p>
+<p>最后遍历到 <code>5</code> 的时候，</p>
+<p><code>index</code> 是 3，<code>oldArrayIndex</code> 是 4，<code>deleteOffset</code> 是 2，<code>insertOffset</code> 是 0。表达式为 <code>4 - 2 - 0 != 3</code>，符合条件，所以判<code>5</code> 也是发生了移动。</p>
+<p>这样，我们就可以筛选出哪些元素发生了移动。</p>
+<h1 id="总结">总结</h1>
+<p>epoxy 的 Diffing 算法大体可以分为一下几个部分：</p>
+<ol>
+<li>将输入转换为 <code>ContiguousArray</code> 类型，提升效率。</li>
+<li>使用哈希表，将同一个 <code>id</code> 的元素从新旧两个集合中摘出来，做匹配，同时记录原本的位置。</li>
+<li>利用这个哈希表，配合 LCS 算法，找出哪些元素被删除，哪些元素是新增的。</li>
+<li>根据需求，进一步将第三步的结果进行处理。</li>
+</ol>
+<p>最后贴上一下我自己对源代码做的注释：</p>
+<pre><code class="language-swift">/// 对两个 `Diffable` 元素集合（例如 `Array`）进行差异化处理，返回一个 `IndexChangeset`，表示从 `other` 到此集合的最小更改集合。
+///
+/// - Parameters:
+///     - from other: 旧数据集合。
+public func makeChangeset(from other: Self) -&gt; IndexChangeset {
+    // 在进行差异化处理之前将元素连续排列可以提高大约40%的性能。
+    let new = ContiguousArray(self)
+    let old = ContiguousArray(other)
+    
+    // 通过 `dataID`，将 `self` 和 `other` 的对应元素存储到 `entries` 里。
+    var entries = [AnyHashable: Entry](minimumCapacity: new.count)
+    var duplicates = [Entry]()
+    
+    // 用来记录新元素（`self`）和旧索引的一个对应关系
+    var newResults = ContiguousArray&lt;NewRecord&gt;()
+    newResults.reserveCapacity(new.count)
+    
+    //
+    for index in new.indices {
+        // `new` 其实就是 `self`，从 `self` 里拿标识符
+        let id = new[index].diffIdentifier
+        
+        let entry = entries[id, default: Entry()]
+        
+        // 1. 记录这个新元素的位置
+        // 2. 判断当前数组的重复性，因为是数组，所以内部数据有可能会有重复的情况。
+        if entry.trackNewIndex(index) {
+            duplicates.append(entry)
+        }
+        
+        entries[id] = entry
+        
+        // `correspondingOldIndex` 默认是 `nil`
+        newResults.append(NewRecord(entry: entry))
+    }
+    
+    // 用来记录旧元素（`other`）和新索引的一个对应关系
+    var oldResults = ContiguousArray&lt;OldRecord&gt;()
+    oldResults.reserveCapacity(old.count)
+    
+    for index in old.indices {
+        // 从 `other` 里拿标识符
+        let id = old[index].diffIdentifier
+        
+        // 用 `other` 的 `id`，去 `self` 里找对应的值
+        let entry = entries[id]
+        
+        // 如果找到的话，就将旧的索引存储到 `entry` 里。
+        // `entry` 里既存储了新（`self`）的索引，又存储了旧（`other`）的索引。
+        // 因为 `id` 是一样的，所以就通过 `id` 把新旧两个元素的索引对应起来了。
+        entry?.pushOldIndex(index)
+        
+        // `correspondingNewIndex` 默认是 `nil`
+        oldResults.append(OldRecord(entry: entry))
+    }
+    
+    for newIndex in new.indices {
+        // `newResults` 是通过遍历 new 得到的
+        // 所以 `index` 是一致的，可以直接用 `new` 的 `index` 拿到 `newResults` 的元素
+        let entry = newResults[newIndex].entry
+        
+        // 如果存在新元素对应的老元素的话，可能对应更新操作
+        if let oldIndex = entry.popOldIndex() {
+            let newItem = new[newIndex]
+            let oldItem = other[oldIndex]
+            
+            // 如果两个对象不相等，则是更新操作
+            if !oldItem.isDiffableItemEqual(to: newItem) {
+                entry.isUpdated = true
+            }
+            
+            // 记录两个元素相对的位置
+            // 可能从 `old` 更新到 `new`，所以索引是有需要的
+            newResults[newIndex].correspondingOldIndex = oldIndex
+            oldResults[oldIndex].correspondingNewIndex = newIndex
+        }
+    }
+    
+    // 删除操作
+    var deletes = [Int]()
+    var deleteOffsets = [Int]()
+    deleteOffsets.reserveCapacity(old.count)
+    var runningDeleteOffset = 0
+    
+    for index in old.indices {
+        deleteOffsets.append(runningDeleteOffset)
+        
+        let record = oldResults[index]
+        
+        // 这里等于 `nil`，意味着在上一个循环中，没有匹配到对应的 `new` 元素
+        // 所以意味着在 `new` 数组中，没有该元素存在，所以该元素被删除了
+        if record.correspondingNewIndex == nil {
+            deletes.append(index)
+            runningDeleteOffset += 1
+        }
+    }
+    
+    var inserts = [Int]()
+    var updates = [(Int, Int)]()
+    var moves = [(Int, Int)]()
+    var insertOffsets = [Int]()
+    insertOffsets.reserveCapacity(new.count)
+    var runningInsertOffset = 0
+    
+    for index in new.indices {
+        insertOffsets.append(runningInsertOffset)
+        
+        let record = newResults[index]
+        
+        // 有新，有老
+        if let oldArrayIndex = record.correspondingOldIndex {
+            if record.entry.isUpdated {
+                // 更新，记录元素的对应关系
+                updates.append((oldArrayIndex, index))
+            }
+            
+            // `insertOffsets` 和 `deleteOffsets` 里的值，类似于 `[0, 0, 1, 1, 1]` 这种形式
+            // 其长度分别等于 `new` 和 `old`，所以直接使用对应的 `index` 取值不会导致溢出
+            let insertOffset = insertOffsets[index]
+            let deleteOffset = deleteOffsets[oldArrayIndex]
+            
+            // 旧位置 - 删除了的元素个数 + 新增了的元素个数 != 新位置 -&gt; 移动了
+            if (oldArrayIndex - deleteOffset + insertOffset) != index {
+                moves.append((oldArrayIndex, index))
+            }
+        }
+        
+        // 有新，没老
+        else {
+            // 意味着新的元素相对于老的元素来说是插入进来的
+            inserts.append(index)
+            runningInsertOffset += 1
+        }
+    }
+    
+    EpoxyLogger.shared.assert(
+        old.count + inserts.count - deletes.count == new.count,
+        &quot;Failed sanity check for old count with changes matching new count.&quot;)
+    
+    return IndexChangeset(
+        inserts: inserts,
+        deletes: deletes,
+        updates: updates,
+        moves: moves,
+        newIndices: oldResults.map { $0.correspondingNewIndex },
+        duplicates: duplicates.map { $0.newIndices })
+}
+</code></pre>
+<h1 id="后记">后记</h1>
+<p>文章算是写完了，但是感慨自己虽然花了很多时间，算是 “弄明白” 了本算法，但是也仅限于看懂，然后感慨它的精妙。甚至不敢肯定以后遇到相似的需求时，能用上该算法。哎，希望今后还能有所长进。</p>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/accelerated-swift-package-manager/" class="post-title gt-a-link">
+                    加速 Swift Package Manager
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

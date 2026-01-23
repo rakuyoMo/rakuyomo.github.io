@@ -1,0 +1,759 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <div class="main-content">
+        <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+
+        <div class="post-list-container">
+    <div class="post-inner">
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/synology-ssl-with-certd/">
+                            <span class="post-title gt-c-content-color-first">群晖 NAS 公网访问配置（五）：使用 certd 免费版配置泛域名证书</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        原本《群晖 NAS 公网访问配置》系列前四篇文章已经够用了，本系列中的 NAS 服务不会开放到公网上，https 本来是可有可无的。
+但是，如果你和本站一样使用了 .dev 域，那么你肯定也会遇到和我一样的问题：只用 http 无法访问服务，浏览器会强制使用 HTTPS。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2026-01-17 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/nas/" class="post-tag">
+                                # nas
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/bool-is-prefix-in-swift-and-java/">
+                            <span class="post-title gt-c-content-color-first">为什么 Swift 推荐 Bool 用 is 前缀，而 Java 常规避</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        最近在读阿里出品的 Java 开发手册，其中有一条规则是：
+
+POJO 类中的任何布尔类型的变量，都不要加 is 前缀，否则部分框架解析会引起序列化错误。
+
+这条规则让 iOS 开发出身的让感到好奇：为什么 Swift 推荐 Bool 用 is 前缀，而 Java 却要避免这种命名？
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2025-12-29 ·
+                        </time>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/jsbridge-encoding-ios-android-h5/">
+                            <span class="post-title gt-c-content-color-first">iOS &amp; Android &amp; H5 三端 JS Bridge 的编解码逻辑与源码分析</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        上一篇 全链路 HTTP 编解码：从客户端到服务端的数据流转 讲解 HTTP 请求中的编解码。然而在客户端开发的日常里，除了 HTTP，还有一个更高频的跨端传输场景：与 H5 的数据交换，而 JS Bridge 正是其中不可或缺的桥梁。
+本篇文章会沿着交互流程这条主线，只关注“编码 → 传输 → 解码”相关的细节。iOS、Android 与 H5 分别在什么时候序列化、什么时候做字符串转义、什么时候反序列化，以及这些差异会带来哪些坑。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2025-12-25 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/js-bridge/" class="post-tag">
+                                # js-bridge
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/android/" class="post-tag">
+                                # android
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/front-end/" class="post-tag">
+                                # front-end
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/http-encoding-and-jsbridge-cross-platform/">
+                            <span class="post-title gt-c-content-color-first">全链路 HTTP 编解码：从客户端到服务端的数据流转</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        作为开发者，我们每天都在和网络请求打交道。但你有没有想过：当 iOS 调用 URLSession 发起一个 GET 请求时，参数里的中文是怎么处理的？后端的 Spring 框架又是如何解析这些参数的？Jackson 在其中扮演了什么角色？
+这篇文章会从 HTTP 协议的编码规范讲起，深入客户端网络层的实现细节，再到服务端的 Jackson 与 Spring 请求处理。希望读完之后，你对「数据是怎么在客户端和服务端之间流转的」能有一个完整的认识。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2025-12-24 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/android/" class="post-tag">
+                                # android
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/java/" class="post-tag">
+                                # java
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/ji-suan-ji-wang-luo/" class="post-tag">
+                                # 计算机网络
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/console-log-reference-trap-and-devtools-lazy-expansion/">
+                            <span class="post-title gt-c-content-color-first">JavaScript console.log 打印对象的引用陷阱与 DevTools 延迟展开机制</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        最近在小红书上看到一个帖子：后端转前端发现诡异bug，他遇到了这样的诡异现象：
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2025-12-15 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/vue/" class="post-tag">
+                                # vue
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/front-end/" class="post-tag">
+                                # front-end
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/install-java8-on-arm-mac/">
+                            <span class="post-title gt-c-content-color-first">ARM Mac 安装 Java 8 备忘</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        最近需要在 ARM Mac 上装 Java 8，研究了一圈发现直接用 Azul Zulu 的原生 ARM 版本最省事。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2025-12-05 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/java/" class="post-tag">
+                                # java
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/swift-collections-lifetime-feature-compilation-error/">
+                            <span class="post-title gt-c-content-color-first">解决 swift-collections 1.3.0 在 Xcode 26.1 下的 Lifetime 特性编译错误</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        最近在 vibe coding 一款 macOS App，名叫 “Hassan”，具体做什么的暂且按下不表。项目在从 Xcode 16.4 升级到 26.1 后遇到了一个编译错误，花费几个小时研究明白后决定水一篇文章，整理一下这几个小时的收获。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2025-12-01 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/tuist/" class="post-tag">
+                                # tuist
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/swift-package-manager/" class="post-tag">
+                                # swift-package-manager
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/xcode/" class="post-tag">
+                                # xcode
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/HEvQ-e7X7/" class="post-tag">
+                                # swift
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/computer-network-osi-and-tcpip-models/">
+                            <span class="post-title gt-c-content-color-first">计算机网络之七 - OSI 与 TCP/IP 分层模型</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        本篇是计算机网络系列的第七篇。在前面的文章中，我们已经分别探讨了 IP、DNS、DHCP、TCP、HTTP 等具体的技术点。然而，这些技术并非孤立存在，它们是一个庞大而精密的系统中的有机组成部分。为了理解它们如何协同工作，我们需要一个宏观的框架来审视整个网络世界。这个框架，就是网络分层模型。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2025-09-04 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/ji-suan-ji-wang-luo/" class="post-tag">
+                                # 计算机网络
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/vibe-coding-sweet-struggle/">
+                            <span class="post-title gt-c-content-color-first">Vibe Coding 的两面：一周体验的甜蜜与挣扎</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        Vibe Coding，也就是 “氛围编程” 这个概念已经火了很长一段时间了，可惜主包之前碍于种种原因一直没能找到机会亲自试一下。不过就在上周正好要做一个新的系统，给了我尝试 Vibe Coding 的机会。现在系统已经搭建完毕，本文就用来记录这一周多一点的 “氛围编程” 体验吧。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2025-09-02 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/ai/" class="post-tag">
+                                # AI
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/vibe-coding/" class="post-tag">
+                                # vibe-coding
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/computer-network-tcp-and-udp/">
+                            <span class="post-title gt-c-content-color-first">计算机网络之六 - 可靠的 TCP 与高效的 UDP</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        TCP 与 UDP 是网络传输层的两大核心协议，它们以截然不同的方式定义了数据在应用程序间的传输。TCP 如同一次通话，追求可靠与完整；UDP 则像一张明信片，主张高效与迅捷。正是这两种设计哲学的差异，决定了它们在网页浏览、文件传输、视频会议、在线游戏等不同场景下的应用。本文将深入解析二者的核心机制与关键差异。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2025-08-21 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/ji-suan-ji-wang-luo/" class="post-tag">
+                                # 计算机网络
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/computer-network-http-and-https/">
+                            <span class="post-title gt-c-content-color-first">计算机网络之五 - HTTP 与 HTTPS</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        本系列的前几篇文章中，我们已经探讨了设备如何通过 IP 地址获得身份、如何通过 DNS 将域名解析为地址，以及如何通过 DHCP、NAT 和 VPN 等技术接入并穿梭于复杂的网络环境。至此，我们的设备已经具备了“定位”并“连接”到目标服务器的能力。
+本文将深入探讨这个连接建立之后，应用程序之间进行通信所使用的“语言”——HTTP 协议，以及其安全版本 HTTPS。这两种协议构成了现代万维网的基石。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2025-08-18 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/ji-suan-ji-wang-luo/" class="post-tag">
+                                # 计算机网络
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/RaAPIWrapper/">
+                            <span class="post-title gt-c-content-color-first">将 ARouter 的思想带入 Swift：用声明式语法构建类型安全的 API 请求</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        最近读到喵神的《编译器，靠你了！使用类型改善状态设计》，深受启发。这篇文章让我意识到，我在设计 RaAPIWrapper 时，为了解决一些工程问题而采用的方案，在不经意间与“类型即状态”的设计思想不谋而合。
+我之前还没有正式介绍过这个库，所以借此机会，正式与大家分享 RaAPIWrapper 的设计，特别是它为了解决特定问题而采用的架构，以及这些决策在事后看来，是如何“碰巧”实现了更先进的设计模式。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2025-08-15 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/computer-network-virtual-nic-and-wireguard/">
+                            <span class="post-title gt-c-content-color-first">计算机网络之四 - 虚拟网卡与 WireGuard</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        在上一篇文章的结尾，我们探讨了多种内网穿透技术，并初步介绍了 WireGuard 作为一种现代化 VPN 解决方案的优势。其实在更早之前，我们就亲手编译过 WireGuard 在 iOS 端的 SDK，也使用 WireGuard 实现过群晖 NAS 的公网访问。
+本文将以 macOS 环境为基础，深入 WireGuard 内部，从内核交互的底层细节出发，解构虚拟网卡的实现机制，并详细剖析其密码学和路由设计。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2025-08-12 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/ji-suan-ji-wang-luo/" class="post-tag">
+                                # 计算机网络
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/computer-network-dhcp-and-intranet-penetration/">
+                            <span class="post-title gt-c-content-color-first">计算机网络之三 - DHCP 与内网穿透</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        本篇是计算机网络系列的第三篇，主要讲 DHCP 和内网穿透。在探索广阔的外网之前，先把内网相关的内容做个收尾。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2025-08-11 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/ji-suan-ji-wang-luo/" class="post-tag">
+                                # 计算机网络
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/mise/">
+                            <span class="post-title gt-c-content-color-first">mise: 统一且高效的开发环境管理工具</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        mise 是一款高性能的开发工具管理器，旨在通过单一工具和单一配置文件，实现对所有开发环境的统一管理。它能有效解决多项目开发中环境配置的复杂性，提升开发效率。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2025-08-07 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/kai-fa-gong-ju/" class="post-tag">
+                                # 开发工具
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/computer-network-url-and-dns/">
+                            <span class="post-title gt-c-content-color-first">计算机网络之二 - URL 与 DNS</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        本篇是计算机网络系列的第二篇，主要讲 URL 和 DNS。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2025-08-06 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/ji-suan-ji-wang-luo/" class="post-tag">
+                                # 计算机网络
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/why-swift-reduce-prefers-plus-over-and/">
+                            <span class="post-title gt-c-content-color-first">解密 Swift：为何 reduce 偏爱 + 而非 &amp;&amp; ？</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        作为 Swift 开发者，我们都热爱这门语言提供的优雅和简洁性，尤其是它的函数式编程能力。
+Swift 原生提供了一些高阶函数，常见的比如 map、filter、reduce 等。这些优雅的高阶函数能够极大的简化我们的代码，但是一个不小心也会报一个让你困扰一整天的错误。
+今天，我们就来看看其中一种情况。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2025-08-05 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/HEvQ-e7X7/" class="post-tag">
+                                # swift
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/computer-network-ip-and-port/">
+                            <span class="post-title gt-c-content-color-first">计算机网络之一 - IP 与端口</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        最近在研究 Surge，众所周知主包这方面知识贼差，几乎可以算是从零开始学起，所以也想借这个机会好好补一下相关知识。
+预计会写一系列文章，从计算机网络的基础概念开始，后续会包含常见的接口请求流程以及 WireGuard 等相关内容。
+本篇就是系列的第一篇。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2025-07-22 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/ji-suan-ji-wang-luo/" class="post-tag">
+                                # 计算机网络
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/notes-about-surge-for-mac/">
+                            <span class="post-title gt-c-content-color-first">Surge For Mac 的一些注意事项</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        记一些日常使用时的小细节吧，也谈不上使用教程。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2025-07-08 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/surge/" class="post-tag">
+                                # surge
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/combine-intercept-delegate-objc-runtime/">
+                            <span class="post-title gt-c-content-color-first">从使用 Combine 拦截 delegate 看 Runtime 消息转发</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        CombineCocoa 已有一段时间未更新，但其中许多代码仍能正常工作，比如 Delegate 的这部分。
+今天我们先从这部分代码入手，看看如何使用 Combine 拦截 UIKit 中的各类 delegate 对象，再深入探讨其背后的 Runtime 实现。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2025-04-11 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/runtime/" class="post-tag">
+                                # runtime
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/objective-c/" class="post-tag">
+                                # Objective-C
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/HEvQ-e7X7/" class="post-tag">
+                                # swift
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+    </div>
+</div>
+
+        <div class="pagination-container">
+    
+    
+        <a href="https://blog.rakuyo.dev/page/2" class="prev-page gt-a-link">下一页</a>
+    
+</div>
+
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

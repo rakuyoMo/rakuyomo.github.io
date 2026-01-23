@@ -1,0 +1,430 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>圆角 &amp; 离屏渲染实践 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    圆角 &amp; 离屏渲染实践
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2023-03-06 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tags">
+                            # ios
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>下文主要针对各种加圆角的情况进行实践，看看会不会出现离屏渲染的情况。</p>
+<!-- more -->
+<h1 id="测试条件">测试条件</h1>
+<ul>
+<li>测试平台：iPhone 12，iOS 16.3.1，Xcode 14.2。</li>
+<li>测试方法：运行项目后，通过 Xcode 设置 “Debug -&gt; View Debugging -&gt; Rendering -&gt; Color Off-screen Rendered” 来打开离屏渲染检测。</li>
+<li>主要测试点：
+<ul>
+<li>是否开启 <code>masksToBounds</code></li>
+<li>是否设置图片</li>
+<li>是否设置背景色”</li>
+<li>父视图是否具有透明度</li>
+</ul>
+</li>
+</ul>
+<h1 id="结论">结论</h1>
+<p>这里先把结论放到最前面，后面您可以跳过实践过程，直接切到<a href="#%E5%B0%9D%E8%AF%95%E8%A7%A3%E5%86%B3%E7%A6%BB%E5%B1%8F%E6%B8%B2%E6%9F%93%E9%97%AE%E9%A2%98">解决方案</a>一节。</p>
+<blockquote>
+<p>✅ 代表不会触发离屏渲染；❌ 代表会触发离屏渲染。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align:center"></th>
+<th style="text-align:center">UIView</th>
+<th style="text-align:center">UIImageView</th>
+<th style="text-align:center">UIButton<br>（只有文字）</th>
+<th style="text-align:center">UIButton<br>（图片/背景图）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">直接设置</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">❌</td>
+</tr>
+<tr>
+<td style="text-align:center">背景色<br>（非透明）</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">❌</td>
+</tr>
+<tr>
+<td style="text-align:center">父视图具有透明度<br>（<code>alpha</code>）</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+</tr>
+</tbody>
+</table>
+<p>下面重点说一下 <code>UIImageView</code> 和 <code>UIButton</code> 的测试过程：</p>
+<h1 id="uiimageview">UIImageView</h1>
+<p>iOS 9 对 <code>UIImageView</code> 进行了一系列优化，相比较过去而言，触发离屏渲染的场景要小了不少</p>
+<h2 id="直接设置">直接设置</h2>
+<pre><code class="language-swift">lazy var testView = UIImageView().then {
+    $0.image = UIImage(named: &quot;Forms/share-cover&quot;)
+    $0.layer.masksToBounds = true
+    $0.layer.cornerRadius = 30
+}
+</code></pre>
+<p>一个设置了图片的 UIImageView。示例中同时设置了 <code>masksToBounds</code> 和 <code>cornerRadius</code>。从图片上可以看出来，并不会触发离屏渲染：</p>
+<blockquote>
+<p>UIImageView 不设置 <code>masksToBounds</code>，只设置 <code>cornerRadius</code> 的话不会显示圆角。</p>
+</blockquote>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyo.dev/post-images/1678103185585.png" alt="" loading="lazy"></figure>
+<h2 id="添加背景色">添加背景色</h2>
+<p>那如果我们<s>手贱</s>再给它添加一个背景色呢？</p>
+<pre><code class="language-swift">lazy var testView = UIImageView().then {
+    $0.image = UIImage(named: &quot;Forms/share-cover&quot;)
+    $0.layer.masksToBounds = true
+    $0.layer.cornerRadius = 30
+    $0.backgroundColor = .white // 添加一个白色的背景色
+}
+</code></pre>
+<figure data-type="image" tabindex="2"><img src="https://blog.rakuyo.dev/post-images/1678103345883.png" alt="" loading="lazy"></figure>
+<p>果然手贱是没有好处的，设置了背景色后则会触发离屏渲染。</p>
+<h1 id="uibutton">UIButton</h1>
+<p><code>UIButton</code> 默认也是没有背景色的，需要同时考虑文字和图片两种情况。</p>
+<h2 id="文字">文字</h2>
+<p>如果不设置背景色的话，只有文字的 <code>UIButton</code> 对象是显示不出来圆角的，不过我也是分别测了一下。</p>
+<pre><code class="language-swift">lazy var testView = UIButton(type: .custom).then {
+    $0.setTitle(&quot;这是一个标题&quot;, for: .normal)
+    $0.layer.cornerRadius = 30
+}
+</code></pre>
+<p>结论是：不论设置不设置背景色，只有文字的 <code>UIButton</code> 对象添加圆角后都<strong>不会触发离屏渲染</strong>。</p>
+<p>同时只需要设置 <code>cornerRadius</code>，不需要开启 <code>masksToBounds</code> 就可以显示出来圆角。</p>
+<h2 id="图片-背景图">图片 &amp; 背景图</h2>
+<blockquote>
+<p>因为现象一致，所以图片和背景图在这里归位一类进行讨论。</p>
+</blockquote>
+<p>带图片的 <code>UIButton</code> 是重点测试对象，分下面几种情况：</p>
+<h2 id="直接设置-2">直接设置</h2>
+<pre><code class="language-swift">lazy var testView = UIButton(type: .custom).then {
+    $0.setTitle(&quot;这是一个标题&quot;, for: .normal)
+    $0.layer.masksToBounds = true
+    $0.layer.cornerRadius = 30
+    $0.setImage(UIImage(named: &quot;Forms/share-cover&quot;), for: .normal)
+}
+</code></pre>
+<blockquote>
+<p>如果 <code>UIButton</code> 只设置 <code>cornerRadius</code> 而不开启 <code>masksToBounds</code>，那么图片是不会显示出圆角的。</p>
+</blockquote>
+<figure data-type="image" tabindex="3"><img src="https://blog.rakuyo.dev/post-images/1678103345883.png" alt="" loading="lazy"></figure>
+<p>从图上看，是会触发离屏渲染。</p>
+<h1 id="尝试解决离屏渲染问题">尝试解决离屏渲染问题</h1>
+<p>实践了哪些情况会触发离屏渲染，接下来就想办法尝试解决这些问题。</p>
+<h2 id="用父视图进行包裹">用父视图进行包裹</h2>
+<p>有的文章会提到用一个父视图包裹需要添加圆角的视图，然后将圆角添加到父视图上。</p>
+<p>实践发现该方法并不能解决离屏渲染问题。</p>
+<h2 id="避免开启-maskstobounds">避免开启 <code>masksToBounds</code></h2>
+<p><code>UIImageView</code> 视图可以在不开启 <code>masksToBounds</code>，仅设置 <code>cornerRadius</code> 的情况下显示圆角，只包含文字的 <code>UIButton</code> 对象也一样。</p>
+<p>所以在这种情况下，不开启 <code>masksToBounds</code> 也可以避免触发离屏渲染。</p>
+<h2 id="为图片添加圆角">为图片添加圆角</h2>
+<p>直接为图片添加圆角是比较常用的避免离屏渲染的方法。只不过现在比较常用的 <code>UIImageView</code> 视图已经不会触发离屏渲染了，但是 <code>UIButton</code> 依然可以这么做。</p>
+<p>下面提几点实际需求里可能会遇到的问题：</p>
+<h3 id="拼接图片">“拼接图片”</h3>
+<p>例如微信的群聊头像，可能涉及到多个图片在一个视图控件中进行展示。</p>
+<p>这个时候最好将多张图片拼到一起，然后对这张图片整体设置圆角。而不是在一个 <code>UIView</code> 中尝试添加多个 <code>UIImageVIew</code>，再对 <code>UIView</code> 设置圆角。</p>
+<h3 id="视图尺寸不固定">视图尺寸不固定</h3>
+<p>一般 UIButton 会遇到 “尺寸不固定 + 需要圆角 + 背景色” 的情况。</p>
+<p>例如页面某个位置有一个 “距离屏幕两侧 10px，可用状态背景色为蓝色，不可用状态下为灰蓝色” 的按钮。</p>
+<p>此时可以考虑找 UI 切一个带圆角的纯色图片直接用作底色，但是我们开发也可以自己生成这样一张图片，然后通过拉伸来达到相同的效果。</p>
+<p>首先我们先找喵神借用一个非常好用的<a href="https://github.com/onevcat/Kingfisher/blob/master/Sources/Image/ImageProcessor.swift#L307">枚举</a>，来表示圆角：</p>
+<pre><code class="language-swift">extension UIImage {
+    enum Radius {
+        /// 圆角半径应该按照图片**宽度**的比例计算。
+        /// 通常关联的值应该在0和0.5之间，其中0表示没有圆角，0.5表示使用图片宽度的一半作为圆角半径。
+        case widthFraction(CGFloat)
+        
+        /// 圆角半径应该按照图片**高度**的比例计算。
+        /// 通常关联的值应该在0和0.5之间，其中0表示没有圆角，0.5表示使用图片高度的一半作为圆角半径。
+        case heightFraction(CGFloat)
+        
+        /// 使用一个固定的点值作为圆角半径。
+        case point(CGFloat)
+        
+        func compute(with size: CGSize) -&gt; CGFloat {
+            let cornerRadius: CGFloat
+            switch self {
+            case .point(let point):
+                cornerRadius = point
+            case .widthFraction(let widthFraction):
+                cornerRadius = size.width * widthFraction
+            case .heightFraction(let heightFraction):
+                cornerRadius = size.height * heightFraction
+            }
+            return cornerRadius
+        }
+    }
+}
+</code></pre>
+<p>之后生成纯色图片：</p>
+<pre><code class="language-swift">extension UIImage {
+    static func color(
+        _ color: UIColor,
+        size: CGSize = .init(width: 1, height: 1),
+        radius: Radius? = nil
+    ) -&gt; UIImage {
+        let cornerRadius = radius?.compute(with: size)
+        
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let image = renderer.image { _ in
+            let rect = CGRect(origin: .zero, size: size)
+            let path: UIBezierPath
+            
+            if let cornerRadius = cornerRadius {
+                path = .init(roundedRect: rect, cornerRadius: cornerRadius)
+            } else {
+                path = .init(rect: rect)
+            }
+            
+            color.setFill()
+            path.fill()
+        }
+        
+        guard let cornerRadius = cornerRadius else { return image }
+        
+        let insets = { UIEdgeInsets(top: $0, left: $0, bottom: $0, right: $0) }(cornerRadius)
+        return image.resizableImage(withCapInsets: insets, resizingMode: .stretch)
+    }
+}
+</code></pre>
+<p>你还可以扩展这个方法，配置需要圆角的位置，而不是为四个边都添加圆角，比较简单，这里就不再赘述了。</p>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/ios-self-paced-test-questions/" class="post-title gt-a-link">
+                    iOS自编笔试题
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

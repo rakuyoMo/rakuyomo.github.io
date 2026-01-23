@@ -1,0 +1,569 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>计算机网络之一 - IP 与端口 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    计算机网络之一 - IP 与端口
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2025-07-22 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/ji-suan-ji-wang-luo/" class="post-tags">
+                            # 计算机网络
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>最近在研究 Surge，众所周知主包这方面知识贼差，几乎可以算是从零开始学起，所以也想借这个机会好好补一下相关知识。</p>
+<p>预计会写一系列文章，从计算机网络的基础概念开始，后续会包含常见的接口请求流程以及 WireGuard 等相关内容。</p>
+<p>本篇就是系列的第一篇。</p>
+<!-- more -->
+<p>其余几篇的目录：</p>
+<ul>
+<li><a href="/computer-network-url-and-dns/">计算机网络之二 - URL 与 DNS</a></li>
+<li><a href="/computer-network-dhcp-and-intranet-penetration/">计算机网络之三 - DHCP 与内网穿透</a></li>
+<li><a href="/computer-network-virtual-nic-and-wireguard">计算机网络之四 - 虚拟网卡与 WireGuard</a></li>
+<li><a href="/computer-network-http-and-https">计算机网络之五 - HTTP 与 HTTPS</a></li>
+<li><a href="/computer-network-tcp-and-udp">计算机网络之六 - 可靠的 TCP 与高效的 UDP</a></li>
+<li><a href="/computer-network-osi-and-tcpip-models">计算机网络之七 - OSI 与 TCP/IP 分层模型</a></li>
+</ul>
+<hr>
+<h1 id="ip">IP</h1>
+<p><strong>IP 地址</strong> 是计算机网络通信的基石，网络中每一台设备都有唯一的一个  IP 地址。你可以把它想象成设备的身份证号，每个人的身份证号都是唯一的。</p>
+<p>常见的 IP 地址比如 <code>8.8.8.8</code>，这是 Google DNS 服务器的 IP 地址。再比如 <code>192.168.1.1</code>，家中路由器的管理页面经常是这个地址。</p>
+<h2 id="ipv4-和-ipv6">IPv4 和 IPv6</h2>
+<p>IP 地址有两个版本：IPv4 和 IPv6。</p>
+<blockquote>
+<p>可能你会好奇有没有 IPv3、IPv5 等等，其实是有的。<br>
+所谓的 IPv1, v2, v3，可以被看作是 IPv4 诞生之前的、存在于 TCP 协议内部的“史前草稿”或“实验版本”，它们从未作为独立的 IP 协议存在过。<br>
+而 IPv5，更常见的名字可能是 <strong>ST2</strong>，它是 IP 协议的旁支，从未被打算作为通用的下一代互联网协议，也从未被广泛部署。<br>
+本文更偏向于实用性而非历史小课堂，所以暂不会涉及到相关内容。</p>
+</blockquote>
+<h3 id="ipv4">IPv4</h3>
+<p>IPv4 是我们目前最常接触到的版本，它使用 32 位 (bit) 来定义一个地址。</p>
+<ul>
+<li>理论总数： 2³² = 4,294,967,296 (约 43 亿个)</li>
+<li>书写格式： 通常写成“点分十进制”的形式，由 4 个 0 到 255 之间的数字组成，用点号隔开。例如 <code>192.168.1.1</code>。</li>
+<li>理论范围： 从 <code>0.0.0.0</code> 到 <code>255.255.255.255</code>。</li>
+</ul>
+<blockquote>
+<p>为什么 IP 段的最大值是 255 而不是 999？相信精通计算机原理的你一定明白：<br>
+IPv4 一共 4 段，总长 32 位，所以每一段就是 8 位，即一字节。一个字节最大值即 <code>11111111</code>。转换为十进制即 255。而 999 使用二进制表示则是 <code>1111100111</code>，长度为 10 位，超出了最大 8 位的限制。</p>
+</blockquote>
+<p>然而，并不是所有这些地址都可以分配给互联网上的设备使用。其中有大量地址被保留用于特殊目的，比如说下表：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">地址范围</th>
+<th style="text-align:center">名称</th>
+<th style="text-align:center">用途说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"><code>10.0.0.0</code> - <code>10.255.255.255</code></td>
+<td style="text-align:center">私有网络 (A 类)</td>
+<td style="text-align:center">用于大型企业的内部网络 (局域网)。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>172.16.0.0</code> - <code>172.31.255.255</code></td>
+<td style="text-align:center">私有网络 (B 类)</td>
+<td style="text-align:center">用于中型网络的内部网络。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>192.168.0.0</code> - <code>192.168.255.255</code></td>
+<td style="text-align:center">私有网络 (C 类)</td>
+<td style="text-align:center">最常见，用于家庭、小型办公室的路由器和内部设备。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>127.0.0.0</code> - <code>127.255.255.255</code></td>
+<td style="text-align:center">环回地址 (Loopback)</td>
+<td style="text-align:center">主要使用 <code>127.0.0.1</code>，代表“本机”或 <code>localhost</code>，用于在本机上进行网络测试。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>100.64.0.0</code> - <code>100.127.255.255</code></td>
+<td style="text-align:center">运营商级 NAT (CGNAT)</td>
+<td style="text-align:center">ISP 用来给大量用户分配的“大内网”地址，以缓解 IPv4 地址耗尽问题。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>169.254.0.0</code> - <code>169.254.255.255</code></td>
+<td style="text-align:center">链路本地地址 (APIPA)</td>
+<td style="text-align:center">当设备无法从 DHCP 服务器获取 IP 地址时，会自动配置一个此范围内的地址，用于临时局域网通信。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>0.0.0.0</code></td>
+<td style="text-align:center">未指定地址</td>
+<td style="text-align:center">通常用作源地址，表示“任何 IP”或“本机”。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>224.0.0.0</code> - <code>239.255.255.255</code></td>
+<td style="text-align:center">组播地址 (Multicast)</td>
+<td style="text-align:center">用于一对多的通信，如网络电视直播。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>255.255.255.255</code></td>
+<td style="text-align:center">广播地址</td>
+<td style="text-align:center">向本地网络中的所有设备发送消息。</td>
+</tr>
+</tbody>
+</table>
+<p>抛去这些保留的 ip 地址，剩余的 ip 地址大约是 37 亿个。这 37 亿个看似很多，但是我说几个数据：</p>
+<ul>
+<li>2007 年第一代 iPhone 发布，2011 年，全球智能手机出货量已接近 5 亿部。</li>
+<li>2000 年，全球互联网用户大于 3.6 亿；2011 年，全球互联网用户超过 20 亿。</li>
+</ul>
+<p>如果考虑到一部设备有一个 ip 的话，那么 37 亿个 IP 地址是远远不够用的。事实也是：2011 年 2 月 3 日，IANA（互联网号码分配局）宣布它已经将所有的 IPv4 地址都分配出去了，也就是说所有可进行分配的 IPv4 地址都有了主人。</p>
+<blockquote>
+<p>IPv4 地址分配的逻辑是这样的：有一个全球总库（IANA），它负责将 IPv4 地址分配给五个区域性注册机构（RIR），分别是：亚太地区、欧洲地区、拉丁美洲和加勒比地区、北美地区以及非洲地区。之后再进行一层一层的分配。</p>
+</blockquote>
+<p>那么既然 IPv4 被分配完了，后续如果想要增加新的设备又该怎么办呢？解决方案有两个：</p>
+<ul>
+<li>IPv6</li>
+<li>内网 IP + NAT</li>
+</ul>
+<p>这两个方案分别从两个角度出发，试图解决 IPv4 地址太少的问题。</p>
+<h3 id="ipv6">IPv6</h3>
+<p>IPv6 的解决方案最为根本，也最为直接：既然 IPv4 太短，那么把它变长就可以了！于是 IPv6 诞生了。</p>
+<p>IPv6 使用 128 位来定义一个地址，足足是 IPv4 的 4 倍！不止如此，它还将 “点分十进制” 升级为了 “冒号十六进制” 的形式。所以它的理论范围为：</p>
+<ul>
+<li>从 <code>0000:0000:0000:0000:0000:0000:0000:0000</code></li>
+<li>到 <code>ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff</code></li>
+</ul>
+<p>足足有 2¹²⁸ ≈ 3.4 x 10³⁸ (340 万亿亿亿亿个)！这又是一个什么概念呢？一个常见的比喻是：<strong>地球上每一粒沙子都可以被分配一个独立的 IPv6 地址，而且还绰绰有余</strong>。可见它有多么的长。</p>
+<blockquote>
+<p>IPv6 长度变长了，相比较 IPv4，写起来多少有些复杂，于是它也设计了一些简化规则：</p>
+<ol>
+<li>每组中开头的 <code>0</code> 可以省略：<code>0db8</code> -&gt; <code>db8</code>。</li>
+<li>连续的多组 <code>0000</code> 可以用双冒号 <code>::</code> 代替，但一次只能用一次。比如说：
+<ul>
+<li>缩写后：<code>2001:db8:85a3::8a2e:370:7334</code></li>
+<li>展开后：<code>2001:db8:85a3:0000:8a2e:370:7334</code></li>
+</ul>
+</li>
+</ol>
+</blockquote>
+<p>IPv6 同样有特殊地址，比如 <code>::1</code> 就是它的环回地址（相当于 IPv4 的 <code>127.0.0.1</code>），但由于其地址空间极其庞大，不再需要像 IPv4 那样抠出大段的 “私有地址” 来节约使用。</p>
+<h4 id="ipv4-升级到-ipv6-的挑战">IPv4 升级到 IPv6 的挑战</h4>
+<p>IPv6 看着 “哪儿哪儿都好”，但是推广 IPv6 的过程可谓十分坎坷：IPv6 是不兼容 IPv4 的。</p>
+<p>IPv4 地址的耗尽是点燃 IPv6 项目的导火索，但是在 “必须开发一个新协议” 这个大前提被确立下来时，IETF (互联网工程任务组) 的开发者忽然意识到：这是一个千载难逢的好机会，可以去修复 IPv4 运行了几十年后暴露出来的各种设计缺陷：</p>
+<ul>
+<li><strong>路由效率低下</strong>：全球 IPv4 路由表的条目过于庞大和碎片化，导致骨干网路由器压力巨大。</li>
+<li><strong>缺乏内置安全</strong>：IPsec (用于网络层加密和认证) 是后来给 IPv4 打的“补丁”，而在 IPv6 中是强制要求、原生集成的。</li>
+<li><strong>配置复杂</strong>：IPv4 依赖 DHCP 进行自动配置。IPv6 设计了更强大的 “无状态地址自动配置 (SLAAC)”，设备可以自己生成地址，即插即用。</li>
+<li><strong>没有为移动性优化</strong>：Mobile IP for IPv4 也是一个笨拙的补丁。IPv6 在设计时就考虑了移动设备的需求。</li>
+</ul>
+<p>他们自问：“既然我们无论如何都要进行一次伤筋动骨的 “大手术”，为什么不趁这个机会，把身体里其他所有已知的小毛病也一并治好呢？”</p>
+<p>于是，在 “扩大地址空间” 这个核心目标之上，又增加了一系列重要的设计目标：</p>
+<ul>
+<li><strong>简化报头，提升路由效率</strong>：移除了一些不常用或有问题的字段，让路由器硬件能更快地处理数据包。</li>
+<li><strong>原生集成安全性 (IPsec)</strong>：将安全变成了协议的“标配”，而不是“选装”。</li>
+<li><strong>改进服务质量 (QoS) 支持</strong>：引入“流标签”，让路由器能更好地识别和处理对延迟敏感的应用（如视频会议、在线游戏）。</li>
+<li><strong>实现真正的即插即用</strong>：通过无状态地址自动配置 (SLAAC)，让设备接入网络后的配置过程大大简化。</li>
+<li><strong>为移动性而设计</strong>：更好地支持移动设备在不同网络间切换时保持连接。</li>
+</ul>
+<p>于是乎：一个 <strong>不兼容</strong> IPv4 的新协议：IPv6 诞生了。但这也成为了它最大的缺点。</p>
+<p>初识这个概念的你不知道有没有思考过：为什么人们常用 “迁至 IPv6” 这个说法，而不是 “升级到 IPv6” 呢？这正是因为 IPv6 不兼容 IPv4。</p>
+<p>一个网络路由器的核心工作是 <strong>以线速 (Line Rate) 转发数据包</strong>。这意味着一个拥有 10Gbps 端口的路由器，必须有能力在 1 秒内处理掉 10G 比特的数据，不能有任何延迟。这种高性能的实现，<strong>严重依赖专门的硬件芯片——ASIC (专用集成电路)</strong>。路由器内部的数据包转发路径，大部分是由硬件写死的，而不是由通用的 CPU 来处理的。</p>
+<p>这就导致了虽然我们可以通过软件升级，让路由器使用 CPU 来处理 IPv6 数据包，但是它的处理速度和 ASIC 相比可谓有着天壤之别，所以它也被称为 “慢速路径” (Slow Path)。</p>
+<p>所以如果用户想要 “升级到 IPv6”，那么它必须要要将自己所有的网络设备进行升级，升级到支持 IPv6 的设备，或者至少是同时支持 IPv4 和 IPv6 的设备。这就带来了很大的迁移成本。</p>
+<h2 id="公网-ip-和内网-ip">公网 IP 和内网 IP</h2>
+<p>那么既然 IPv4 迁移到 IPv6 注定是缓慢的，不可一蹴而就的，当下有什么办法能先临时解决 IPv4 地址耗尽的问题吗？答案就是 “内网 IP + NAT”。</p>
+<p>其实内网 IP 最初被设计出来，并不是为了解决全球地址耗尽这个宏大问题，而是为了解决一个更早期、更具体、更实际的工程问题：<strong>简化和隔离大型组织的内部网络管理</strong>。</p>
+<blockquote>
+<p>在 20 世纪 90 年代初的时候，虽然全球地址耗尽的危机还未迫在眉睫，但一些大型企业、大学和政府机构已经开始构建自己庞大的内部网络。它们遇到了几个头疼的问题：</p>
+<ol>
+<li>
+<p>内部网络重构的麻烦</p>
+<ul>
+<li>想象一下，一个大公司最初从 IANA 申请了一块公网 IP 地址块用于内部网络。后来公司发展壮大，需要连接到另一家 ISP，或者要更换 ISP。</li>
+<li>新的 ISP 可能会要求公司使用由新 ISP 分配的另一块完全不同的公网 IP 地址块。</li>
+<li>这意味着公司内部成千上万台电脑、服务器、打印机的 IP 地址 全都需要重新编号和配置。这在当时是一个极其痛苦、繁琐且容易出错的工作，被称为“重新编号地狱”。</li>
+</ul>
+</li>
+<li>
+<p>路由表的混乱</p>
+<ul>
+<li>如果一个公司的内部网络结构非常复杂，它可能会把自己的内部路由信息“泄露”到全球互联网的路由表中。</li>
+<li>这会造成全球路由表的“污染”，增加了骨干网路由器的负担，也可能导致路由错误。</li>
+</ul>
+</li>
+<li>
+<p>安全性的初步考量</p>
+<ul>
+<li>当时的网络安全概念还很初级，但人们已经意识到，让公司内部的每一台打印机、文件服务器都拥有一个可以直接从外部访问的公网 IP，似乎不是一个好主意。需要一种方式将内部网络与外部互联网进行逻辑上的隔离。</li>
+</ul>
+</li>
+</ol>
+<p>为了解决上述这些问题，IETF 在 1994 年发布了 RFC 1597 (后来在 1996 年被更完善的 RFC 1918 取代)，正式提出了 “私有地址空间 (Private Address Space)” 的概念。</p>
+<p>RFC 1918 的核心思想是：</p>
+<ol>
+<li><strong>划定专用地址块</strong>： 从现有的 IPv4 地址空间中，专门划出三块地址（10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16）作为“私有地址”。</li>
+<li><strong>可重复使用</strong>： 明确规定，任何组织都可以在自己的内部网络中自由地使用这些地址，而无需向 IANA 申请。你公司可以用 10.0.0.1，我公司也可以用 10.0.0.1，互不影响。</li>
+<li><strong>禁止路由</strong>： 严格规定，所有互联网骨干网上的路由器，绝对不能转发源地址或目标地址是私有地址的数据包。</li>
+</ol>
+<p>这完美地解决了最初的问题：</p>
+<ul>
+<li><strong>简化管理</strong>： 公司内部可以随意规划自己的私有地址。即使更换 ISP，也只需要更改边界路由器 (NAT 设备) 的公网 IP 配置即可，内部上万台设备的 IP 地址完全不需要变动。</li>
+<li><strong>隔离网络</strong>： 私有地址天生无法在公网上路由，从而实现了内部网络和外部互联网的天然隔离。</li>
+</ul>
+</blockquote>
+<p>最终，随着 90 年代中后期互联网的爆炸式普及，人们很快发现，这个 “无心插柳” 的设计，恰好是解决日益严峻的地址耗尽危机的 “神丹妙药”。</p>
+<h3 id="nat">NAT</h3>
+<p>NAT 的全称是 “Network Address Translation”，即 “网络地址转换”，它负责在 “内网 IP” 和 “公网 IP” 之间进行 “转换”。它的工作原理是这样的：</p>
+<ol>
+<li>出站（内网设备访问公网）：
+<ul>
+<li>手机（内网 IP <code>192.168.1.101</code> 访问 Google 网站）</li>
+<li>它会准备一个“数据包”，包含以下内容：
+<ul>
+<li><strong>目标 IP</strong>: Google 服务器的公网 IP。</li>
+<li><strong>源 IP</strong>: <code>192.168.1.101</code> (手机的内网 IP)。</li>
+<li><strong>源 端口</strong></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>数据包到达路由器</li>
+<li>执行 NAT：
+<ol>
+<li>路由器中会有一个 “NAT 转换表” (NAT Translation Table)，这是一个内部记账本。它执行以下操作：
+<ul>
+<li>使用家庭的 “公网 IP” 替换数据包中的内网 IP。同时分配一个新的端口。</li>
+<li>在 NAT 转换表中记录内网 IP 和公网 IP 的映射，比如：“<code>192.168.1.101:49152</code> &lt;-&gt; <code>203.0.113.50:30001</code>”</li>
+</ul>
+</li>
+</ol>
+</li>
+<li>数据包发往互联网:
+<ul>
+<li>从 Google 的服务器拉看，这个请求就是从 <code>203.0.113.50:30001</code> 发出的，它完全不知道手机的存在。</li>
+</ul>
+</li>
+</ol>
+<p>响应服务器返回的数据就是上述步骤的反面，即根据 “公网IP+端口”（起到主要作用的就是端口，毕竟公网IP 都是一致的），找到“内网IP+端口”，最终将相应数据包发送到请求数据的手机上。下面的序列图描绘了这一来一回的完整过程：</p>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyo.dev/post-images/1755597242680.svg" alt="" loading="lazy"></figure>
+<p>总结 NAT 的核心机制：</p>
+<ol>
+<li><strong>地址转换</strong>： 将数据包的源 IP 地址从 内网 IP 替换为 公网 IP (出站时)，或者将目标 IP 地址从 公网 IP 替换为 内网 IP (入站时)。</li>
+<li><strong>端口转换 (PAT - Port Address Translation)</strong>：这是现代 NAT 的精髓，也称为 NAPT。通过 修改源端口号，使得同一个公网 IP 地址可以同时为多个内网设备提供服务。路由器通过维护 (内网IP:内网端口) &lt;-&gt; (公网IP:公网端口) 这个映射表，来确保返回的数据能够被准确地分发给正确的设备和应用。</li>
+</ol>
+<h2 id="巨大的-局域网">巨大的 “局域网”</h2>
+<p>APNIC (Asia-Pacific Network Information Centre)，即亚太网络信息中心，它负责亚太地区 IP 地址分配的区域互联网注册机构 (RIR)。根据 APNIC 截至目前的公开统计数据，分配给中国 (国家代码: CN) 的公网 IPv4 地址总数大约为 <strong>3.45</strong> 亿 个。我们也可以通过 <a href="https://ipinfo.io/countries/cn">ipinfo</a> 查到这个数据。</p>
+<p>根据这个数据可想而知，3.45 亿是远远不够用的，那么常见的方法就是使用上面提到的 “内网 IP” 方案，通过运营商架设基础设施，来实现一张巨大的 “局域网”，以此来解决公网 ip 不足的问题。</p>
+<h1 id="端口">端口</h1>
+<p>说到 IP，就不得不提到 “<strong>端口</strong>” 这个概念。其实在上文中也已经多次涉及到这个概念了。那么 “端口” 又是什么呢？</p>
+<p>IP 地址的作用是为了找到设备，而端口的作用则是为了找到设备中的服务。在技术细节方面：</p>
+<ul>
+<li>端口是一个 16 位 (bit) 的无符号整数</li>
+<li>取值范围从 0 到 2¹⁶ - 1，即 0 到 65535</li>
+</ul>
+<p>以上面 NAT 的场景为例，对于公网 IP 而言，每个服务发出的数据包都需要自己独一无二的端口。如果端口重复了，NAT 就不知道该把公网中服务器响应的数据发送给哪个内网设备。</p>
+<h2 id="端口的分类">端口的分类</h2>
+<p>端口也像 IP 一样，有一些硬性分配的保留项。</p>
+<h3 id="知名端口">知名端口</h3>
+<ul>
+<li>
+<p>范围:<br>
+0 - 1023</p>
+</li>
+<li>
+<p>特点与用途:<br>
+这类端口由 IANA (互联网号码分配局) 进行严格的 <strong>硬性分配</strong>，它们是全球统一的互联网标准。这些端口被永久地分配给了互联网上最核心、最基础的服务，就像是公开的、全世界都知道地址的“政府办事大厅” 或 “公共服务窗口”，确保了全球网络服务的互操作性。在大多数操作系统中，应用程序需要拥有管理员（root）权限才能绑定和监听这些端口。</p>
+</li>
+<li>
+<p>常见协议与服务示例:</p>
+<ul>
+<li><code>20/21</code>: FTP (文件传输协议)</li>
+<li><code>22</code>: SSH (安全外壳协议)，用于安全的远程登录。</li>
+<li><code>23</code>: Telnet (远程终端协议)，一个早期的、不安全的远程登录协议。</li>
+<li><code>25</code>: SMTP (简单邮件传输协议)，用于发送电子邮件。</li>
+<li><code>53</code>: DNS (域名系统)，用于将域名解析为 IP 地址。</li>
+<li><code>80</code>: HTTP (超文本传输协议)，用于访问普通网页。</li>
+<li><code>110</code>: POP3 (邮局协议版本3)，用于接收电子邮件。</li>
+<li><code>143</code>: IMAP (互联网消息访问协议)，也是用于接收邮件，功能更强大。</li>
+<li><code>443</code>: HTTPS (安全的超文本传输协议)，用于访问加密的网页。</li>
+</ul>
+</li>
+</ul>
+<h3 id="注册端口">注册端口</h3>
+<ul>
+<li>
+<p>范围:<br>
+1024 - 49151</p>
+</li>
+<li>
+<p>特点与用途:<br>
+这些端口由 IANA 进行 <strong>半官方分配</strong>，供特定的应用程序、协议或商业公司注册使用，目的是为了避免不同软件间的端口冲突。虽然它们不像知名端口那样是强制性的互联网标准，但业界普遍会遵守这些约定。普通用户权限的程序就可以绑定这些端口，无需特殊的管理员权限。</p>
+</li>
+<li>
+<p>常见协议与服务示例:</p>
+<ul>
+<li><code>1433</code>: Microsoft SQL Server 数据库服务</li>
+<li><code>1521</code>: Oracle 数据库服务</li>
+<li><code>3306</code>: MySQL 数据库服务</li>
+<li><code>3389</code>: RDP (Windows 远程桌面协议)</li>
+<li><code>5432</code>: PostgreSQL 数据库服务</li>
+<li><code>5900</code>: VNC (虚拟网络计算)，一个常用的远程控制软件。</li>
+<li><code>6379</code>: Redis 键值数据库服务</li>
+<li><code>8080</code>: 常被用作 Web 服务器的备用端口，或用于运行 HTTP 代理服务器。</li>
+</ul>
+</li>
+</ul>
+<h3 id="动态私有端口">动态/私有端口</h3>
+<ul>
+<li>
+<p>范围:<br>
+49152 - 65535</p>
+</li>
+<li>
+<p>特点与用途:<br>
+这些端口 <strong>不分配给任何固定的服务</strong>，它们是完全自由使用的。它们的主要作用是作为客户端程序（例如浏览器、游戏、邮件客户端）在发起对外连接时，由操作系统 <strong>随机选择</strong> 一个作为本次通信的 <strong>源端口 (Source Port)</strong>。当通信会话结束后，这个端口就会被释放，可以被其他应用重新使用。因为它们是临时分配的，所以也被称为 <strong>临时端口 (Ephemeral Ports)</strong>。</p>
+</li>
+<li>
+<p>常见协议与服务示例:<br>
+这类端口没有固定的服务对应，它们的使用场景是动态的。例如：</p>
+<ul>
+<li>当用浏览器访问 <code>google.com</code> 时，电脑可能会随机选择 <code>51234</code> 作为本次通信的源端口。</li>
+<li>当启动一个在线游戏时，游戏客户端可能会随机选择 <code>62000</code> 作为与游戏服务器通信的源端口。</li>
+<li>当使用邮件客户端收取邮件时，它可能会随机选择 <code>58341</code> 作为连接邮件服务器的源端口。</li>
+</ul>
+</li>
+</ul>
+<h2 id="端口映射">端口映射</h2>
+<p>端口映射（或者更广义地称为“端口转发”，Port Forwarding）是一个非常基础且应用广泛的网络技术。这项技术可以将一个端口映射成另外一个端口，比如说我们经常使用的 Docker。</p>
+<p>想象一下这个场景：你需要用 Docker 部署一个 Gitlab 服务。等到服务部署好了之后，Gitlab 服务会监听 443 这个 https 端口。但是用户无法从主机上直接访问 Docker 容器内的 443 端口，因为众所周知 Docker 的环境和主机环境是互相隔离的。所以我们要是用 Docker 的 <strong>端口映射</strong> （<code>-p</code> 参数）来说实现端口转发。</p>
+<blockquote>
+<p>Docker 环境和主机环境互相隔离，这也意味着 Docker 内部有一套自己的端口，从 0 到 65535。</p>
+</blockquote>
+<p>通过端口转发，我们可以将主机上的任意一个非保留端口端口，比如说 4343，映射到 Docker 容器的 443 端口。之后任何访问主机 4343 端口的请求，都会被转发给 Docker 的 443 端口，也就是 Gitlab 服务。</p>
+<p>端口映射还有一个作用，那就是绕开 <strong>ISP 屏蔽</strong>。上文中也有提到 ISP 这个概念，它的全称是 Internet Service Provider，中文翻译是 <strong>互联网服务提供商</strong>，也就是电信呀，联通、移动这些运营商。</p>
+<p>根据中国工信部的规定，所有向公众提供服务的网站都必须进行 ICP 备案。为了落实这一政策，ISP 会直接屏蔽家庭宽带的 80 端口，从技术上阻止个人用户在未经备案的情况下，私自搭建对外的 Web 服务器。其实不止 80 端口，很多端口可能都会因为各种各样的原因导致被 ISP 屏蔽。这个时候就需要通过端口映射功能来 “绕开” ISP 的屏蔽。</p>
+<blockquote>
+<p>有些时候 ISP 屏蔽端口是为了保护主机的安全，比如 25、 445、135、137、138、139 等端口。这些端口经常会成为黑客的攻击对象。</p>
+</blockquote>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/notes-about-surge-for-mac/" class="post-title gt-a-link">
+                    Surge For Mac 的一些注意事项
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

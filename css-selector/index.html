@@ -1,0 +1,810 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>CSS选择器 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    CSS选择器
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2024-03-12 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/front-end/" class="post-tags">
+                            # front-end
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>CSS 有多种选择器，可以帮助我们针对不同的 HTML 标签设置样式。</p>
+<!-- more -->
+<h1 id="选择器">选择器</h1>
+<br>
+<h2 id="通配符选择器">通配符选择器</h2>
+<p>通配符选择器（*）可以选择任何元素，通常用于设置默认样式。</p>
+<pre><code class="language-css">* {
+  margin: 0;
+  padding: 0;
+}
+</code></pre>
+<h2 id="类型选择器">类型选择器</h2>
+<p>类型选择器（Type Selectors）直接使用 HTML 标签来选择选择元素：</p>
+<pre><code class="language-css">p { color: blue; }
+</code></pre>
+<p>上面的代码将所有的 <code>&lt;p&gt;</code> 标签文本渲染为蓝色。</p>
+<h2 id="class-选择器">class 选择器</h2>
+<p>个人理解 class 选择器代表着 “一类有着相同样式的标签”，所以该选择器可以用于多个 HTML 标签。</p>
+<p>类选择器使用 <code>.</code> 开头，后接类名：</p>
+<pre><code class="language-html">&lt;style&gt;
+    .first {
+        font-weight: bold;
+        text-decoration: line-through;
+    }
+&lt;/style&gt;
+
+&lt;p class=&quot;first&quot;&gt;超越技术&lt;/p&gt;
+&lt;div&gt;哈哈.&lt;/div&gt;
+&lt;p&gt;一起学前端!&lt;/p&gt;
+</code></pre>
+<p>一个标签也可以包含多个 class，多个 class 之间使用空格分隔：</p>
+<pre><code class="language-html">&lt;!-- 包含两个 class：info 和 highlight --&gt;
+&lt;p class=&quot;info highlight&quot;&gt;...&lt;/p&gt;
+</code></pre>
+<p>此外，当你在不同的 HTML 标签中使用了相同的 class，然后还想选择某个具体的标签时，你可以像下面这样组合使用两个选择器：</p>
+<pre><code class="language-html">&lt;style&gt;
+    p.first { color: red; }
+&lt;/style&gt;
+
+&lt;p class=&quot;first&quot;&gt;该颜色会是红色&lt;/p&gt;
+&lt;span class=&quot;first&quot;&gt;该颜色不会是红色&lt;/span&gt;
+</code></pre>
+<h2 id="id-选择器">id 选择器</h2>
+<p>个人理解这里的 id 在使用场景上就和数据库中的主键一样，可以用来定位某个唯一的 HTML 标签，所以该选择器或者说 id 属性的值，在 HTML 文档中需要是<strong>唯一</strong>的，不能出现在多个元素上。</p>
+<p>id 选择器使用 <code>#</code> 号来定义：</p>
+<pre><code class="language-html">&lt;style&gt;
+    #my-id {
+    background-color: yellow;
+    }
+&lt;/style&gt;
+
+&lt;p id=&quot;my-id&quot;&gt;超越技术&lt;/p&gt;
+&lt;div&gt;哈哈.&lt;/div&gt;
+&lt;p&gt;一起学前端!&lt;/p&gt;
+</code></pre>
+<blockquote>
+<p>因为 id 选择器的唯一性，所以就没必要像上面提到的 class 选择器一样，通过标签再进一步缩小选择范围了。</p>
+</blockquote>
+<h2 id="属性选择器">属性选择器</h2>
+<p>我们都知道可以在 html 标签上自定义任意的属性，比如下面的例子：</p>
+<pre><code class="language-html">&lt;!-- 
+    `data-rakuyo` 不是很好，因为它不明所以；
+    但是它又很好，可以一眼让你看出它是一个自定义属性。 
+--&gt;
+&lt;div data-rakuyo&gt;...&lt;/div&gt;
+</code></pre>
+<p>属性选择器使用 <code>[]</code> 中括号包裹属性名称。针对上面的代码，我们可以通过属性选择器来选择该 <code>div</code> 标签：</p>
+<pre><code class="language-css">/* 选择所有带有 `data-rakuyo` 属性的元素，不论其所属哪个 html 标签 */
+[data-rakuyo] { font-weight: bold; }
+</code></pre>
+<p>再进一步缩小范围，属性选择器可以通过指定标签来筛选 “具有某些属性的标签”：</p>
+<pre><code class="language-css">/* 仅限带有 `data-style` 属性的 &lt;button&gt; 标签 */
+button[data-style] { font-weight: bold; }
+</code></pre>
+<p>可以通过具体的属性值来做条件筛选：</p>
+<pre><code class="language-html">&lt;style&gt;
+  [data-style=&quot;cancel&quot;] { color: gray; }
+  [data-style=&quot;done&quot;] { color: black; }
+&lt;/style&gt;
+
+&lt;button data-style=&quot;cancel&quot;&gt;取消&lt;/button&gt;
+&lt;button data-style=&quot;done&quot;&gt;下单&lt;/button&gt;
+</code></pre>
+<p>属性选择器还可以借助一些匹配操作符，比如 <code>$=</code> 和 <code>*=</code> 来实现特定的功能：</p>
+<pre><code class="language-css">/* 选择 `src` 属性以 `https` 开头的所有图片 */
+img[src^=&quot;https&quot;] { color: red; }
+
+/* 选择 `src` 属性以 `.jpg` 结尾的所有图片 */
+img[src$=&quot;.jpg&quot;] { border: 3px solid black; }
+
+/* 选择 `href` 属性包含 `external` *字符串* 的所有链接 */
+a[href*=&quot;external&quot;] { color: green; }
+
+/* 选择 `href` 属性包含 `external` *单词* 的所有链接 */
+a[href~=&quot;external&quot;] { color: green; }
+</code></pre>
+<blockquote>
+<p>注意 <code>*=</code> 和 <code>~=</code> 的区别。前者匹配字符串，而后者匹配的是一个完整的单词。</p>
+</blockquote>
+<h2 id="伪选择器">伪选择器</h2>
+<p>伪选择器包含 “<a href="%E4%BC%AA%E7%B1%BB%E9%80%89%E6%8B%A9%E5%99%A8">伪类选择器</a>” 和 “<a href="#%E4%BC%AA%E5%85%83%E7%B4%A0%E9%80%89%E6%8B%A9%E5%99%A8">伪元素选择器</a>” 两种。</p>
+<h3 id="伪类选择器">伪类选择器</h3>
+<p>伪类选择器用于定义元素在特定状态下的样式，比如鼠标悬停时的样式。或者用于选择第n个子元素。</p>
+<style>
+  /* 设置表格中某一列的文字不换行 */
+  .nowrap-column {
+    white-space: nowrap;
+  }
+</style>
+<p>对于特定状态，有以下几种：</p>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>说明</th>
+            <th>示例</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>:hover</code></td>
+            <td>用于在用户将鼠标悬停在元素上时应用样式</td>
+            <td><pre><code class="language-css">
+a:hover { 
+    color: red; 
+}
+            </code></pre></td>
+        </tr>
+        <tr>
+            <td><code>:active</code></td>
+            <td>用于选取被用户激活（例如鼠标点击）的元素</td>
+            <td><pre><code class="language-css">
+button:active {
+    background-color: gray;
+}
+        </tr>
+        <tr>
+            <td><code>:visited</code></td>
+            <td>用于选取用户已访问过的链接</td>
+            <td><pre><code class="language-css">
+a:visited {
+    color: purple;
+}
+        </tr>
+        <tr>
+            <td><code>:focus</code></td>
+            <td>用于选取当前获取了焦点的元素<br>通常在用户通过键盘或者鼠标进行交互时出现</td>
+            <td><pre><code class="language-css">
+input:focus {
+    border-color: blue;
+}         
+        </tr>
+    </tbody>
+</table>
+<p>对于选择子元素，有以下几种用法：</p>
+<table>
+    <thead>
+        <tr>
+            <th>名称</th>
+            <th>说明</th>
+            <th>示例</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td class="nowrap-column"><code>:nth-of-type(n)</code></td>
+            <td>该选择器允许你选择相同类型的且特定位置的子元素<br><br>请注意，<strong><code>n</code>从1开始，且不能是负数</strong></td>
+            <td><pre><code class="language-css">
+/* 这会使每隔两个段落文字变为红色 */
+p:nth-of-type(2n) {
+    color: red;
+}
+            </code></pre></td>
+        </tr>
+        <tr>
+            <td class="nowrap-column"><code>:nth-child(n)</code></td>
+            <td>该选择器允许你选择特定位置的子元素</td>
+            <td><pre><code class="language-css">
+/* 列表中的奇数项背景色变为浅灰色 */
+li:nth-child(odd) {
+    background-color: lightgray;
+}
+            </code></pre></td>
+        </tr>
+        <tr>
+            <td class="nowrap-column"><code>:nth-last-child(n)</code></td>
+            <td>该选择器与<code>:nth-child(n)</code>类似，但是它从元素的<strong>末尾<strong>开始计数。</td>
+            <td><pre><code class="language-css">
+/* 
+ * 这会使每个无序列表（ul）的
+ * 倒数第二个列表项（li）的文字颜色变为蓝色 
+ */
+ul li:nth-last-child(2) {
+    color: blue;
+}
+            </code></pre></td>
+        </tr>
+        <tr>
+            <td class="nowrap-column"><code>:first-child</code><br><br>“nth-child(1)”</td>
+            <td>该选择器选取某个元素的<strong>第一个</strong>子元素</td>
+            <td><pre><code class="language-css">
+/* 
+ * 这会使每个无序列表（ul）的第一个列表项（li）的文字加粗 
+ */
+ul li:first-child {
+    font-weight: bold;
+}
+            </code></pre></td>
+        </tr>
+        <tr>
+            <td class="nowrap-column"><code>:last-child</code><br><br>“nth-last-child(1)”</td>
+            <td>该选择器选取某个元素的<strong>最后一个</strong>子元素</td>
+            <td><pre><code class="language-css">
+/* 
+ * 这会使每个无序列表（ul）
+ * 的最后一个列表项（li）的文字变为斜体 
+ */
+ul li:last-child {
+    font-style: italic;
+}
+            </code></pre></td>
+        </tr>
+    </tbody>
+</table>
+<p>我觉得 <code>:nth-of-type</code> 和 <code>:nth-child</code> 的概念比较接近，同时容易混淆，所以在这里特意将他们两个单独拿出来，用一个例子来看看这两个选择器之间的区别。</p>
+<pre><code class="language-html">&lt;div class=&quot;container&quot;&gt;
+    &lt;p&gt;Paragraph 1&lt;/p&gt;
+    &lt;div&gt;Div 1&lt;/div&gt;
+    &lt;p&gt;Paragraph 2&lt;/p&gt;
+    &lt;p&gt;Paragraph 3&lt;/p&gt;
+    &lt;div&gt;Div 2&lt;/div&gt;
+&lt;/div&gt;
+</code></pre>
+<p>针对上面这段 html，两个选择器的结果为：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">选择器</th>
+<th style="text-align:center">结果</th>
+<th style="text-align:center">说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center"><code>.container p:nth-of-type(2)</code></td>
+<td style="text-align:center">选择到 <code>&lt;p&gt;Paragraph 2&lt;/p&gt;</code></td>
+<td style="text-align:center">这个选择器将选择容器 <code>.container</code> 内的第二个 <code>&lt;p&gt;</code> 元素。在给定的 HTML 结构中，第二个 <code>&lt;p&gt;</code> 元素是 &quot;Paragraph 2&quot;，因此该选择器会影响到这个段落元素。</td>
+</tr>
+<tr>
+<td style="text-align:center"><code>.container p:nth-child(2)</code></td>
+<td style="text-align:center">不会选择任何元素</td>
+<td style="text-align:center">这个选择器将选择容器 <code>.container</code> 内所有的 <code>&lt;p&gt;</code> 元素中的第二个子元素。在给定的 HTML 结构中，第二个子元素是 &quot;Div 1&quot;，而不是 <code>&lt;p&gt;</code> 元素。因此，这个选择器不会选择任何元素，因为在该结构中，第二个子元素不是 <code>&lt;p&gt;</code> 元素。</td>
+</tr>
+</tbody>
+</table>
+<p>简而言之，<code>nth-child(n)</code> 会先按照顺序选择父视图的子元素，再看该子元素是否符合限制条件，如果符合则样式生效，否则不会生效；而 <code>nth-of-type(n)</code> 则相反，会先选择符合要求的元素，再按照顺序进行选择。</p>
+<blockquote>
+<p>同理可得，因为 <code>:first-child</code>、<code>:last-child</code> 和 <code>:nth-child(1)</code>、<code>:nth-last-child(1)</code> 相同，所以假如使用 <code>p:fist-child</code>，但是第一个标签不是 <code>&lt;p&gt;</code>，那么该样式也不会生效。</p>
+</blockquote>
+<h3 id="伪元素选择器">伪元素选择器</h3>
+<p>伪元素选择器用于选择元素的<strong>特定部分</strong>而不是元素本身。伪元素选择器以双冒号 <code>::</code> 开头。</p>
+<p>下面是一些常见的伪元素选择器：</p>
+<pre><code class="language-css">/* 选择元素的第一行文本 */
+p::first-line {
+    font-weight: bold;
+}
+
+/* 选择元素的第一个字母 */
+p::first-letter {
+    font-size: 150%;
+}
+
+/* 在元素内容之前插入内容 */
+p::before {
+    content: &quot;前置内容 &quot;;
+}
+
+/* 在元素内容之后插入内容 */
+p::after {
+    content: &quot; 后置内容&quot;;
+}
+
+/* 选择用户选中的文本部分 */
+::selection {
+    background-color: yellow;
+    color: black;
+}
+
+/* 选择输入框的占位符文本 */
+input::placeholder {
+    color: gray;
+}
+</code></pre>
+<p>除此之外还有一些不太常见的伪元素选择器：</p>
+<pre><code class="language-css">/* 选择列表项的标记部分（通常是列表项前面的符号，如圆点或数字） */
+li::marker {
+    color: red;
+}
+
+/* 选择元素的背景层，用于处理全屏元素的背景样式 */
+dialog::backdrop {
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+/* 选择拼写错误的文本部分 */
+::spelling-error {
+    text-decoration: underline wavy red;
+}
+
+/* 选择语法错误的文本部分 */
+::grammar-error {
+    text-decoration: underline dashed blue;
+}
+</code></pre>
+<h2 id="组合选择器">组合选择器</h2>
+<p>组合选择器是 CSS 中的一种选择器，允许你针对同时满足多个条件的元素应用样式。</p>
+<h3 id="后代选择器">后代选择器</h3>
+<p>后代选择器（Descendant Selector）允许你选择某个元素内部的所有后代元素。</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;UTF-8&quot;&gt;
+  &lt;title&gt;Descendant Selector Example&lt;/title&gt;
+  &lt;style&gt;
+    /* 选择 .container 内部的所有 p 元素 */
+    .container p {
+      color: blue;
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div class=&quot;container&quot;&gt;
+    &lt;p&gt;This is a paragraph.&lt;/p&gt;
+    &lt;div&gt;
+      &lt;p&gt;This is another paragraph.&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>在这个例子中，<code>.container p</code> 选择器会选择所有嵌套在 <code>.container</code> 内部的 <code>&lt;p&gt;</code> 元素，并将它们的颜色设为蓝色。即<strong>两个</strong> <code>&lt;p&gt;</code> 标签都会变成蓝色。</p>
+<h3 id="子选择器">子选择器</h3>
+<p>子选择器（Child Selector）用于选择某个元素的直接子元素。</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;UTF-8&quot;&gt;
+  &lt;title&gt;Child Selector Example&lt;/title&gt;
+  &lt;style&gt;
+    /* 选择 .container 下的直接子元素 p */
+    .container &gt; p {
+      font-weight: bold;
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div class=&quot;container&quot;&gt;
+    &lt;p&gt;This is a paragraph.&lt;/p&gt;
+    &lt;div&gt;
+      &lt;p&gt;This is another paragraph.&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>这个例子中，<code>.container &gt; p</code> 选择器只会选择 <code>.container</code> 直接子元素中的 <code>&lt;p&gt;</code> 元素，并将它们的字体加粗。而里层的 <code>This is another paragraph.</code> 并不会被加粗。</p>
+<p>对比 <a href="#%E5%90%8E%E4%BB%A3%E9%80%89%E6%8B%A9%E5%99%A8">后代选择器</a> 来看，后代选择器会一直查询到该叶子节点的最末端，渲染所有满足条件的标签，不管中间是否还有其他标签；而 <a href="#%E5%AD%90%E9%80%89%E6%8B%A9%E5%99%A8">子选择器</a> 只会渲染下一个层级（直接）的子节点，并不会进一步深入。</p>
+<h3 id="相邻兄弟选择器">相邻兄弟选择器</h3>
+<p>相邻兄弟选择器（Adjacent Sibling Selector）选择紧接在指定元素后的兄弟元素。</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;UTF-8&quot;&gt;
+  &lt;title&gt;Adjacent Sibling Selector Example&lt;/title&gt;
+  &lt;style&gt;
+    /* 选择 .container 后面紧邻的 p 兄弟元素 */
+    .container + p {
+      color: green;
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div class=&quot;container&quot;&gt;
+    &lt;p&gt;This is a paragraph.&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;p&gt;This is another paragraph.&lt;/p&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>在这个例子中，<code>.container + p</code> 选择器会选择紧接在 <code>.container</code> 元素后面的 <code>&lt;p&gt;</code> 元素，并将它们的颜色设为绿色。即 <code>This is another paragraph.</code> 会被渲染为绿色。</p>
+<p>有以下几点需要注意：</p>
+<ol>
+<li>“相邻兄弟选择器” 强调 <strong>相邻</strong>。如果我们将代码进行修改：</li>
+</ol>
+<pre><code class="language-html">&lt;div class=&quot;container&quot;&gt;
+    &lt;p&gt;This is a paragraph.&lt;/p&gt;
+&lt;/div&gt;
+&lt;span&gt;123&lt;/span&gt;
+&lt;p&gt;This is another paragraph.&lt;/p&gt;
+</code></pre>
+<p>此时 <code>.container</code> 不再有任何相邻的 <code>&lt;p&gt;</code> 节点，所以 <code>.container + p</code> 不会选择任何的标签进行渲染。</p>
+<ol>
+<li>“相邻兄弟选择器” 只会渲染相邻的 <strong>一个</strong> 节点。如果我们将代码进行修改：</li>
+</ol>
+<pre><code class="language-html">&lt;div class=&quot;container&quot;&gt;
+    &lt;p&gt;This is a paragraph.&lt;/p&gt;
+&lt;/div&gt;
+&lt;p&gt;This is another paragraph. 1&lt;/p&gt;
+&lt;p&gt;This is another paragraph. 2&lt;/p&gt;
+</code></pre>
+<p>那么只有相邻的第一个 <code>&lt;p&gt;</code> 标签，即 <code>This is another paragraph. 1</code> 会被渲染为绿色，另外一个 <code>&lt;p&gt;</code> 标签仍为黑色。</p>
+<h3 id="通用兄弟选择器">通用兄弟选择器</h3>
+<p>通用兄弟选择器（General Sibling Selector）选择与指定元素相邻的所有兄弟元素。</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;UTF-8&quot;&gt;
+  &lt;title&gt;General Sibling Selector Example&lt;/title&gt;
+  &lt;style&gt;
+    /* 选择 .container 后的所有 p 兄弟元素 */
+    .container ~ p {
+      font-style: italic;
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div class=&quot;container&quot;&gt;
+    &lt;p&gt;This is a paragraph.&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;p&gt;This is another paragraph.&lt;/p&gt;
+  &lt;p&gt;This is yet another paragraph.&lt;/p&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>在这个例子中，<code>.container ~ p</code> 选择器会选择紧跟在 <code>.container</code> 元素后的所有 <code>&lt;p&gt;</code> 元素，并将它们的字体样式设为斜体。很容易看出来，该选择器和 <a href="#%E7%9B%B8%E9%82%BB%E5%85%84%E5%BC%9F%E9%80%89%E6%8B%A9%E5%99%A8">相邻兄弟选择器</a> 互为一对。</p>
+<h3 id="组合选择器总结">组合选择器总结</h3>
+<p><a href="%E5%90%8E%E4%BB%A3%E9%80%89%E6%8B%A9%E5%99%A8">后代选择器（<code> </code>）</a> 和 <a href="%E5%AD%90%E9%80%89%E6%8B%A9%E5%99%A8">子选择器（<code>&gt;</code>）</a> 互为一对：同样是选择子元素，前者会深入到层级的最末端，而后者只会选择下一个层级，点到为止。</p>
+<p><a href="#%E7%9B%B8%E9%82%BB%E5%85%84%E5%BC%9F%E9%80%89%E6%8B%A9%E5%99%A8">相邻兄弟选择器（<code>+</code>）</a> 和 <a href="#%E9%80%9A%E7%94%A8%E5%85%84%E5%BC%9F%E9%80%89%E6%8B%A9%E5%99%A8">通用兄弟选择器（<code>~</code>）</a> 互为一对：同样是选择相邻元素，前者只选择同层级内相邻的节点，而后者会选择同层级内所有符合条件的节点。</p>
+<h1 id="课后思考">课后思考</h1>
+<p>现在我们提出来这么一个需求：从接口处获取商品的价格（忽略接口请求步骤），得到一个价格字符串，比如 <code>&quot;¥35.66&quot;</code>。针对该字符串进行渲染，要求如下：</p>
+<ol>
+<li>文字颜色均为红色。</li>
+<li><code>¥</code> 和 <code>.66</code> 部分样式一致：15号字。但是需要注意 <code>¥</code> 符号并不一定存在。</li>
+<li><code>35</code> 部分加粗，18号字。</li>
+</ol>
+<p>使用 js+html+css，留几秒钟思考给出答案。</p>
+<br>
+...
+<br>
+...
+<br>
+...
+<br>
+...
+<br>
+...
+<br>
+<br>
+<br>
+<p>参考答案如下：</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+    &lt;meta charset=&quot;UTF-8&quot;&gt;
+    &lt;style&gt;
+        /* 样式1：¥符号 15 号字，红色 */
+        .currency-sign,
+        .after-dot {
+            font-size: 15px;
+        }
+
+        /* 样式2：¥ 和 . 之间的内容，18号字，加粗，红色 */
+        .between {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .currency-sign,
+        .after-dot,
+        .between {
+            color: red;
+        }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;span class=&quot;currency-value&quot;&gt;&lt;/span&gt;
+
+    &lt;!-- 使用 JavaScript 定义变量 --&gt;
+    &lt;script&gt;
+        // 定义变量，代替接口请求的步骤
+        const currencyValue = &quot;¥35.66&quot;;
+
+        // 获取 span 标签
+        const spanElement = document.querySelector('.currency-value');
+
+        // 检查 span 标签是否存在
+        if (spanElement) {
+            // 检查 currencyValue 是否包含 &quot;¥&quot; 符号
+            if (currencyValue.includes('¥')) {
+                // 渲染 ¥ 符号
+                const currencySignSpan = document.createElement('span');
+                currencySignSpan.innerText = '¥';
+                currencySignSpan.classList.add('currency-sign');
+                spanElement.appendChild(currencySignSpan);
+            }
+
+            // 删去 &quot;¥&quot; 符号后的值
+            let valueWithoutSign = currencyValue.replace('¥', '');
+
+            // 按 &quot;.&quot; 分隔值
+            const [beforeDot, afterDot] = valueWithoutSign.split('.');
+
+            // 渲染 &quot;.&quot; 之前的内容
+            const beforeDotSpan = document.createElement('span');
+            beforeDotSpan.innerText = beforeDot;
+            beforeDotSpan.classList.add('between');
+            spanElement.appendChild(beforeDotSpan);
+
+            // 渲染 &quot;.&quot; 符号 和 &quot;.&quot; 之后的内容
+            const afterDotSpan = document.createElement('span');
+            afterDotSpan.innerText = '.' + afterDot;
+            afterDotSpan.classList.add('after-dot');
+            spanElement.appendChild(afterDotSpan);
+        }
+    &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>然后我们可以再进一步，如果改成 vue3 + TypeScript 呢？</p>
+<pre><code class="language-html">&lt;template&gt;
+  &lt;span class=&quot;currency-value&quot;&gt;
+    &lt;span v-if=&quot;hasCurrencySign&quot; class=&quot;currency-sign&quot;&gt;¥&lt;/span&gt;
+    &lt;span class=&quot;between&quot;&gt;{{ beforeDot }}&lt;/span&gt;
+    &lt;span class=&quot;after-dot&quot;&gt;.{{ finalAfterDot }}&lt;/span&gt;
+  &lt;/span&gt;
+&lt;/template&gt;
+
+&lt;script setup lang=&quot;ts&quot;&gt;
+import { ref } from 'vue';
+
+const currencyValue = ref&lt;string&gt;(&quot;¥35.66&quot;);
+
+const hasCurrencySign = currencyValue.value.includes('¥');
+const [beforeDot, afterDot] = currencyValue.value.replace('¥', '').split('.');
+const finalAfterDot = afterDot || '00';
+&lt;/script&gt;
+
+&lt;style scoped&gt;
+/* 样式1：¥符号 15 号字，红色 */
+.currency-sign,
+.after-dot {
+    font-size: 15px;
+}
+
+/* 样式2：¥ 和 . 之间的内容，18号字，加粗，红色 */
+.between {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.currency-sign,
+.after-dot,
+.between {
+    color: red;
+}
+&lt;/style&gt;
+</code></pre>
+<p>可见因为 vue 中的模版可以直接引用变量，为我们减少了大量的 DOM 操作，代码量得以减少了不少。</p>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/html-element-display-mode/" class="post-title gt-a-link">
+                    HTML 元素显示模式
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

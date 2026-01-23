@@ -1,0 +1,506 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>Python：Celery 的简单使用 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    Python：Celery 的简单使用
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2023-02-23 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/python/" class="post-tags">
+                            # python
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>最近写的后端项目需要用到队列，其中有一些东西折腾了好一会儿，在这里记录一下。</p>
+<p><a href="https://github.com/celery/celery">Celery</a> 是一个开源的分布式任务队列，可实现异步任务调度、定时任务、任务结果处理等功能。</p>
+<!-- more -->
+<blockquote>
+<p>本文基于 Celery 5.2.7 版本编写。</p>
+</blockquote>
+<h1 id="概览">概览</h1>
+<p>Celery 其实包含了几个概念：<code>Celery</code> 客户端、消息中间件 <code>Broker</code>、结果存储 <code>Backend</code> 以及 任务执行单元 <code>Worker</code>。</p>
+<p>大致的流程是：<code>Celer</code> 客户端发起任务 -&gt; 相关信息存储到消息中间件 <code>Broker</code> 中 -&gt; 任务执行单元 <code>Worker</code> 从 <code>Broker</code> 中读取任务（<code>Task</code>）然后执行 -&gt; 将执行结果存储到 <code>Backend</code> 中 -&gt; <code>Celery</code> 客户端从 <code>Backend</code> 中读取结果。</p>
+<p>Celery 支持多种消息中间件和结果存储，本文主要使用 Redis 作为中间件和结果存储。</p>
+<h1 id="celery-对象的初始化-配置"><code>Celery</code> 对象的初始化 &amp; 配置</h1>
+<p>在 <code>Celery</code> 类用 <code>__init__</code> 方法初始化之后，有两种配置方式：</p>
+<h2 id="__init__"><code>__init__</code></h2>
+<p>可以在初始化 <code>Celery</code> 对象的同时传入对应的配置。有以下几个比较常用的参数：</p>
+<ul>
+<li><code>main</code>：主模块的名称</li>
+<li><code>broker</code>：消息中间件存储的访问地址</li>
+<li><code>backend</code>：结果存储服务的访问地址（可选的）</li>
+</ul>
+<p>例如说一个可能的 <code>Celery</code> 对象的初始化代码为：</p>
+<pre><code class="language-python">from celery import Celery
+celery = Celery('flaskr', broker='redis://localhost:6379/0', backend='redis://localhost:6379/0')
+</code></pre>
+<p>可以使用同一个 Redis 服务同时作为中间件和结果存储。<br>
+<code>flaskr</code> 是包含 <code>Celery</code> 客户端的 Python 程序的名称，如果使用 Flask 框架开发，那么应当是和初始化 <code>Flask</code> 对象时使用的名称一致。</p>
+<p>上文有提到 <code>backend</code> 是可选的，如果不传该参数，那么就无法通过 Celery 查询到任务的执行结果。</p>
+<h2 id="config_from_object"><code>config_from_object</code></h2>
+<p><code>Celery</code> 类还提供了一个 <code>config_from_object</code> 方法，支持通过 “Python 配置文件” 进行配置。使用上代码类似下面这样：</p>
+<pre><code class="language-python">from celery import Celery
+
+celery = Celery('flaskr')
+celery.config_from_object('flaskr.tools.celery_config')
+</code></pre>
+<p><code>celery_config</code> 是文件名。<code>flaskr.tools.celery_config</code> 是这个文件的 “路径”，或者说当我们想要在代码中 <code>import</code> 该 python 文件时使用的路径。</p>
+<p><code>celery_config.py</code> 文件中的内容为：</p>
+<pre><code class="language-python">from os import environ
+
+CELERY_REDIS_URL = &quot;redis://&quot; + \
+                &quot;:&quot; + \
+                environ.get(&quot;REDIS_PASSWD&quot;) + \
+                &quot;@&quot; + \
+                environ.get(&quot;REDIS_HOST&quot;) + \
+                &quot;:&quot; + \
+                environ.get(&quot;REDIS_PORT&quot;) + \
+                &quot;/&quot; + \
+                environ.get(&quot;REDIS_DATABASE&quot;)
+
+BROKER_URL = CELERY_REDIS_URL
+CELERY_RESULT_BACKEND = CELERY_REDIS_URL
+</code></pre>
+<p>在该文件中，我们可以从环境变量中读取配置，或者直接写死了我们所需要的配置字段。</p>
+<h2 id="注意">注意</h2>
+<p><code>Celery</code> 对象的初始化以及配置<strong>必须</strong>要放在顶层，下面的代码是不行的：</p>
+<pre><code class="language-python">from celery import Celery
+
+celery = Celery('flaskr')
+
+def init_app(app):
+    celery.config_from_object('flaskr.tools.celery_config')
+</code></pre>
+<p>因为后续 <code>Worker</code> 将会根据配置的路径，寻找 <code>Celery</code> 对象，从该对象中获取相应的配置。</p>
+<p>该过程可以理解为：“<strong>不是</strong>获取一个已经初始化好了的对象，<strong>而是</strong>根据配置的路径，找到对应的文件/模块，重新初始化 <code>Celery</code> 对象”。</p>
+<p>该过程只会执行顶层属性、方法，也就是说它不会调用你的 <code>init_app</code> 方法，所以这么写之后 <code>Worker</code> 侧的 <code>Celery</code> 对象属于只是被初始化但是没有被配置过的状态，所有的配置项都会是默认值。</p>
+<h1 id="worker"><code>Worker</code></h1>
+<p><code>Worker</code> 服务是独立于 <code>Celery</code> 客户端程序的，需要单独另起一个服务。</p>
+<p>在终端执行下面的命令启动 <code>Worker</code> 服务：</p>
+<pre><code class="language-shell">celery -A flaskr.libs.system worker -l info
+</code></pre>
+<p>其中 <code>-A</code> 参数后面接着的 <code>flaskr.libs.system</code> 是 <code>Celery</code> 对象所在的模块/文件路径。和 <code>config_from_object</code> 一样，这里也是 “当我们想要在代码中 <code>import</code> 该 python 文件时使用的路径”。要确保该路径下包含着 <code>Celery</code> 对象。</p>
+<p><code>-l</code> 参数是日志等级，示例中指定到 <code>info</code> 级别。</p>
+<h1 id="celery-的使用">Celery 的使用</h1>
+<p>下面简单的介绍一下 Celery 框架的使用方法。</p>
+<p><a href="#%E6%A6%82%E8%A7%88">上文</a>中有提到，<code>Worker</code> 会在运行时读取 <code>Celery</code> 客户端中的 <code>Task</code> 任务并执行。</p>
+<h2 id="定义任务">定义任务</h2>
+<p>下面是一个简单的 <code>Task</code> 的定义：</p>
+<pre><code class="language-python"># in tasks.py
+from flaskr.libs.system import celery
+
+@celery.task
+def add(x, y):
+    return x + y
+</code></pre>
+<p>你可以将其定义为顶层/全局方法，也可以将其包裹在类中。</p>
+<blockquote>
+<p>如果包裹在类中，会涉及到 <code>self</code> 参数问题，请参考后面的小节：<a href="#%E4%BB%BB%E5%8A%A1%E4%B8%AD%E7%9A%84-self">任务中的 self</a></p>
+</blockquote>
+<p>上文我们在 <code>flaskr.libs.system</code> 模块下定义了 <code>celery</code> 对象，然后就可以在 <code>tasks.py</code> 文件中使用 <code>@celery.task</code> 装饰器，使一个方法成为 Celery 任务。</p>
+<blockquote>
+<p>注意：如果你的 <code>Celery</code> 对象不叫 <code>celery</code> 而是其他名字，例如 <code>app</code>。那么你的装饰器应该是 <code>@app.task</code> —— <code>task</code> 是 <code>Celery</code> 对象的方法。</p>
+</blockquote>
+<p>在 <code>Task</code> 任务内，<code>return</code> 结果代表着 “任务<strong>执行成功</strong>”，通过 <code>raise</code> 抛出异常意味着 “任务<strong>执行失败</strong>。”</p>
+<h2 id="执行任务">执行任务</h2>
+<p>对任务方法调用 <code>delay</code> 方法以传递参数并执行任务：</p>
+<pre><code class="language-python"># 使用参数 4，5 调用任务 add
+result = add.delay(4, 5)
+
+# 对执行结果调用 get() 方法以获取任务执行结果
+print(result.get())
+</code></pre>
+<p><code>get()</code> 方法获取的是任务执行成功之后的结果，即 <code>return</code> 的结果。</p>
+<p>如果要获取 <code>raise</code> 抛出的异常，我们可以使用 <code>result.result</code> 方法获取异常。</p>
+<h2 id="判断状态">判断状态</h2>
+<p>在获取任务的执行结果之前，我建议您先判断当前任务的执行状态。</p>
+<p>Celery 框架提供了 <code>AsyncResult</code> 类来查询任务执行状态：</p>
+<pre><code class="language-python">def exec_task(self):
+    &quot;&quot;&quot;执行任务，并返回任务 ID&quot;&quot;&quot;
+    result = add.delay(4, 5)
+    task_id = result.task_id
+    return task_id
+
+def check_status(self, task_id):
+    &quot;&quot;&quot;根据任务 ID 查询任务状态&quot;&quot;&quot;
+    from flaskr.libs.system import celery
+    result = celery.AsyncResult(task_id)
+</code></pre>
+<blockquote>
+<p>有一些文章会执行使用 <code>AsyncResult</code> 类，而不是通过 <code>celery</code> 对象调用 <code>AsyncResult</code>。<br>
+但是在我实际操作过程中发现，不通过 <code>celery</code> 对象调用的话会找不到 <code>Backend</code>，怀疑也是和配置有关。</p>
+</blockquote>
+<p><code>result</code> 对象有一个 <code>task_id</code> 属性，使用该属性值作为参数初始化 <code>AsyncResult</code> 对象，就可以查询该任务的状态：</p>
+<ul>
+<li><code>result.state</code>：获取当前任务的状态（字符串）</li>
+<li><code>result.ready()</code>：判断任务是否已经结束（成功 or 失败）</li>
+<li><code>result.successful()</code>：判读任务是否成功</li>
+<li><code>result.get()</code>：和上文提及的一样，获取执行成功的任务的结果（<code>return</code>）</li>
+<li><code>result.result</code>：和上文提及的一样，获取执行失败的任务抛出的异常（<code>raise</code>）</li>
+</ul>
+<p>一种有可能的处理流程如下：</p>
+<pre><code class="language-python">def check_status(self, task_id):
+    # 查询任务状态
+    from flaskr.libs.system import celery
+    result = celery.AsyncResult(task_id)
+
+    logging.info(f&quot;查询任务结果，任务ID（{task_id}）对应的状态为：{result.state}&quot;)
+
+    # 任务仍在执行中
+    if not result.ready():
+        return { &quot;code&quot;: &quot;105&quot;, &quot;message&quot;: &quot;任务仍在执行中&quot; }
+    
+    # 任务失败
+    if not result.successful():
+        error = result.result
+        return { &quot;code&quot;: &quot;9999&quot;, &quot;message&quot;: f&quot;{str(error)}&quot; }
+
+    # 获取任务执行结果
+    task_result = result.get()
+    return { &quot;code&quot;: &quot;200&quot;, &quot;data&quot;: task_result, &quot;message&quot;: &quot;任务执行成功&quot; }
+</code></pre>
+<h2 id="任务中的-self">任务中的 self</h2>
+<p><code>.task()</code> 方法有一个 <code>bind</code> 参数，它的默认值是 <code>False</code>。该参数可以控制是否将任务绑定到实例对象上。这关乎到 <code>self</code> 参数的具体值。</p>
+<h3 id="定义在类中的任务">定义在类中的任务</h3>
+<p>如果你的任务定义是包裹在类中，像是这样：</p>
+<pre><code class="language-python">from flaskr.libs.system import celery
+
+class Tasks(object):
+    def __init__(self, value):
+        self.value = value
+
+    @celery.task
+    def add(self, x):
+        return x + self.value
+</code></pre>
+<p>那么此时需要注意，因为 <code>bind</code> 参数的默认值是 <code>False</code>，所以此时 <code>add</code> 任务没有被绑定到 <code>Tasks</code> 类实例上，所以此时 <code>self</code> 参数指的是任务本身，而不是 <code>Tasks</code> 类的实例对象。此时在 <code>add</code> 方法中，你将无法获取到 <code>self.value</code> 的值。</p>
+<p>如果你想在 <code>add</code> 方法中使用 <code>self.value</code>，你需要将 <code>bind</code> 参数设置为 <code>True</code>，像是这样：</p>
+<pre><code class="language-python">...
+
+@celery.task(bind=True)
+def add(self, x):
+    return x + self.value
+
+...
+</code></pre>
+<p>此时你可以顺利的获取到 <code>self.value</code> 的值。</p>
+<h3 id="定义在顶层的任务">定义在顶层的任务</h3>
+<p>如果任务直接定义在文件中，类似下面这样：</p>
+<pre><code class="language-python">from flaskr.libs.system import celery
+
+@celery.task
+def add(x, y):
+    return x + y
+</code></pre>
+<p>那么首先，此时 <code>bind</code> 参数的值是 <code>False</code>。这个时候您无法在 <code>add</code> 方法的参数列表中添加 <code>self</code>，也无法在方法实现内使用 <code>self</code> 参数，这会导致编译失败。</p>
+<p>如果你将 <code>bind</code> 设置为 <code>True</code>，那么就可以添加 <code>self</code> 参数了，例如下面这样：</p>
+<pre><code class="language-python">from flaskr.libs.system import celery
+
+@celery.task(bind=True)
+def add(self, x, y):
+    return x + y
+</code></pre>
+<p>那么此时 <code>self</code> 代表什么呢？</p>
+<p><a href="#%E4%BB%BB%E5%8A%A1%E4%B8%AD%E7%9A%84-self">上文</a>有提到，<code>bind</code> 参数用于将任务绑定到类实例。</p>
+<p>实际上，此时 Celery 会在后台自动将该任务转换为一个带有实例方法的类，使你可以在任务函数中访问实例属性和方法。在这种情况下，<code>self</code> 参数表示当前任务的实例对象，就像在类中定义任务一样。</p>
+<h2 id="重试">重试</h2>
+<p>Celery 框架本身支持 “<strong>重试</strong>” 功能，包含自动重试和手动重试两种方法。这里简单介绍一下手动重试的用法。</p>
+<h3 id="retry-方法的调用"><code>retry</code> 方法的调用</h3>
+<pre><code class="language-python"># in tasks.py
+from flaskr.libs.system import celery
+
+@celery.task(bind=True)
+def add(self, x, y):
+    try:
+        # 某些可能会抛出异常的方法
+        return __some_method_may_throw_exceptions()
+
+    except Exception as e:
+        # 出错每15秒尝试一次，总共尝试3次
+        raise self.retry(exc=e, countdown=15, max_retries=3)
+
+    finally:
+        pass
+</code></pre>
+<p>该例子中，我们在文件内直接定义了一个任务，而且 <code>bind</code> 参数被设置为了 <code>True</code>。此时我们要通过 <code>self</code> 参数来调用 <code>retry</code> 方法，执行手动重试。</p>
+<p>那如果 <code>bind</code> 是 False 的情况呢？此时我们可以使用 <code>add.retry(...)</code> 来触发手动重试。</p>
+<p>如果任务定义在类中：</p>
+<ul>
+<li>如果 <code>bind</code> 是 <code>False</code>，则可以直接使用 <code>self.retry(...)</code> 触发手动重试。</li>
+<li>如果 <code>bind</code> 是 <code>True</code>，则需要使用 <code>add.retry(...)</code> 触发手动重试。</li>
+</ul>
+<p>总结一下不同的场景：</p>
+<ul>
+<li>任务定义在类中：
+<ul>
+<li>如果 <code>bind</code> 是 <code>False</code>，则可以直接使用 <code>self.retry(...)</code> 触发手动重试。</li>
+<li>如果 <code>bind</code> 是 <code>True</code>，则需要使用 <code>add.retry(...)</code> 触发手动重试。</li>
+</ul>
+</li>
+<li>任务定义在文件中：
+<ul>
+<li>如果 <code>bind</code> 是 <code>False</code>，则可以直接使用 <code>add.retry(...)</code> 触发手动重试。</li>
+<li>如果 <code>bind</code> 是 <code>True</code>，则需要使用 <code>self.retry(...)</code> 触发手动重试。</li>
+</ul>
+</li>
+</ul>
+<p>可以说定义在类中和定义在文件中，对于相同的 <code>bind</code> 参数，调用方式是相反的。</p>
+<h3 id="retry-方法的参数"><code>retry</code> 方法的参数</h3>
+<p>说完了调用，我们来说一下参数。</p>
+<p><code>countdown</code> 定义重试的间隔，<code>max_retries</code> 定义最多重试几次。</p>
+<p><code>exc</code> 参数是一个可选参数，它代表着 “当前任务失败时产生的异常”。通过将 <code>e</code> 参数传递到 <code>retry</code> 方法中，可以让重试失败后抛出最开始的异常。您也可以自定义该异常参数。</p>
+<p>在使用 <code>retry</code> 方法时，如果没有指定 <code>exc</code> 参数，Celery 框架将默认将任务的异常信息传递给 <code>retry</code> 方法。如果指定了 <code>exc</code> 参数，则会将指定的异常对象传递给 <code>retry</code> 方法。</p>
+<h3 id="retry-方法的结果"><code>retry</code> 方法的结果</h3>
+<p>在上面的例子中，我们使用了 <code>raise</code> 将 <code>retry</code> 失败后的异常抛出，意味着任务失败。</p>
+<p>同时我们还可以不使用该参数，在重试失败之后手动处理异常，例如：</p>
+<pre><code class="language-python"># in tasks.py
+from flaskr.libs.system import celery
+
+@celery.task(bind=True)
+def add(self, x, y):
+    try:
+        return __some_method_may_throw_exceptions()
+
+    except Exception as e:
+        max_retries = 3
+
+        # 超过最大次数，返回错误信息
+        if self.request.retries &gt;= max_retries:
+            return __create_error_response()    
+
+        self.retry(exc=e, countdown=15, max_retries=max_retries)
+
+    finally:
+        pass
+</code></pre>
+<p>在这个例子中，如果超过了最大重试次数，因为我们没有将重试的异常抛给外界，所以在最后一次重试失败之后会再次触发 <code>except</code>，此时我们可以判断是否超过了最大重试次数，意味着重试失败。</p>
+<p>当重试失败后，我们可以根据需求进行失败处理。</p>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/composable-uicollectionview-layout-uicollectionviewcompositionallayout/" class="post-title gt-a-link">
+                    可组合的 UICollectionView 布局：UICollectionViewCompositionalLayout
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

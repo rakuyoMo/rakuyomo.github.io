@@ -1,0 +1,502 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>swift | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <div class="main-content">
+        <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+        <div class="current-tag-container">
+            <h2 class="title gt-c-content-color-first">
+                #swift
+            </h2>
+        </div>
+        <div class="post-list-container">
+    <div class="post-inner">
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/swift-collections-lifetime-feature-compilation-error/">
+                            <span class="post-title gt-c-content-color-first">解决 swift-collections 1.3.0 在 Xcode 26.1 下的 Lifetime 特性编译错误</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        最近在 vibe coding 一款 macOS App，名叫 “Hassan”，具体做什么的暂且按下不表。项目在从 Xcode 16.4 升级到 26.1 后遇到了一个编译错误，花费几个小时研究明白后决定水一篇文章，整理一下这几个小时的收获。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2025-12-01 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/tuist/" class="post-tag">
+                                # tuist
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/swift-package-manager/" class="post-tag">
+                                # swift-package-manager
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/xcode/" class="post-tag">
+                                # xcode
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/HEvQ-e7X7/" class="post-tag">
+                                # swift
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/why-swift-reduce-prefers-plus-over-and/">
+                            <span class="post-title gt-c-content-color-first">解密 Swift：为何 reduce 偏爱 + 而非 &amp;&amp; ？</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        作为 Swift 开发者，我们都热爱这门语言提供的优雅和简洁性，尤其是它的函数式编程能力。
+Swift 原生提供了一些高阶函数，常见的比如 map、filter、reduce 等。这些优雅的高阶函数能够极大的简化我们的代码，但是一个不小心也会报一个让你困扰一整天的错误。
+今天，我们就来看看其中一种情况。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2025-08-05 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/HEvQ-e7X7/" class="post-tag">
+                                # swift
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/combine-intercept-delegate-objc-runtime/">
+                            <span class="post-title gt-c-content-color-first">从使用 Combine 拦截 delegate 看 Runtime 消息转发</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        CombineCocoa 已有一段时间未更新，但其中许多代码仍能正常工作，比如 Delegate 的这部分。
+今天我们先从这部分代码入手，看看如何使用 Combine 拦截 UIKit 中的各类 delegate 对象，再深入探讨其背后的 Runtime 实现。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2025-04-11 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/runtime/" class="post-tag">
+                                # runtime
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/objective-c/" class="post-tag">
+                                # Objective-C
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/HEvQ-e7X7/" class="post-tag">
+                                # swift
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/swift-method-dispatch-via-overriding/">
+                            <span class="post-title gt-c-content-color-first">通过覆写方法看 Swift 方法派发</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        在 Swift 开发中，我们常常利用 extension 和 // MARK: 来划分代码逻辑，比如划分出 “Config”、“Life cycle” 等模块。然而，在使用扩展时却常常会遇到方法覆写的问题，尤其是在定义基类的“框架方法”后，子类无法正确覆写的问题。
+本文将通过覆写方法，深入探讨 Swift 中的方法派发机制，并讨论如何在代码设计时规避常见坑点。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2025-02-27 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/HEvQ-e7X7/" class="post-tag">
+                                # swift
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/thread-safety-with-lazy/">
+                            <span class="post-title gt-c-content-color-first">Lazy var 的线程安全问题</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        Swift 的 lazy 关键字一直有一个很容易被忽略的问题，那就是它不是线程安全的。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2024-07-23 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/HEvQ-e7X7/" class="post-tag">
+                                # swift
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/epoxy-source-code-notes-2/">
+                            <span class="post-title gt-c-content-color-first">epoxy源码笔记2：在扩展中定义存储属性</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        常规的在扩展中定义存储属性的方法是借助 Objective-C 的 runtime 进行属性关联。但是这个方法仅限于 ObjC 类，那么纯 Swift 类，比如结构体该怎么办呢？
+在 epoxy 这个库中发现了解决办法。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2024-05-23 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/epoxy/" class="post-tag">
+                                # epoxy
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/HEvQ-e7X7/" class="post-tag">
+                                # swift
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/accelerated-swift-package-manager/">
+                            <span class="post-title gt-c-content-color-first">加速 Swift Package Manager</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        虽然国内实际开发用 Swift Package Manager（后称 SPM）的比较少，但是国外的一些开源库里却经常用到。所以经常遇到项目 clone 下来之后，SPM 加载失败导致项目无法运行的问题。
+网上关于 SPM 加速的文章也有很多，方法也是五花八门，本文挑选几个进行记录。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2023-03-15 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/swift-package-manager/" class="post-tag">
+                                # swift-package-manager
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/HEvQ-e7X7/" class="post-tag">
+                                # swift
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/ios-self-paced-test-questions/">
+                            <span class="post-title gt-c-content-color-first">iOS自编笔试题</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        最近要负责面试，于是各处搜罗了一些面试题，用于笔试（不包含算法），也当作自己的一个复习。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2023-03-06 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/mian-shi/" class="post-tag">
+                                # 面试
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/HEvQ-e7X7/" class="post-tag">
+                                # swift
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/ios-self-paced-interview-questions/">
+                            <span class="post-title gt-c-content-color-first">iOS自编面试题</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        最近要负责面试，于是各处搜罗了一些面试题，用于当面面试使用（非笔试题），也当作自己的一个复习。同时提供了一个我自己角度的评判，仅供参考。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2023-03-03 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/mian-shi/" class="post-tag">
+                                # 面试
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/HEvQ-e7X7/" class="post-tag">
+                                # swift
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/cheatsheet-combine-operators/">
+                            <span class="post-title gt-c-content-color-first">Combine 操作符速查表</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        文章以图文的形式，记录 Combine 中各操作符的用法以及效果。下文为原文章内容的转载 + 翻译。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2023-01-29 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/HEvQ-e7X7/" class="post-tag">
+                                # swift
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+    </div>
+</div>
+        <div class="pagination-container">
+    
+    
+</div>
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

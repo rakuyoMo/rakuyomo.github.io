@@ -1,0 +1,477 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>Vibe Coding 的两面：一周体验的甜蜜与挣扎 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    Vibe Coding 的两面：一周体验的甜蜜与挣扎
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2025-09-02 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/ai/" class="post-tags">
+                            # AI
+                        </a>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/vibe-coding/" class="post-tags">
+                            # vibe-coding
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>Vibe Coding，也就是 “氛围编程” 这个概念已经火了很长一段时间了，可惜主包之前碍于种种原因一直没能找到机会亲自试一下。不过就在上周正好要做一个新的系统，给了我尝试 Vibe Coding 的机会。现在系统已经搭建完毕，本文就用来记录这一周多一点的 “氛围编程” 体验吧。</p>
+<!-- more -->
+<h2 id="什么是氛围编程-vibe-coding">什么是氛围编程 (vibe coding)？</h2>
+<p>引用 Google Cloud 上<a href="https://cloud.google.com/discover/what-is-vibe-coding?hl=zh-CN">对 Vibe Coding 的介绍</a>：</p>
+<blockquote>
+<p>氛围编程 (vibe coding) 是一种新兴的软件开发实践，它使用人工智能 (AI) 根据自然语言提示生成功能代码，从而加快开发速度，并让应用构建变得更加容易，对于那些编程经验有限的用户尤其如此。</p>
+<p>该术语由 AI 研究人员 Andrej Karpathy 于 2025 年初创造，用于描述一种工作流，其中开发者的主要角色从逐行编写代码转变为通过对话风格更浓的过程指导 AI 助理生成、完善和调试应用。这样，您就可以腾出时间和精力思考大方向或应用的主要目标，而 AI 则负责编写实际代码。</p>
+</blockquote>
+<p>在实践中，氛围编程通常有两种主要的应用方式：</p>
+<ul>
+<li>
+<p><strong>“纯”氛围编程</strong>：在这种最探索性的形式中，用户可能会完全信任 AI 的输出能够按预期工作。正如 <a href="https://x.com/karpathy/status/1886192184808149383?">Karpathy 所描述的那样</a>，这就好比是“忘记了代码的存在”，因此它最适合用于快速构思，或者他所说的“周末即兴项目”，在这些场景中，速度是首要目标。</p>
+</li>
+<li>
+<p><strong>Responsible AI 辅助开发</strong>：这是该概念的实际专业应用。在这种模式下，AI 工具充当功能强大的协作者或“编程搭档”。用户会指导 AI 操作，然后审查、测试并理解 AI 生成的代码，因此对最终产品拥有完全的所有权。</p>
+</li>
+</ul>
+<p>在我这一周多的工作时间里，我才用的算是介于这两种模式中间的第三种模式：</p>
+<ul>
+<li>向 AI 描述任务，指导 AI 操作，设定架构（哪些代码该放在哪个文件夹下），同时框定限制（比如些许代码格式）。</li>
+<li>一些并不全面的审查，然后尽量不去理解 AI 所编写的代码的具体细节。</li>
+</ul>
+<p>打个比方就是：</p>
+<blockquote>
+<p>我要求 AI 收拾书架，第一层放编程类书籍，第二层放小说，第三层... 并且按照从高到低排序。<br>
+最终 AI 排好了，我看了一眼确实是从高到低排序，也是按照编程类、小说... 的顺序放置。<br>
+但是我没有去具体的了解<strong>每层都有哪些书</strong>。</p>
+</blockquote>
+<h2 id="我做了个什么系统">我做了个什么系统？</h2>
+<p>我这个的任务是要开发一个小系统，它的作用是尽可能地将 “GitLab MR Review” 这件事自动化起来，并且接入 AI 与<a href="https://www.merico.cn/">思码逸</a>辅助 Review。这套系统的运行流程基本如下图所示：</p>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyo.dev/post-images/1756888415451.svg" alt="" loading="lazy"></figure>
+<!--
+graph TD
+    subgraph "3 开发审核完成与通知"
+        Z[开发移除自己名字的标签] &#45; AA{Webhook 监听标签变更};
+        AA &#45; BB{只剩下 '开发审核中' 标签?};
+        BB -- "是" &#45; CC[设置标签: '审核通过'];
+        CC &#45; DD[通知作者: '审核完成'];
+    end
+
+    subgraph "2 开发审核流程"
+        V[作者评论: 艾特developer1 艾特developer2 review] &#45; W{Webhook 监听评论};
+        W &#45; X[为 MR 添加标签: 'developer1', 'developer2'];
+        X &#45; Y[通知各个 developer];
+    end
+
+    subgraph "1 自动化审核流程"
+        A[作者创建 MR] &#45; B[作者评论: 艾特Gitlab-MR-Robot-ZZKF review];
+        B &#45; C{Webhook 监听评论};
+        C &#45; D[为 MR 设置标签: '自动化审核中'];
+        D &#45; E[触发 CI 流水线];
+
+        subgraph "审查执行"
+            E &#45; F{执行 AI/思码逸 Review};
+
+            %% AI 处理流程 (现在直接在主子图内)
+            F -- "执行 AI" &#45; L[AI 服务调用];
+            L &#45; M[AI API 异步回调];
+            M &#45; N[AI 回调处理器];
+
+            %% 思码逸处理流程 (现在直接在主子图内)
+            F -- "执行思码逸" &#45; G1[思码逸服务调用];
+            G1 &#45; G2[思码逸 API 同步回调];
+        end
+
+        subgraph "处理审核结果"
+            G2 &#45; Common_Post_Comment[在 MR 中发送评论];
+            N &#45; Common_Post_Comment;
+            Common_Post_Comment &#45; Common_Review_Failed{审核失败?};
+            Common_Review_Failed -- "是" &#45; Common_Add_Failed_Label[设置标签: '自动化审核失败'];
+            Common_Add_Failed_Label &#45; Common_Notify_Failed[通知作者: '自动化审核失败'];
+            Common_Review_Failed -- "否" &#45; T[设置标签: '开发审核中'];
+            T &#45; U[通知作者: '自动化审核成功'];
+        end
+    end
+
+    style A fill:#DCDCFF,stroke:#333,stroke-width:2px
+    style B fill:#DCDCFF,stroke:#333,stroke-width:2px
+    style V fill:#DCDCFF,stroke:#333,stroke-width:2px
+    style Z fill:#DCDCFF,stroke:#333,stroke-width:2px
+
+    style D  fill:#428BCA,stroke:#333
+    style X  fill:#F0AD4E,stroke:#333
+    style T  fill:#F0AD4E,stroke:#333
+    style CC fill:#5CB85C,stroke:#333
+    style Common_Add_Failed_Label fill:#D9534F,stroke:#333
+-->
+<h3 id="任务拆解">任务拆解</h3>
+<p>从流程图上来看，这个系统需要实现以下功能：</p>
+<ul>
+<li>它需要部署到服务器上，这里我选择的是 Docker。</li>
+<li>有一系列围绕 GitLab 的功能。
+<ul>
+<li>监听 MR 中的一些行为事件。
+<ul>
+<li>评论的发布。</li>
+<li>标签的修改。</li>
+</ul>
+</li>
+<li>在 MR 中发布评论。</li>
+<li>为 MR 评论评论添加 emoji（未在流程图中体现）。</li>
+<li>为 MR 设置标签。</li>
+<li>通过 api 触发 GitLab-CI 流水线。</li>
+</ul>
+</li>
+<li>封装多个 Review 辅助系统。
+<ul>
+<li>AI api。</li>
+<li>思码逸 api。</li>
+</ul>
+</li>
+<li>第三方通知系统。
+<ul>
+<li>这里我接入的是其他部门提供的企业微信机器人发送消息接口。</li>
+</ul>
+</li>
+</ul>
+<h3 id="技术栈">技术栈</h3>
+<p>熟悉我的都知道，我之前有 python + Flask 开发后端系统的经验，所以本次这个小型系统主包也采用了相同的系统架构设计。</p>
+<p>其余三方库方面主要用到了以下这些：</p>
+<ul>
+<li>flask-redis</li>
+<li>python-gitlab</li>
+<li>python-dotenv</li>
+<li>dynaconf</li>
+<li>dataclasses-json</li>
+</ul>
+<p>其中最后两个是 AI 推荐使用的，主包之前并未接触过。</p>
+<p>AI 客户端方面我主要的以下这些：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">客户端</th>
+<th style="text-align:center">模型</th>
+<th style="text-align:center">是否免费</th>
+<th style="text-align:center">使用占比</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">Gemini-CLI</td>
+<td style="text-align:center">gemini-2.5-pro</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">75%</td>
+</tr>
+<tr>
+<td style="text-align:center">Gemini-CLI</td>
+<td style="text-align:center">gemini-2.5-flash</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">10%</td>
+</tr>
+<tr>
+<td style="text-align:center">Qwen-Code CLI</td>
+<td style="text-align:center">Qwen/Qwen3-Coder-480B-A35B-Instruct</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">15%</td>
+</tr>
+</tbody>
+</table>
+<p>也就是说交给 AI 的工作中，75% 是使用 “<strong>免费版的 Gemini-CLI + gemini-2.5-pro 模型</strong>” 完成的。</p>
+<blockquote>
+<p>之所以用免费的 AI，主要原因还是穷。非要说得好听一点就是想看看 AI 的下限在哪里，又或者大部分人应该用的都是免费的 AI。</p>
+</blockquote>
+<p>另外需要说明的是，在这次工作我没有使用任何的 mcp，也没有使用任何的 AI 配置文件，比如 <code>GEMINI.md</code> 等。</p>
+<h2 id="最终效果怎么样">最终效果怎么样？</h2>
+<p>抛去项目初始框架的搭建以及部署，几乎所有业务逻辑我都是提供任务描述之后 让 AI 给我实现的。那么结论也就像标题说的这样，对于我这样一个初次尝试 Vibe Coding 的小白而言，可以说是 “<strong>又爱又恨</strong>”，感觉也是和互联网上大部分人的感受一样。</p>
+<h3 id="爱在哪里">爱在哪里？</h3>
+<p>AI 的强大无需多言，可以说 80% 的任务它都完成的很好：</p>
+<ul>
+<li>我没有看过 <code>python-gitlab</code> 的文档，我只需要告诉 AI 要使用这个框架，它几乎就可以使用正确的 API，而就在去年，网页版免费的 ChatGPT 还做不到这一点。</li>
+<li>只需要告诉 AI “我希望实现配置热更新，这样在我修改配置时就不需要再重启 Docker 服务了”。它就给我推荐了 <code>dynaconf</code> 这个框架，代替搜索引擎的同时还帮我实现了需求。</li>
+</ul>
+<p>这个小系统虽然简单，但是它也有一个需要用到算法的地方：在使用 AI 辅助 Review 时，如果代码 diff 过长会导致超出模型的上下文，此时需要分片多次提问。在这点上 AI 处理的也很好，让我真正感受到了什么是 “面向结果而不面向实现细节”。</p>
+<h3 id="恨又在哪里">恨又在哪里？</h3>
+<ul>
+<li>调用 <code>python-gitlab</code> 中的方法时，有过好几次使用了错误的返回值的情况。需要我手动查看源码后再告诉 AI 正确的返回类型是什么。</li>
+<li>AI 稳定性可以说是让人捉摸不透：它能很好的推荐你通过 <code>dataclasses-json</code> 解决 “接口参数驼峰式命名” 与 “python 属性下划线式命名” 的矛盾，但是它想不到将 Model 转 JSON 时使用的方法改为 <code>dataclasses-json</code> 专用的方法。</li>
+<li>对于 <code>&quot;\n&quot;</code> 换行符会犯一些难以理解的错误，特别是处理多行字符串时，会直接使用换行来代替字符串的 <code>&quot;\n&quot;</code>。</li>
+<li>...</li>
+</ul>
+<p>如果说上面的还是一些 “小细节”，那么接下来的就是针对 Qwen 的吐槽了：</p>
+<p>Qwen-Code CLI 虽说是基于开源的 Gemini-CLI 进行开发，但是这两者的差距还是很大。在开发思码逸 API 封装模块时，我直接让 AI 去读完整的 swagger json 文档，这份文档非常大，足足有 <strong>3万 8 千行</strong> 之多。我一开始让 Qwen-Code CLI 去读取，直接占用了将近 20% 的上下文，而且读取时间非常长（Qwen 的模型是分批多次读取）。后来我试了以下用 Gemini-CLI 去读取，结果发现占用的占下文非常小，而且读取速度非常快，同时也能根据文档准确回答出我的问题，完成后续的任务开发。</p>
+<p>并且在我让 Qwen 根据这份 swagger 文档所描述的，思码逸 api 所提供的能力，来回答我能否实现某些需求时，它也给出了错误的答案：实际上是不能满足我的需求的。叠加当时我因为缺少 api-key 无法直接验证 AI 编写的逻辑，最终导致了将近两天的工作<strong>完全白做</strong>。</p>
+<p>Gemini 虽说比 Qwen 要强，但是在 “提问的艺术” 方面也有一些需要注意点的：</p>
+<ul>
+<li>你需要尽可能地提及所有细节，就像是上面提到的 <code>dataclasses-json</code> 的例子，你没有在提问时说 “同时修改所有 Model 转 JSON 时使用的方法”，那么 AI 就有可能不会去修改 —— 但是如果你像我一样第一次使用这个库，不知道要去修改这个地方，那就会像我一样遇到这个问题；又或者把它写入到一个通用规则里：每次类似的修改，都要检查调用逻辑是否需要修改。</li>
+<li>先列出方案再实际修改，会比一开始就让它修改效果好很多。这一点在过去很多人的文章中都有提到，事实也是如此，这不光能减少代码回滚的次数，也能让你去审查 AI 是否真正的理解了你的需求。</li>
+<li>只让 AI 使用中文回答还不够，这不足以让它理解它是在为一个中国人打工。你还需要告诉它 “日志和注释都使用中文”。</li>
+<li>意外的，合理使用标点符号，比如句号，可以让 AI 更好的理解你的意思，比如这句话是否结束了？</li>
+<li>...</li>
+</ul>
+<p>诸如此类的点还有很多，总的来说就是：</p>
+<p><strong>你真的真的真的真的需要向 AI 描述的很细很细很细</strong>，有的时候这真的很累很辛苦。</p>
+<p>以上种种导致的问题就是：</p>
+<ul>
+<li>如果你是一个偶尔丢失一些小细节，或者根本就是一个粗心大意的人，那么 AI 的使用体验将会<strong>大打折扣</strong>；</li>
+<li>光有严谨还不够，你还需要足够的耐心去组织每次的提问内容，还要有一定程度上的语文表达能力、语言组织能力（绝不止大家平时日常的口头交流）。对于那些平时在互联网上习惯使用书面表达方式而非口语化描述的人来说会有一定的优势。相反则会面临不少的问题。</li>
+</ul>
+<p>另外，光让 AI 列出计划还不够，它还有一个喜欢 “<strong>胡编</strong>” 的通病。对此我的解决方案是告诉它 “<strong>如果有哪些不确定，或者是推测东西，请使用 <code># TODO</code> 标记，并在修改完成后向我汇报。</strong>”，这样它虽然还会执行一些推测，但是至少我可以更好的分辨哪些是它推测的东西，以便在后续的对话中帮助它解决这些 TODO。</p>
+<h2 id="prompt">Prompt</h2>
+<p>在这里贴一下我做这个项目时最常用的提示词：</p>
+<blockquote>
+<p>我每完成一个任务，都会 <code>/clear</code>，然后使用新的提示词开启一个新的会话。</p>
+</blockquote>
+<pre><code class="language-markdown">你是一位资深的 python 开发工程师，尤其熟悉 flask 框架。现在我们所处的工作目录正是一个 flask python 后端项目。
+
+&lt;!-- 描述具体的需求或者任务 --&gt;
+
+一些规范要求：
+1. 始终用中文回复我，并且日志、代码注释都使用中文。
+2. 所以日志都应该使用 `logging` 框架实现，比如 `logging.info(f&quot;...&quot;)`。
+3. python 文件的开头不需要包含 python 版本注释的内容。
+4. 私有方法放在文件的最后面，越是工具性质的方法越靠后。
+5. 调用方法时候，如果参数多于两个，则必须显式指定参数；如果只有一个，那么不要添加参数名称。
+6. 一个方法的参数的数量最多为 5 个（包括 `self`），如果超过，则应该以**类型**的方式去定义，并放在对应模块的 `/models/param` 文件夹中，并且每个属性都应该有注释。
+7. 如果有哪些不确定，或者是推测东西，请使用 `# TODO` 标记，并在修改完成后向我汇报。
+8. 请你做任何修改前，先向我确认你的计划，当我认可你的计划后，再实施你的修改。
+9. 不要创建 `Optional[List[...]]` 可选值数组，使用空数组 `[]` 代替。
+10. 文件的末尾要有一个单独的空行。
+11. 注释使用 Google 风格。
+</code></pre>
+<h2 id="聊一些-理想主义">聊一些 “理想主义”</h2>
+<p>说我上班不为了钱是假的，但是我也是真的喜欢敲代码，喜欢通过代码去做产品。</p>
+<p>最早的时候让我回答为什么选择做程序员而不是产品经理，我的回答是 “<strong>相比较产品，程序员可以通过自己双手亲自实现自己的想法，这更酷</strong>”。但是做了这么多年程序员，写了这么多年代码之后，<strong>我已经不知道我是更喜欢敲代码还是更喜欢做产品了</strong>。</p>
+<p>Vibe Coding 对于我而言就像是 “产品经理让 AI 帮我实现了我的想法”，我觉得这也能算是 “亲手”，但是就感觉... 有点奇怪。在过去我很喜欢回过头去对着自己写的框架或组件 “犯花痴”，感慨我真厉害，能写出这么优雅的代码，同时欣赏整个产出。我觉得这不算自大，只是成就感与满足感的一种体现，对外我还是会虚心接受任何的批评的。</p>
+<p>但是对于 AI 产出的代码，我觉得它很难让我产生成就感与满足感，目前还没有发现原因。或许等到哪天我能用 AI 开发软件并且挣到钱的时候，我的想法才能有所改观？感觉我现在还处于 “写代码 = 玩玩具”，或者是 “做玩具” 的阶段，至于在这个阶段里加上 AI 后会变成什么，我暂时还没办法很好的去表达描述它。</p>
+<h2 id="总结">总结</h2>
+<p>AI 编程 100% 可以在实际工作中使用，而 Vibe Coding 在某种程度上也能很好的完成工作。</p>
+<p>“熟悉编程的人” 与 “会编程的人” 在使用 AI 进行开发时最终应该都能完成工作，但是效率绝对是会有很大很大的差别的，至于 “不会编程的人” 能不能利用 AI 来完成一个项目，就不得而知了（笑）。至少，在当下这个时间节点，我是这么认为的。</p>
+<!--
+我身边也有很多人积极拥抱 AI；也有很少使用 AI 的；还有 all in AI，痛骂不愿放弃传统编程的。这些声音配着这一周的 AI 开发体验让我想了很多，也写了很多。
+-->
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/computer-network-tcp-and-udp/" class="post-title gt-a-link">
+                    计算机网络之六 - 可靠的 TCP 与高效的 UDP
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

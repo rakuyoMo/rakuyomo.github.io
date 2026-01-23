@@ -1,0 +1,545 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>epoxy源码笔记2：在扩展中定义存储属性 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    epoxy源码笔记2：在扩展中定义存储属性
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2024-05-23 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/epoxy/" class="post-tags">
+                            # epoxy
+                        </a>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tags">
+                            # ios
+                        </a>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/HEvQ-e7X7/" class="post-tags">
+                            # swift
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>常规的在扩展中定义存储属性的方法是借助 Objective-C 的 runtime 进行属性关联。但是这个方法仅限于 ObjC 类，那么纯 Swift 类，比如结构体该怎么办呢？</p>
+<p>在 <a href="https://github.com/airbnb/epoxy-ios">epoxy</a> 这个库中发现了解决办法。</p>
+<!-- more -->
+<h2 id="objective-c-runtime">Objective-C runtime</h2>
+<p>先说一下用 Objective-C runtime 的实现方式，比如下面的代码：</p>
+<pre><code class="language-swift">private var loadingViewKey: Void?
+
+extension HUDProtocol {
+    public var loadingView: LoadingView {
+        get {
+            if let view = objc_getAssociatedObject(self, &amp;loadingViewKey) as? LoadingView {
+                return view
+            }
+            
+            loadingView = LoadingView()
+            return loadingView
+        }
+        set {
+            objc_setAssociatedObject(self, &amp;loadingViewKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        }
+    }
+}
+</code></pre>
+<p>使用 <code>loadingViewKey</code> 关联  <code>loadingView</code> 属性，同时 get 方法内还做了一次懒加载。对于 Key 的定义形式多种多样，这里就不做过度赘述。</p>
+<p>值得一提的是，翻看 epoxy 代码中发现，在使用关联属性给 ObjC 类增加存储属性时，还是用到了 <code>@nonobjc</code>。因为它是一个纯 Swift 库，所以使用 <code>@nonobjc</code> 来避免生成 objc 接口也是很合理的优化。</p>
+<h2 id="epoxy-中的做法">Epoxy 中的做法</h2>
+<p>让我们先看一下源码，比如 <a href="https://github.com/airbnb/epoxy-ios/blob/master/Sources/EpoxyCollectionView/Models/Providers/DidChangeStateProviding.swift">DidChangeStateProviding.swift</a> 这个文件，其中内容如下：</p>
+<blockquote>
+<p>我会省略掉一些和本文无关的注释和内容，完整的内容请点击上方链接查看原始代码。</p>
+</blockquote>
+<pre><code class="language-swift">extension CallbackContextEpoxyModeled {
+    public typealias DidChangeState = (CallbackContext) -&gt; Void
+
+    public var didChangeState: DidChangeState? {
+        get { self[didChangeStateProperty] }
+        set { self[didChangeStateProperty] = newValue }
+    }
+
+    private var didChangeStateProperty: EpoxyModelProperty&lt;DidChangeState?&gt; {
+        .init(keyPath: \Self.didChangeState, defaultValue: nil, updateStrategy: .chain())
+    }
+}
+</code></pre>
+<p>可以看到上述代码扩展了 <code>CallbackContextEpoxyModeled</code>，并在其中定义了存储属性 <code>didChangeState</code>。</p>
+<p>细看 <code>didChangeState</code>，发现用到了 <code>subscript</code> 语法。接着查看 <code>CallbackContextEpoxyModeled</code> 的声明：</p>
+<pre><code class="language-swift">public protocol CallbackContextEpoxyModeled: EpoxyModeled {
+    associatedtype CallbackContext
+}
+</code></pre>
+<p>发现仅仅是一个协议。接着往下看，它所遵循的 <code>EpoxyModeled</code> 在<a href="https://github.com/airbnb/epoxy-ios/blob/master/Sources/EpoxyCore/Model/EpoxyModeled.swift#L11">这里</a>进行定义。</p>
+<p>关键代码如下：</p>
+<pre><code class="language-swift">public protocol EpoxyModeled {
+    /// The underlying storage of this model that stores the current property values.
+    var storage: EpoxyModelStorage { get set }
+}
+
+extension EpoxyModeled {
+    /// Stores or retrieves a value of the specified property in `storage`.
+    public subscript&lt;Property&gt;(property: EpoxyModelProperty&lt;Property&gt;) -&gt; Property {
+        get { storage[property] }
+        set { storage[property] = newValue }
+    }
+}
+</code></pre>
+<p>从这里感觉<code>EpoxyModeled</code>就是一个壳，用来封装 <code>storage</code> 这个属性。上面提到的 <code>subscript</code> 语法其实也是对 <code>storage</code> 的 <code>subscript</code> 的调用。</p>
+<p>但是这里就复杂了一些，同时出现了 <code>EpoxyModelStorage</code> 和 <code>EpoxyModelProperty</code> 两个类型。让我们先看一下 <code>EpoxyModelStorage</code>。</p>
+<h3 id="epoxymodelstorage"><code>EpoxyModelStorage</code></h3>
+<p>该类型在<a href="https://github.com/airbnb/epoxy-ios/blob/master/Sources/EpoxyCore/Model/EpoxyModelStorage.swift#L11">这里</a>进行定义。</p>
+<p>依然贴出来一些关键代码：</p>
+<pre><code class="language-swift">public struct EpoxyModelStorage {
+  public init() { }
+
+  /// Stores or retrieves the value of the specified property.
+  public subscript&lt;Property&gt;(property: EpoxyModelProperty&lt;Property&gt;) -&gt; Property {
+    get {
+      guard let propertyStorage = storage[property.keyPath] else {
+        return property.defaultValue()
+      }
+
+      // This cast will never fail as the storage is only settable via this subscript and the `KeyPath` key is unique for any provider and value type pair.
+      // swiftlint:disable:next force_cast
+      return propertyStorage.value as! Property
+    }
+    set {
+      // We first update the value without using the `updateStrategy` since the likely scenario
+      // is that there won't be a collision that requires the `updateStrategy`, and we'll be able to
+      // return without incurring the cost of another write.
+      let propertyStorage = PropertyStorage(value: newValue, property: property)
+
+      guard var replaced = storage.updateValue(propertyStorage, forKey: property.keyPath) else {
+        return
+      }
+
+      // This cast will never fail as the storage is only settable via this subscript and the
+      // `KeyPath` key is unique for any provider and value type pair.
+      // swiftlint:disable:next force_cast
+      replaced.value = property.updateStrategy.update(replaced.value as! Property, newValue)
+
+      storage[property.keyPath] = replaced
+    }
+  }
+
+  // MARK: Private
+
+  /// The underlying storage for the properties, with a key of the `EpoxyModelProperty.keyPath` and
+  /// a value of the property's `PropertyStorage`.
+  ///
+  /// Does not include default values.
+  private var storage = [AnyKeyPath: PropertyStorage]()
+}
+
+// MARK: - PropertyStorage
+
+/// A value stored within an `EpoxyModelStorage`.
+private struct PropertyStorage {
+  /// The type-erased value of the `EpoxyModelProperty`.
+  var value: Any
+
+  /// The property's corresponding `EpoxyModelProperty`, erased to an `AnyEpoxyModelProperty`.
+  var property: AnyEpoxyModelProperty
+}
+</code></pre>
+<p>可以看到在 <code>EpoxyModelStorage</code> 中定义了一个关键的存储属性 <code>storage</code>，该属性是字典类型，使用 KeyPath 做 Key，Value 是一个自定义属性。但是这里其实 <code>PropertyStorage</code> 不是重点，因为用到 <code>PropertyStorage.property</code> 的代码并不在本文的范围之内，所以我们可以将 <code>storage</code> 进行简化，就当作 <code>[AnyKeyPath: Any]</code> 类型来对待。</p>
+<p>再回看 <code>EpoxyModelStorage</code> 的 <code>subscript</code> 实现，至此其实我们已经能明白 Epoxy 在 extension 中定义存储属性的原理：其实就是<strong>用 KeyPath 做 key，将存储属性对应的值存储到内部的一个字典属性中</strong>。</p>
+<p>看到这里会不会有点失望？有的人还会说这是脱裤子放屁，理由如下：</p>
+<ol>
+<li>在需要 extension 定义存储属性的类型里手动定义一个 <code>[String: Any]</code>，然后在 extension 里操作这个字典不也能达到一样的效果吗？还至于费这么大劲写这么多封装？</li>
+<li>而且一点也不灵活，不像是ObjC一样随写随用，无需更改原类型的定义。</li>
+<li>还有，因为 protocol 是 public 的，那么 <code>storage</code> 必然会被暴露给外界，造成一定程度的隐患。</li>
+</ol>
+<p>疑问暂且按下不表，再来看看 <code>EpoxyModelProperty</code> 这个类型。</p>
+<h3 id="epoxymodelproperty"><code>EpoxyModelProperty</code></h3>
+<p>先看<a href="https://github.com/airbnb/epoxy-ios/blob/master/Sources/EpoxyCore/Model/EpoxyModelProperty.swift#L33">定义</a>：</p>
+<pre><code class="language-swift">public struct EpoxyModelProperty&lt;Value&gt; {
+  /// Creates a property identified by a `KeyPath` to its provided `value` and with its default value if not customized in content by consumers.
+  ///
+  /// The `updateStrategy` is used to update the value when updating from an old value to a new value.
+  public init&lt;Model&gt;(
+    keyPath: KeyPath&lt;Model, Value&gt;,
+    defaultValue: @escaping @autoclosure () -&gt; Value,
+    updateStrategy: UpdateStrategy)
+  {
+    self.keyPath = keyPath
+    self.defaultValue = defaultValue
+    self.updateStrategy = updateStrategy
+  }
+
+  /// The `KeyPath` that uniquely identifies this property.
+  public let keyPath: AnyKeyPath
+
+  /// A closure that produces the default property value when called.
+  public let defaultValue: () -&gt; Value
+
+  /// A closure used to update an `EpoxyModelProperty` from an old value to a new value.
+  public let updateStrategy: UpdateStrategy
+}
+
+// MARK: EpoxyModelProperty.UpdateStrategy
+
+extension EpoxyModelProperty {
+  /// A closure used to update an `EpoxyModelProperty` from an old value to a new value.
+  public struct UpdateStrategy {
+    public init(update: @escaping (Value, Value) -&gt; Value) {
+      self.update = update
+    }
+
+    /// A closure used to update an `EpoxyModelProperty` from an old value to a new value.
+    public var update: (_ old: Value, _ new: Value) -&gt; Value
+  }
+}
+
+// MARK: Defaults
+
+extension EpoxyModelProperty.UpdateStrategy {
+  /// Replaces the old value with the new value when an update occurs.
+  public static var replace: Self {
+    .init { _, new in new }
+  }
+
+  /// Chains the new closure value onto the old closure value, returning a new closure that first calls the old closure and then subsequently calls the new closure.
+  public static func chain() -&gt; EpoxyModelProperty&lt;(() -&gt; Void)?&gt;.UpdateStrategy {
+    .init { old, new in
+      guard let new = new else { return old }
+      guard let old = old else { return new }
+      return {
+        old()
+        new()
+      }
+    }
+  }
+
+  /// Chains the new closure value onto the old closure value, returning a new closure that first calls the old closure and then subsequently calls the new closure.
+  public static func chain&lt;A&gt;() -&gt; EpoxyModelProperty&lt;((A) -&gt; Void)?&gt;.UpdateStrategy {
+    .init { old, new in
+      guard let new = new else { return old }
+      guard let old = old else { return new }
+      return { a in
+        old(a)
+        new(a)
+      }
+    }
+  }
+
+  // Add more arities as needed
+}
+</code></pre>
+<p><code>EpoxyModelProperty</code> 有三个属性：<code>keyPath</code>、<code>defaultValue</code> 和 <code>updateStrategy</code>。</p>
+<p><code>keyPath</code> 和 <code>defaultValue</code> 配合范型可以很好的解决 <code>objc_getAssociatedObject</code> 中类型转换的问题，我们可以回看上面提到过的这个代码片段：</p>
+<pre><code class="language-swift">// This cast will never fail as the storage is only settable via this subscript and the `KeyPath` key is unique for any provider and value type pair.
+// swiftlint:disable:next force_cast
+return propertyStorage.value as! Property
+</code></pre>
+<p>这也就解答了上面提到的第一个问题：如果仅仅定义一个 <code>[String: Any]</code>，那么 <code>String</code> 类型的 Key 和 <code>Any</code> 类型的 Value 明显无法保证对齐。</p>
+<p>那么你可能想说改成 <code>[KeyPath: Any]</code> 呢？答案也是不行的。因为在调用 <code>subscript</code> 时，如果直接使用 KeyPath，则会触发系统默认的通过 KeyPath 取值的方法，不会走自定义的 <code>subscript</code>，所以 Map 的 Key 无论如何都需要自定义类型来包一层，既然要包一层，何不直接连 <code>defaultValue</code> 也封装一下呢？</p>
+<p>至于 <code>updateStrategy</code> 定义了属性赋值时的方法，是替换原值？还是两个值都执行？虽然它和本文内容无关，但是这个实用的属性确实也是 <code>EpoxyModelProperty</code> 的必要性之一。</p>
+<h3 id="解决疑问">解决疑问</h3>
+<p>针对上述三个问题：</p>
+<ol>
+<li>为何不手动定义 <code>[String: Any]</code>？epoxy 属于过度封装</li>
+<li>缺乏灵活性，而且需要更改原类型的定义。对于无法更改定义的类型，则无法使用这个方法。</li>
+<li>因为 protocol 是 public 的，导致 <code>storage</code> 会被暴露给外界，造成一定程度的隐患。</li>
+</ol>
+<p>针对第一个问题，用 protocol 规范属性定义在 Swift 中绝对不算是过度封装，而是很常见的方法；因为无法直接使用 <code>KeyPath</code> 类型作为 Map 的Key，为了保持类型安全，在上层调用中也无法直接使用 <code>AnyKeyPath</code>，所以必然需要自定义一个类型来做调用链中的 “索引”。</p>
+<p>而且其他两个问题确实是实际存在的。特别是第二个问题，除非使用 <code>objc_getAssociatedObject</code> 来实现相关协议，否则则无法使用这套方法。</p>
+<p>至于第三个问题，考虑到外部对该类型的扩展性，暴露 <code>storage</code> 属性给外界是必然的，否则外部如何给这个类型增加新的存储属性呢？除非你明确不允许外部给这个类型增加存储属性，那么你可以使用一个 <code>internal type</code> 包一层 Map。</p>
+<h3 id="简化代码">简化代码</h3>
+<p>现在让我们学以致用，考虑一下如何简化代码。</p>
+<p>关键类型是三个协议：<code>EpoxyModeled</code>、<code>EpoxyModelStorage</code> 和 <code>EpoxyModelProperty</code>，简化肯定也是针对这三个类型进行简化。</p>
+<p>但是其实可以删减的空间并不多，仅仅在你不需要 <code>updateStrategy</code> 时，可以将实现简化为下面的这样：</p>
+<pre><code class="language-swift">public struct ModelProperty&lt;Value&gt; {
+    public init&lt;Model&gt;(
+        keyPath: KeyPath&lt;Model, Value&gt;,
+        defaultValue: @escaping @autoclosure () -&gt; Value
+    ) {
+        self.keyPath = keyPath
+        self.defaultValue = defaultValue
+    }
+
+    public let keyPath: AnyKeyPath
+
+    public let defaultValue: () -&gt; Value
+}
+
+public struct ModelStorage {
+    private var storage = [AnyKeyPath: Any]()
+
+    public init() { }
+
+    public subscript&lt;Property&gt;(property: ModelProperty&lt;Property&gt;) -&gt; Property {
+        get {
+            guard let propertyStorage = storage[property.keyPath] else {
+                return property.defaultValue()
+            }
+            return propertyStorage as! Property
+        }
+        set {
+            storage[property.keyPath] = newValue
+        }
+    }
+}
+
+public protocol Modeled {
+    var storage: ModelStorage { get set }
+}
+
+extension Modeled {
+    public subscript&lt;Property&gt;(property: ModelProperty&lt;Property&gt;) -&gt; Property {
+        get { storage[property] }
+        set { storage[property] = newValue }
+    }
+}
+</code></pre>
+<p>其实上述代码也就相当于 <code>updateStrategy = .replace</code> 的情况。不过，查看这份简化的代码是不是感觉整个逻辑都更清晰了呢😏</p>
+<p>在调用上和原本实现也没有区别：</p>
+<pre><code class="language-swift">struct Action: Modeled {
+    var storage = ModelStorage()
+}
+
+extension Action {
+    var testString: String {
+        get { self[testStringProperty] }
+        set { self[testStringProperty] = newValue }
+    }
+
+    private var testStringProperty: ModelProperty&lt;String&gt; {
+        .init(keyPath: \Self.testString, defaultValue: &quot;default&quot;)
+    }
+}
+
+var testAction = Action()
+print(testAction.testString) // &quot;default&quot;
+testAction.testString = &quot;123&quot;
+print(testAction.testString) // &quot;123&quot;
+</code></pre>
+<p>对了，<code>Modeled</code> 中的 <code>subscript</code> 其实属于简化代码的操作，如果去掉这部分代码，那么在 <code>testString</code> 的 get 和 set 中，使用 <code>self.storage[testStringProperty]</code> 也是可以的，不影响主要逻辑。</p>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/share-env-between-steps-in-github-action/" class="post-title gt-a-link">
+                    Github Action：在步骤之间共享数据
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

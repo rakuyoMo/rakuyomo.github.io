@@ -1,0 +1,431 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>计算机网络之二 - URL 与 DNS | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    计算机网络之二 - URL 与 DNS
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2025-08-06 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/ji-suan-ji-wang-luo/" class="post-tags">
+                            # 计算机网络
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>本篇是计算机网络系列的第二篇，主要讲 URL 和 DNS。</p>
+<!-- more -->
+<p>其余几篇的目录：</p>
+<ul>
+<li><a href="/computer-network-ip-and-port/">计算机网络之一 - IP 与端口</a></li>
+<li><a href="/computer-network-dhcp-and-intranet-penetration/">计算机网络之三 - DHCP 与内网穿透</a></li>
+<li><a href="/computer-network-virtual-nic-and-wireguard">计算机网络之四 - 虚拟网卡与 WireGuard</a></li>
+<li><a href="/computer-network-http-and-https">计算机网络之五 - HTTP 与 HTTPS</a></li>
+<li><a href="/computer-network-tcp-and-udp">计算机网络之六 - 可靠的 TCP 与高效的 UDP</a></li>
+<li><a href="/computer-network-osi-and-tcpip-models">计算机网络之七 - OSI 与 TCP/IP 分层模型</a></li>
+</ul>
+<hr>
+<h1 id="url">URL</h1>
+<p>URL，全称是 <strong>统一资源定位符</strong> (Uniform Resource Locator)，是我们访问互联网上任何资源的“地址”。它由几个部分组成，共同指明了“去哪里”以及“如何去”。</p>
+<p>在接下来的内容中，我们将逐一解析构成 URL 的几个核心元素。</p>
+<h2 id="域名">域名</h2>
+<p>上一篇我们讲到了 IP 和端口，然而绝大多数的时候我们在浏览器地址栏中输入的都不是这些数字，而是由英文字母和部分字符组成的地址，也就是 <strong>域名</strong>。</p>
+<p>对于一般人而言，一串 IP 地址很难记忆，人们更擅长以字词为单位，赋予地址含义再加以记忆。于是乎人们发明了 “域名” 这个概念，用来代替 IP 地址去记忆。</p>
+<h3 id="域名的结构">域名的结构</h3>
+<p>一个域名通常由几个部分组成，用点（<code>.</code>）分隔，<strong>从右到左看</strong>，层级越来越具体。以 <code>www.google.com</code> 为例，让我们来剖析一下域名的格式和结构：</p>
+<ul>
+<li><code>.com</code>：这是<strong>顶级域名</strong> (Top-Level Domain, TLD)。它表示域名的类别。</li>
+<li><code>google</code>：这是<strong>二级域名</strong> (Second-Level Domain, SLD)。这是域名的核心部分，通常是公司、品牌或个人的名称。这是用户注册和拥有的部分。</li>
+<li><code>www</code>：这是<strong>子域名标签</strong> (Subdomain Label)。它是一个可选的、用于进一步细分主域名的“标签”或“前缀”。
+<ul>
+<li>它允许你在同一个主域名下创建不同的分区或服务。</li>
+<li><code>www</code> 是最常见的子域名，通常指向网站的主页。</li>
+<li>其他子域名也很常见，比如 <code>mail.google.com</code> 指向邮件服务，<code>drive.google.com</code> 指向云盘服务。</li>
+</ul>
+</li>
+</ul>
+<p>还可以从整体的角度看一下：</p>
+<ul>
+<li><code>google.com</code>：这被称为<strong>主域名</strong>（Main Domain），准确来说是 “<strong>注册域</strong>”（Registered Domain）。
+<ul>
+<li>当我们谈论 “域名” 时，通常指的就是这一部分。</li>
+<li>通常也是我们在域名注册商那边购买的那部分。</li>
+</ul>
+</li>
+<li><code>www.google.com</code>：被称为<strong>完全限定域名</strong> (Fully Qualified Domain Name, FQDN) 或 <strong>主机名</strong> (Hostname)
+<ul>
+<li>也可以被称为<strong>子域名</strong> (Subdomain)</li>
+</ul>
+</li>
+</ul>
+<p>最后以本站为例说明一下域名的各个部分：</p>
+<ul>
+<li><code>blog</code> 是子域名标签</li>
+<li><code>rakuyoo</code> 是二级域名</li>
+<li><code>.top</code> 是顶级域名</li>
+<li><code>rakuyoo.top</code> 是主域名</li>
+<li><code>blog.rakuyoo.top</code> 是一个完全限定域名（或完整的子域名）</li>
+</ul>
+<h2 id="协议">协议</h2>
+<p>除了域名之外，URL 还有一个重要的组成部分：<strong>协议</strong>（Protocol）。它是一套规则、标准或约定，规定了计算机之间如何进行通信和数据交换。协议定义了数据传输的格式、时序、错误处理等，它将告诉客户端和服务器“如何”进行通信。</p>
+<p>常见的协议比如 <code>http</code>、<code>https</code> 以及 <code>ftp</code> 等，因为都非常常见了，所以在本文这一小节就先不展开介绍了。未来涉及到 TCP 数据传输时可能还会再次见面。</p>
+<p>协议对于 URL 而言是非常重要的，当我们访问 <code>www.google.com</code> 时，实际上我们是 “用 <code>HTTPS</code> 协议连接到 <code>www.google.com</code>”，而不能只说 “连接到 <code>www.google.com</code>”。</p>
+<h2 id="别忘了-端口">别忘了 “端口”</h2>
+<p>在没有域名时，我们访问一个服务是通过 “IP 地址 + 端口” 来实现的。那么有了域名之后呢？平时我们在浏览器中输入地址时也没有用到端口呀。</p>
+<p>其实不是没有用到，而是浏览器自动帮我们处理了。比如 https 协议的默认端口是 443，所以当我们在浏览器中输入 <code>https://www.google.com</code> 时，其实我们访问的是 <code>https://www.google.com:443</code>。如果我们需要访问某个特殊的端口，那么也需要像上面说的那样显式指定端口号。</p>
+<h1 id="dns一本厚字典">DNS：一本厚字典</h1>
+<p>域名帮助我们省去了记忆复杂 IP 的麻烦，那么，域名是如何找到其对应的 IP 地址的呢？答案就是通过 <strong>DNS</strong>（Domain Name System）。嗯... 从名字上来看它就很 “域名”。</p>
+<h2 id="dns-的工作原理简化版">DNS 的工作原理（简化版）</h2>
+<p>当我们访问一个域名时，DNS 会通过一系列查询操作，找到这个域名所对应的 IP 地址：</p>
+<ol>
+<li>
+<p><strong>在浏览器中输入域名</strong>： 在浏览器中输入 <code>www.google.com</code> 并按下回车。</p>
+</li>
+<li>
+<p><strong>浏览器查询本地 DNS 缓存</strong>： 浏览器会首先检查自己有没有缓存过 <code>www.google.com</code> 对应的 IP 地址。如果有，就直接使用，这样速度最快。</p>
+</li>
+<li>
+<p><strong>操作系统查询本地 DNS 缓存和 hosts 文件</strong>： 如果浏览器没有，它会把请求交给操作系统。操作系统也会检查自己的 DNS 缓存，以及一个叫做 <code>hosts</code> 的本地文件。</p>
+</li>
+<li>
+<p><strong>请求发送给 DNS 解析器 (DNS Resolver)</strong>： 如果本地都没有，操作系统会将请求发送给你的网络配置中指定的 DNS 解析器（通常是 ISP 提供的 DNS 服务器，或者手动配置的公共 DNS，如 Google 的 <code>8.8.8.8</code>）。</p>
+</li>
+<li>
+<p><strong>DNS 解析器开始递归查询</strong>：</p>
+<ul>
+<li><strong>查询根域名服务器 (Root Name Servers)</strong>： 解析器会首先问全球的 13 组根域名服务器：“<code>www.google.com</code> 的 IP 地址是什么？” 根服务器不会直接告诉你 IP，它会告诉你：“我不知道，但你可以去问负责 <code>.com</code> 域名的服务器。”</li>
+<li><strong>查询顶级域名服务器 (TLD Name Servers)</strong>： 解析器接着会去问负责 .com 域名的 顶级域名服务器：“www.google.com 的 IP 地址是什么？” <code>.com</code> 服务器会告诉你：“我不知道 <code>www.google.com</code> 的具体 IP，但你可以去问负责 <code>google.com</code> 的权威域名服务器。”</li>
+<li><strong>查询权威域名服务器 (Authoritative Name Servers)</strong>： 解析器最后会去问 <code>google.com</code> 的权威域名服务器（这是由 Google 自己或其域名注册商维护的服务器）：“<code>www.google.com</code> 的 IP 地址是什么？” 这台服务器知道 <code>www.google.com</code> 对应的确切 IP 地址，并会把这个 IP 地址告诉 DNS 解析器。</li>
+</ul>
+</li>
+<li>
+<p><strong>IP 地址返回给浏览器</strong>： DNS 解析器收到 IP 地址后，会将其返回给你的操作系统，再由操作系统返回给浏览器。同时，这个 IP 地址会被缓存起来，以便下次更快地访问。</p>
+</li>
+<li>
+<p><strong>浏览器连接服务器</strong>： 浏览器拿到 IP 地址后，就可以直接通过这个 IP 地址连接到 Google 的服务器，并请求网页内容。这个完整、层层递进的查询过程，可以通过下面的序列图清晰地展现出来：</p>
+</li>
+</ol>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyo.dev/post-images/1755597297903.svg" alt="" loading="lazy"></figure>
+<blockquote>
+<p>iOS 系统的 DNS 解析和 PC 上的 DNS 解析还有一点点区别，那就是 iOS 不存在 “浏览器 DNS 缓存” 这一步，所有的 DNS 缓存都在 iOS 系统内部进行统一的管理。各个 App 如果不做特殊的实现，也不存在 “App 级别的 DNS 缓存”。</p>
+</blockquote>
+<p>可能这个流程还是有一些抽象。我们还可以从 “绑定 IP 和域名” 的流程中来解释 DNS 的解析过程：</p>
+<ol>
+<li><strong>获取 IP</strong>：首先我们从云服务器商处购买了一台云服务器，这个时候我们会得到这台服务器的 IP 地址。</li>
+<li><strong>购买域名</strong>：之后我们从域名商那里挑选了一个域名。国内的几大云服务器厂商基本都提供域名购买服务。</li>
+<li><strong>配置 DNS 解析</strong>：有很多地方可以让我们把 IP 和域名绑定在一起，比如有的域名注册商就提供功能，云服务商也提供，甚至还有专门的 DNS 服务商。在这些平台上，我们需要将域名和 IP 绑定到一起。通常是设置一条记录，key 和 value 填写你的域名和 IP。</li>
+<li><strong>上传 DNS 记录</strong>：当我们配置好了 DNS 后，平台就会将我们的配置上传到真正的 DNS 服务器上，此时域名与 IP 的绑定关系才算建立完成，域名和 IP 被真正的绑定在一起。</li>
+<li><strong>后续访问</strong>：现在当我们再访问域名时，你可以理解为是一个巨大的查表过程，通过域名就可以查询到对应的 IP 了。</li>
+</ol>
+<h2 id="dns-缓存">DNS 缓存</h2>
+<p>在上一节中，我们看到了一个域名需要经过一连串的查询才能最终找到它的 IP 地址。如果每一次访问网站都需要重复这个完整的过程，那效率未免也太低了。</p>
+<p>为了解决这个问题，DNS 系统设计了一套至关重要的机制——缓存。简单来说，当一个 DNS 查询的最终结果被找到后，查询路径上的各个参与者（比如你的电脑、DNS 解析器）都会把这个 “域名-IP” 的对应关系暂存一段时间。如果在缓存有效期内再次请求同一个域名，就可以直接返回暂存的结果，从而跳过复杂的递归查询过程，极大地提高了响应速度。</p>
+<p>我们在上一节中提到的 “浏览器缓存” 和 “操作系统缓存” 就是这套机制的体现。而控制这一切的核心，是一个叫做 <strong>TTL</strong>（Time-To-Live，生存时间）的值。</p>
+<h3 id="ttl-time-to-live">TTL (Time-To-Live)</h3>
+<p>TTL 是由域名管理员在配置 DNS 记录时设置的一个数值，单位是秒。它像一个“保质期”，告诉各级 DNS 服务器和解析器，这个查询结果可以被缓存多久。</p>
+<p>例如，本站的 <code>blog.rakuyoo.top</code> 的 TTL 被设置为 600 秒（10 分钟），那么当 DNS 解析器第一次获取到它的 IP 地址后，就会将这个结果缓存 10 分钟。在这 10 分钟内，任何通过这个解析器查询  <code>blog.rakuyoo.top</code> 的请求，都会直接得到缓存中的 IP 地址，而无需再去麻烦权威域名服务器。</p>
+<h3 id="dns-传播">DNS 传播</h3>
+<p>TTL 机制在带来高效的同时，也引入了一个重要的现象：<strong>DNS 传播</strong>（DNS Propagation）。</p>
+<p>当你修改了一条 DNS 记录（比如将网站服务器迁移到了一个新的 IP 地址），这个变更并不会立即在全球范围内生效。因为各地的 DNS 解析器仍然缓存着旧的记录，它们需要等到各自缓存中的 TTL 过期后，才会重新向权威服务器发起查询以获取最新的记录。</p>
+<p>这个新旧记录交替、变更信息逐渐扩散到全球的过程，就叫做 <strong>DNS 传播</strong>。传播所需的时间，就取决于你之前设置的 TTL 值。如果 TTL 设置为 1 小时，那么最坏情况下，一些用户可能需要等待 1 小时才能访问到你的新服务器。</p>
+<p>因此，在计划进行服务器迁移等重大变更前，有经验的管理员通常会提前几天将相关域名的 TTL 值修改为一个非常小的值（比如 60 秒），以确保变更发生时，全球的 DNS 缓存能被快速刷新，从而实现平滑过渡。</p>
+<h2 id="灵活的绑定关系">灵活的绑定关系</h2>
+<p>一个主机名其实可以解析到多个 IP，这有利于实现<strong>负载均衡</strong>。只需要在配置 DNS 解析时，为同一个主机名添加多个 IP 地址，即可将一个主机名解析到多个 IP 上。</p>
+<p>当用户访问这个主机名时，DNS 服务器会同时返回所有的 IP 地址，客户端（比如浏览器）会尝试连接其中一个，可能是随机选择某一个，也有可能是按顺序尝试。如果连接失败，则会尝试列表中的下一个 IP。</p>
+<p>另外我们还可以以子域名标签为单位，或者准确的说，以 “完全限定域名” 为单位设置 DNS 解析。比如 <code>mail.google.com</code> 和 <code>drive.google.com</code> 虽然都在 <code>google.com</code> 这个域名下，但是他们可以部署在不同的服务器上，进而拥有不同的 IP 地址。</p>
+<h2 id="资源记录">资源记录</h2>
+<p>在你添加 DNS 解析时，会接触到 “<strong>资源记录</strong>”（Resource Record）这个概念，在腾讯云服务器上它又叫做 “记录类型”。</p>
+<p>DNS 十分强大，强大到它其实可以解析很多东西。所以系统设计了一个 “资源记录” 的概念，用来区分 DNS 所解析的内容的类型。常见的资源记录有以下几种：</p>
+<ul>
+<li>
+<p><strong>A 记录</strong> (Address Record)<br>
+将一个域名或子域名指向一个 IPv4 地址。它是最基本的记录类型。</p>
+</li>
+<li>
+<p><strong>AAAA 记录</strong> (Quad-A Record)<br>
+与 A 记录类似，但它将一个域名或子域名指向一个 IPv6 地址。</p>
+</li>
+<li>
+<p><strong>CNAME 记录</strong> (Canonical Name Record)<br>
+将一个域名或子域名指向另一个域名（而不是直接指向 IP 地址），相当于创建了一个别名。它有以下几种使用场景：</p>
+<ul>
+<li>当你的服务提供商（如 CDN、博客平台）给你一个域名（而不是 IP 地址）让你指向时。</li>
+<li>当你希望多个子域名都指向同一个主域名，而主域名的 IP 地址可能会变动时。这样你只需要更新主域名的 A 记录，所有 CNAME 记录都会自动生效。</li>
+</ul>
+<p>另外需要注意： CNAME 记录不能指向 IP 地址，只能指向另一个域名。而且，通常情况下，根域名（如 <code>yourdomain.com</code>）不能设置为 CNAME 记录，因为它会与其他记录（如 MX 记录）冲突。</p>
+</li>
+</ul>
+<blockquote>
+<p>根据 <a href="https://datatracker.ietf.org/doc/html/rfc1034">DNS 规范（RFC 1034）</a>，如果一个域名存在 CNAME 记录，那么它就不能再有任何其他类型的记录（除了用于 DNSSEC 的 RRSIG 和 NSEC 记录）。而一个域的顶点（即 <code>yourdomain.com</code> 本身）必须有 <code>SOA</code> (Start of Authority) 和 <code>NS</code> (Name Server) 记录来标识这个域的权威信息。这两者是冲突的，所以根域名不能设置 CNAME。<br>
+本文并未涉及到 <code>SOA</code> 记录和 <code>NS</code> 记录等，此处仅作为拓展阅读。</p>
+</blockquote>
+<h1 id="swift-url">Swift URL</h1>
+<p>相信阅读到此文章的大多数都是 iOSer，那么我们可以再从 Swift <code>URL</code> 的角度来看一下域名的各个组成部分，直接上代码：</p>
+<pre><code class="language-swift">let urlString = &quot;https://www.google.com:443&quot;
+
+// 1. 创建 URL 对象
+guard let url = URL(string: urlString) else {
+    print(&quot;Invalid URL string&quot;)
+    exit(1)
+}
+
+// 2. 访问 URL 的各个属性
+print(&quot;Scheme (协议): \(url.scheme ?? &quot;N/A&quot;)&quot;)
+print(&quot;Host (主机名/域名): \(url.host ?? &quot;N/A&quot;)&quot;)
+print(&quot;Port (端口): \(url.port?.description ?? &quot;N/A&quot;)&quot;)
+
+// 3. 进一步拆解 host
+// Swift 的 URL 类型没有直接提供“二级域名”或“顶级域名”的属性
+// 你需要自己编写逻辑来从 host 中提取这些信息
+let host = url.host ?? &quot;&quot;
+let components = host.split(separator: &quot;.&quot;).map(String.init)
+
+if components.count &gt;= 2 {
+    let tld = components.last ?? &quot;N/A&quot; // .com
+    let sld = components[components.count - 2] // google
+    let mainDomain = &quot;\(sld).\(tld)&quot; // google.com
+    print(&quot;推断的主域名 (Main Domain): \(mainDomain)&quot;)
+
+    if components.count &gt; 2 {
+        let subdomainLabel = components.first ?? &quot;N/A&quot; // www
+        print(&quot;推断的子域名标签 (Subdomain Label): \(subdomainLabel)&quot;)
+    }
+}
+</code></pre>
+<p>输出结果如下：</p>
+<pre><code>Scheme (协议): https
+Host (主机名): www.google.com
+Port (端口): 443
+推断的主域名 (Main Domain): google.com
+推断的子域名标签 (Subdomain Label): www
+</code></pre>
+<p>说一个小细节：还记得上文中我说过 “协议对于 URL 来说很重要” 吗？如果将示例中 <code>urlString</code> 的 <code>https</code> 部分去掉，改为 <code>www.google.com:443</code>，那么 <code>url.scheme</code> 的结果将会是 <code>www.google.com</code>，<code>url.host</code> 会是 <code>nil</code>。</p>
+<p>这是因为 Swift 的 <code>URL</code> 在解析 URL 字符串时，会严格按照 URL 的标准格式来识别各个组成部分，而一个标准的 URL <strong>必须</strong>以协议开头，后面跟着 <code>://</code>。</p>
+<p>对于 <code>www.google.com:443</code> 而言，<code>URL</code> 初始化器会将 <code>:</code> 前的内容都识别为协议。假如换成 <code>www.google.com</code>，即字符串中没有 <code>:</code>，那么 <code>url.scheme</code> 和 <code>url.host</code> 都将是 <code>nil</code>。</p>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/why-swift-reduce-prefers-plus-over-and/" class="post-title gt-a-link">
+                    解密 Swift：为何 reduce 偏爱 + 而非 &amp;&amp; ？
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

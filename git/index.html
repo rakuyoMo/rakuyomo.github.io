@@ -1,0 +1,584 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>Git 基本操作总结 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    Git 基本操作总结
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2016-12-31 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/git/" class="post-tags">
+                            # git
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>总结一下 Mac 下 Git 的一些基本操作。</p>
+<!-- more -->
+<blockquote>
+<p>本文其实是把之前给大一学生讲 Git 时备课的稿子拿过来，整理修改，二次加工后的产物。<br>
+文章风格偏向于“备忘录”，而不是“教程”。部分地方说的不够清晰还请读者见谅。<br>
+至于Git的初学者可以拉到文章最下面，到廖雪峰大神的blog去学习。</p>
+</blockquote>
+<h1 id="概览">概览</h1>
+<p>首先放一个后文涉及到的命令的总结，方便快速查找。</p>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ssh-keygen -t rsa -C &quot;your-email@emial.com&quot; </code></td>
+<td>新建 SSH</td>
+</tr>
+<tr>
+<td><code>ssh -T git@&lt;git url&gt;</code></td>
+<td>检查本地和远端的 SSH 连通性</td>
+</tr>
+<tr>
+<td><code>git add xx.txt</code></td>
+<td>添加某一文件到缓存区</td>
+</tr>
+<tr>
+<td><code>git add .</code></td>
+<td>添加所有文件到缓存区</td>
+</tr>
+<tr>
+<td><code>git commit -m&quot;注释信息&quot;</code></td>
+<td>提交修改到工作区</td>
+</tr>
+<tr>
+<td><code>git status</code></td>
+<td>查看Git仓库状态</td>
+</tr>
+<tr>
+<td><code>git diff</code></td>
+<td>查看文件与之前有何不同</td>
+</tr>
+<tr>
+<td><code>git reset --hard HEAD^</code></td>
+<td>返回到上一个版本</td>
+</tr>
+<tr>
+<td><code>git reset --hard HEAD~10</code></td>
+<td>向前回滚10个版本</td>
+</tr>
+<tr>
+<td><code>git reset --hard commit ID值</code></td>
+<td>回滚到某个具体的版本</td>
+</tr>
+<tr>
+<td><code>git log --pretty=oneline</code></td>
+<td>输出commit日志，包含作者，日期，提交说明，提交ID</td>
+</tr>
+<tr>
+<td><code>git reflog</code></td>
+<td>输出所有的操作信息。方便我们在<strong>清屏</strong>或<strong>退出终端后</strong>查询commit ID值</td>
+</tr>
+<tr>
+<td><code>git checkout -- file</code></td>
+<td>撤销工作区修改(<strong>add之前</strong>)</td>
+</tr>
+<tr>
+<td><code>git reset HEAD file</code></td>
+<td>撤销暂存区修改(<strong>commit之前</strong>)</td>
+</tr>
+<tr>
+<td><code>rm file</code></td>
+<td>删除本地文件</td>
+</tr>
+<tr>
+<td><code>git rm file</code></td>
+<td>删除git仓库中的文件</td>
+</tr>
+<tr>
+<td><code>git branch</code></td>
+<td>查看分支列表，绿色为当前分支</td>
+</tr>
+<tr>
+<td><code>git branch 分支名</code></td>
+<td>创建分支</td>
+</tr>
+<tr>
+<td><code>git checkout 分支名</code></td>
+<td>切换分支</td>
+</tr>
+<tr>
+<td><code>git checkout -b 分支名</code></td>
+<td>切换分支，若不存在则创建它</td>
+</tr>
+<tr>
+<td><code>git log --graph --pretty=oneline --abbrev-commit</code></td>
+<td>输出带分支信息的log列表</td>
+</tr>
+<tr>
+<td><code>git merge 目标分支名</code></td>
+<td>合并分支</td>
+</tr>
+<tr>
+<td><code>git branch -d 分支名</code></td>
+<td>删除分支</td>
+</tr>
+</tbody>
+</table>
+<h1 id="ssh">SSH</h1>
+<p>首先是 SSH，建议通过 SSH 而不是 https 克隆项目，有一些公司甚至可能会设置只允许通过 SSH 进行克隆。</p>
+<h2 id="检查本地是否存在配置">检查本地是否存在配置</h2>
+<p>SSH 本地目录为 <code>~/.ssh</code>，可以在 Finder 或终端中进到该文件夹，查看是否存在 <code>id_rsa</code> 和 <code>id_rsa.pub</code> 文件，来判断是否已经创建了 SSH 配置。如果您之前没有配置过 SSH，那么可能连这个文件夹都不存在。</p>
+<h2 id="新建-ssh">新建 SSH</h2>
+<p>如果没有，那就需要新建。命令如下：</p>
+<pre><code class="language-shell">$ ssh-keygen -t rsa -C &quot;your-email@emial.com&quot;
+</code></pre>
+<p>输入完这条命令之后，<strong>我们连着敲三个回车</strong>，不管它显示的什么，一直敲回车。直到下面出现一个图形。</p>
+<p>之后就可以到 <code>~/.ssh</code> 文件夹下查看是否多出了 <code>id_rsa</code> 和 <code>id_rsa.pub</code> 文件。</p>
+<h2 id="添加到远端-git-平台">添加到远端 Git 平台</h2>
+<p>之后我们可以通过 <code>cat</code> 命令，或者直接打开 <code>id_rsa.pub</code> 文件，将其中的内容复制到 Git 平台的 SSH 配置中即可。</p>
+<h2 id="检查连通性">检查连通性</h2>
+<p>添加完成后，我们可以执行下面的命令检查本地和远端 Git 的 SSH 连通性。</p>
+<pre><code class="language-shell">$ ssh -T git@&lt;git url&gt;
+</code></pre>
+<p>敲回车后，如果你是第一次连接，会询问你<strong>yes or no</strong>，输入yes，然后输入 Git 的密码。如果一切都没问题，会返回欢迎信息。</p>
+<h1 id="git-配置">Git 配置</h1>
+<p>配置好 SSH 之后，就可以回过头来配置 Git。</p>
+<p>Mac 平台在安装了 Xcode 后自带 Git 服务。此时我们可以直接在终端输入下列命令进行 Git 配置：</p>
+<pre><code class="language-shell">$ git config --global user.name &quot;Your Name&quot;
+$ git config --global user.email &quot;email@example.com&quot;
+</code></pre>
+<h1 id="新建-git-项目与远端克隆">新建 Git 项目与远端克隆</h1>
+<p>一般很少有只在本地使用 Git 进行版本管理的场景，基本都会和远端 Git 结合一起使用。</p>
+<p>那么我建议的流程是：</p>
+<ol>
+<li>现在远端建立空项目</li>
+<li>将远端项目克隆到本地</li>
+<li>在克隆的文件夹下创建项目进行开发</li>
+</ol>
+<p>有的人习惯本地有项目之后，再和远端项目进行关联。这里不介绍该种方法。</p>
+<p>如果你本地已经有代码：</p>
+<ul>
+<li>没有集成 Git 的情况下，在远端空项目克隆到本地后，直接将本地已有的代码移动到该空项目中即可。</li>
+<li>如果已经集成了 Git，则可以修改项目文件夹下的 <code>.git/config</code> 文件，将文件中的 <code>remote</code> 里的 <code>url</code> 项改为远端 url 即可。该操作也适用于<strong>更换项目的远端地址</strong>。</li>
+</ul>
+<h2 id="克隆项目">克隆项目</h2>
+<p>克隆的命令非常简单，而且非常顾名思义。在某一目录下执行下面的指令，就可以将远程仓库里的内容全部克隆到本地该文件夹下。</p>
+<pre><code class="language-shell">$ git clone &lt;ssh链接&gt;
+</code></pre>
+<h2 id="推送文件">推送文件</h2>
+<p>可以使用下面的代码将本地项目 <code>push</code> 推送到远程仓库。</p>
+<pre><code class="language-shell">$ git push origin master
+</code></pre>
+<p>该命令实际上是把当前分支 <code>master</code> 推送到远程。</p>
+<h1 id="git-常用操作">Git 常用操作</h1>
+<h2 id="添加提交文件">添加，提交文件</h2>
+<p>添加、提交文件的步骤为:</p>
+<pre><code class="language-shell">$ git add xx.txt 
+$ git commit -m &quot;注释信息&quot;
+</code></pre>
+<p><code>add</code>，添加的意思，把xx.txt添加到git仓库。<br>
+<code>commit</code>，提交的意思。后面的<code>-m</code>的内容，是一个描述性内容，用来描述我们这次提交的对文件做了哪些修改的。</p>
+<ul>
+<li>注意:
+<ol>
+<li>可以使用 <code>git add .</code> 将所有文件一并 <code>add</code>，适合对多个文件进行修改的情况。一般直接用这个就可以。</li>
+<li>在提交时，<code>-m</code> 可以先输入一个<strong>左单引号</strong>，敲回车后可以输入多行注释信息。然后再输入<strong>右单引号</strong>，完成注释信息的输入。</li>
+<li>这个 <code>add</code> 命令实际上是可以一口气添加多个文件，然后一口气 <code>commit</code>。</li>
+</ol>
+</li>
+</ul>
+<h2 id="修改文件">修改文件</h2>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>git status</code></td>
+<td>查看Git仓库状态</td>
+</tr>
+<tr>
+<td><code>git diff</code></td>
+<td>查看文件与之前有何不同</td>
+</tr>
+</tbody>
+</table>
+<h2 id="版本回退">版本回退</h2>
+<p>下面的表格是<strong>版本回退</strong>的具体指令。</p>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>git reset --hard HEAD^</code></td>
+<td>返回到上一个版本</td>
+</tr>
+<tr>
+<td><code>git reset --hard HEAD~10</code></td>
+<td>向前回滚10个版本</td>
+</tr>
+<tr>
+<td><code>git reset --hard commit ID值</code></td>
+<td>回滚到某个具体的版本</td>
+</tr>
+</tbody>
+</table>
+<p>下面的表格可以为我们提供我们所需要的<strong>commit ID值</strong>。</p>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>git log --pretty=oneline</code></td>
+<td>输出 commit 日志，包含作者，日期，提交说明，提交ID</td>
+</tr>
+<tr>
+<td><code>git reflog</code></td>
+<td>输出所有的操作信息。方便我们在<strong>清屏</strong>或<strong>退出终端后</strong>查询commit ID值</td>
+</tr>
+</tbody>
+</table>
+<h2 id="撤销修改">撤销修改</h2>
+<p>在我们 <code>push</code> 到远程仓库之前，我们可以用下表的指令来撤销我们对仓库内文件做出的修改。恢复到上次提交的状态。</p>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>git checkout -- file</code></td>
+<td>撤销工作区修改(<strong>add之前</strong>)</td>
+</tr>
+<tr>
+<td><code>git reset HEAD file</code></td>
+<td>撤销暂存区修改(<strong>commit之前</strong>)</td>
+</tr>
+<tr>
+<td><code>git reset --hard HEAD^</code></td>
+<td>回滚到上一版本(<strong>push之前</strong>)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="删除文件文件夹">删除文件/文件夹</h2>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rm file</code></td>
+<td>删除<strong>本地</strong>文件</td>
+</tr>
+<tr>
+<td><code>git rm file</code></td>
+<td>删除<strong>git仓库</strong>中的文件</td>
+</tr>
+<tr>
+<td><code>git rm 文件夹名 -r -f</code></td>
+<td>删除<strong>git和本地</strong>中该文件夹及其下文件</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>注意
+<ol>
+<li>在 <code>git rm</code> 之前，如果我们想撤销，可以放弃工作区修改，<code>git checkout -- file</code>。</li>
+<li>在 <code>git rm</code> 之后，如果我们想撤销，直接 <code>git reset --hard HEAD^</code> 回滚到上一个版本就可以了</li>
+</ol>
+</li>
+</ul>
+<p>在这里多说一句，如果想要删除Git仓库，我们用代码 <code>rm -rf .git</code> 删除**.git文件夹**就可以了。</p>
+<h2 id="创建并切换分支">创建并切换分支</h2>
+<p>创建分支与切换分支相关的命令如下表所示:</p>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>git branch</code></td>
+<td>查看分支列表，绿色为当前分支</td>
+</tr>
+<tr>
+<td><code>git branch 分支名</code></td>
+<td>创建分支</td>
+</tr>
+<tr>
+<td><code>git checkout 分支名</code></td>
+<td>切换分支</td>
+</tr>
+<tr>
+<td><code>git checkout -b 分支名</code></td>
+<td>切换分支，若不存在则创建它</td>
+</tr>
+<tr>
+<td><code>git log --graph --pretty=oneline --abbrev-commit</code></td>
+<td>输出带分支信息的log列表</td>
+</tr>
+</tbody>
+</table>
+<h2 id="合并分支">合并分支</h2>
+<p>在我们切换回<strong>master分支</strong>后，执行下面的命令，就可以用快速合并的模式将目标分支合并到<strong>master分支</strong>上。</p>
+<pre><code class="language-shell">$ git merge &lt;目标分支名&gt;
+</code></pre>
+<ul>
+<li>注意:
+<ol>
+<li>假如我们要将A分支，合并到 master 分支，那么我们必须<strong>先切换到master分支</strong>，然后再执行把A分支合并到 master 分支的操作。</li>
+<li>介绍一个 <code>git</code> 指令 <code>git ls-files</code>，该指令可以查看当前 <code>git</code> 仓库下的文件。如果想验证新建文件是否合并成功，可以使用该指令。</li>
+</ol>
+</li>
+</ul>
+<h2 id="删除分支">删除分支</h2>
+<p>删除分支的命令如下所示。注意，这条命令可不是类似 <em>branch rm</em> 了。</p>
+<pre><code class="language-shell">$ git branch -d &lt;分支名&gt;
+</code></pre>
+<h2 id="分支管理小结">分支管理小结</h2>
+<p>关于分支管理的一般过程，我做了一个 <strong>GIF</strong>，如下图所示:</p>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyo.dev/post-images/1677290668243.gif" alt="" loading="lazy"></figure>
+<p>如图<strong>GIF</strong>演示了从创建分支到合并分支的过程，其中每一个圆饼代表着一次 <code>commit</code>。</p>
+<hr>
+<h1 id="参考">参考</h1>
+<ol>
+<li><a href="https://www.liaoxuefeng.com/wiki/0013739516305929606dd18361248578c67b8067c8c017b000/0013743862006503a1c5bf5a783434581661a3cc2084efa000">廖雪峰大神的blog</a></li>
+</ol>
+
+                </div>
+            </article>
+        </div>
+
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,434 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>Combine 操作符速查表 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    Combine 操作符速查表
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2023-01-29 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/HEvQ-e7X7/" class="post-tags">
+                            # swift
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>文章以图文的形式，记录 Combine 中各操作符的用法以及效果。下文为原文章内容的转载 + 翻译。</p>
+<!-- more -->
+<blockquote>
+<p>本文转载自 <a href="https://tanaschita.com/20221121-cheatsheet-combine-operators/">Cheat sheet on s for iOS development</a><br>
+点击查看原文以更好的效果查看内容。</p>
+</blockquote>
+<hr>
+<h2 id="allsatisfy_"><code>allSatisfy(_:)</code></h2>
+<blockquote>
+<p>Publishes true if all elements match the condition. Publishes false &amp; completes if it receives an element that does not match the condition.</p>
+</blockquote>
+<p>如果所有的元素都符合条件，则返回 <code>true</code>。如果收到一个不符合条件的元素，则返回 <code>false</code> 并完成信号。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/allSatisfyTrue.webp" width=50% height=50%>
+<h2 id="append_"><code>append(_:)</code></h2>
+<blockquote>
+<p>Appends the specified elements after the upstream publisher completes.</p>
+</blockquote>
+<p>在上游发布者完成后添加指定的元素。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/append.webp" width=50% height=50%>
+<h2 id="collect_"><code>collect(_:)</code></h2>
+<blockquote>
+<p>Collects up to the specified number of elements and emits them in an array.</p>
+</blockquote>
+<p>收集多达指定数量的元素，并将它们发射到一个数组中。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/collect.webp" width=50% height=50%>
+<h2 id="combinelatest_"><code>combineLatest(_:)</code></h2>
+<blockquote>
+<p>Publishes a tuple of the most recent element from multiple publishers when any of them emits a value.</p>
+</blockquote>
+<p>当任何一个发布者发出一个值时，发布一个来自多个发布者的最新元素的元组。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/combineLatest.webp" width=50% height=50%>
+<h2 id="compactmap_"><code>compactMap(_:)</code></h2>
+<blockquote>
+<p>Transforms each element with the provided closure and publishes any returned non-nil optional result.</p>
+</blockquote>
+<p>用提供的闭包对每个元素进行转换，并公布任何返回的非零的可选结果。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/compactMap.webp" width=50% height=50%>
+<h2 id="contains_"><code>contains(_:)</code></h2>
+<blockquote>
+<p>Publishes true &amp; completes after receiving a matching value, or false when upstream publisher completes without producing a matching value.</p>
+</blockquote>
+<p>在收到一个匹配的值后发布真值&amp;完成，或者在上游发布者完成后没有产生一个匹配的值时发布假值。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/contains.webp" width=50% height=50%>
+<h2 id="count"><code>count()</code></h2>
+<blockquote>
+<p>Publishes the count of all received elements when the upstream publisher completes.</p>
+</blockquote>
+<p>当上游发布器完成时，发布所有收到的元素的计数。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/count.webp" width=50% height=50%>
+<h2 id="dropfirst_"><code>dropFirst(_:)</code></h2>
+<blockquote>
+<p>Omits a specified number of elements, then republishes all remaining elements.</p>
+</blockquote>
+<p>省略指定数量的元素，然后重新发布所有剩余的元素。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/dropFirst.webp" width=50% height=50%>
+<h2 id="dropwhile"><code>drop(while:)</code></h2>
+<blockquote>
+<p>Omits elements until a given closure returns false, then republishes all remaining elements.</p>
+</blockquote>
+<p>省略元素，直到一个给定的闭包返回错误，然后重新发布所有剩余的元素。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/dropWhile.webp" width=50% height=50%>
+<h2 id="filter_"><code>filter(_:)</code></h2>
+<blockquote>
+<p>Republishes all elements that match a provided closure.</p>
+</blockquote>
+<p>重新发布所有符合所提供的闭包的元素。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/filter.webp" width=50% height=50%>
+<h2 id="first"><code>first()</code></h2>
+<blockquote>
+<p>Publishes the first element of the upstream publisher, then completes.</p>
+</blockquote>
+<p>发布上游发布器的第一个元素，然后完成。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/first.webp" width=50% height=50%>
+<h2 id="firstwhere"><code>first(where:)</code></h2>
+<blockquote>
+<p>Publishes the first element of a stream that satisfies a condition, then completes.</p>
+</blockquote>
+<p>发布一个满足条件的流的第一个元素，然后完成。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/firstWhere.webp" width=50% height=50%>
+<h2 id="flatmapmaxpublishers_"><code>flatMap(maxPublishers:_:)</code></h2>
+<blockquote>
+<p>Transforms all elements from an upstream publisher into a new publisher.</p>
+</blockquote>
+<p>将上游发布器中的所有元素转化为一个新的发布器。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/flatMap.webp" width=50% height=50%>
+<h2 id="ignoreoutput"><code>ignoreOutput()</code></h2>
+<blockquote>
+<p>Ignores all elements and passes along only the upstream publisher's completion state.</p>
+</blockquote>
+<p>忽略所有元素，只传递上游发布者的完成状态。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/ignoreOutput.webp" width=50% height=50%>
+<h2 id="last"><code>last()</code></h2>
+<blockquote>
+<p>Publishes the last element of the upstream publisher after it completes.</p>
+</blockquote>
+<p>在上游发布器完成后，发布它的最后一个元素。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/last.webp" width=50% height=50%>
+<h2 id="lastwhere"><code>last(where:)</code></h2>
+<blockquote>
+<p>Publishes the last element that satisfies a condition after the upstream publisher completes.</p>
+</blockquote>
+<p>在上游发布器完成后，发布满足条件的最后一个元素。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/lastWhere.webp" width=50% height=50%>
+<h2 id="map_"><code>map(_:)</code></h2>
+<blockquote>
+<p>Transforms each element it receives from the upstream publisher with the provided closure.</p>
+</blockquote>
+<p>用所提供的闭包对它从上游发布者那里收到的每个元素进行转换。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/map.webp" width=50% height=50%>
+<h2 id="max"><code>max()</code></h2>
+<blockquote>
+<p>Publishes the maximum value received after the upstream publisher completes.</p>
+</blockquote>
+<p>在上游发布者完成后，发布收到的最大值。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/max.webp" width=50% height=50%>
+<h2 id="mergewith"><code>merge(with:)</code></h2>
+<blockquote>
+<p>Publishes an element whenever any of the upstream publishers emits an element.</p>
+</blockquote>
+<p>每当任何一个上游发布者发出一个元素，就发布一个元素。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/merge.webp" width=50% height=50%>
+<h2 id="min"><code>min()</code></h2>
+<blockquote>
+<p>Publishes the minimum value received after the upstream publisher completes.</p>
+</blockquote>
+<p>发布上游发布者完成后收到的最小值。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/min.webp" width=50% height=50%>
+<h2 id="outputat"><code>output(at:)</code></h2>
+<blockquote>
+<p>Republishes an element specified by its position, or completes if upstream publisher completes before the specified element.</p>
+</blockquote>
+<p>重新发布一个由其位置指定的元素，如果上游发布者在指定的元素之前完成，则完成。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/output.webp" width=50% height=50%>
+<h2 id="outputin"><code>output(in:)</code></h2>
+<blockquote>
+<p>Republishes elements specified by a range of positions.</p>
+</blockquote>
+<p>重新发布由某个位置范围指定的元素。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/outputRange.webp" width=50% height=50%>
+<h2 id="prefix_"><code>prefix(_:)</code></h2>
+<blockquote>
+<p>Republishes elements up to a specified maximum count.</p>
+</blockquote>
+<p>重新发布元素，直到指定的最大数量。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/prefix.webp" width=50% height=50%>
+<h2 id="prefixwhile"><code>prefix(while:)</code></h2>
+<blockquote>
+<p>Emits values while elements meet the specified condition, otherwise it completes.</p>
+</blockquote>
+<p>当元素满足指定的条件时发出数值，否则就会完成。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/prefixWhile.webp" width=50% height=50%>
+<h2 id="prepend_"><code>prepend(_:)</code></h2>
+<blockquote>
+<p>Prepends elements with the specified values.</p>
+</blockquote>
+<p>用指定的值对元素进行预置。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/prepend.webp" width=50% height=50%>
+<h2 id="reduce__"><code>reduce(_:_:)</code></h2>
+<blockquote>
+<p>Applies a closure to all elements and publishes a final result when the upstream publisher completes.</p>
+</blockquote>
+<p>对所有元素应用一个闭包，并在上游发布器完成后发布一个最终结果。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/reduce.webp" width=50% height=50%>
+<h2 id="removeduplicates"><code>removeDuplicates()</code></h2>
+<blockquote>
+<p>Publishes an element only if it doesn't match the previous element.</p>
+</blockquote>
+<p>只在一个元素与前一个元素不匹配时才发布。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/removeDuplicates.webp" width=50% height=50%>
+<h2 id="replacenilwith"><code>replaceNil(with:)</code></h2>
+<blockquote>
+<p>Replaces nil elements with the provided element.</p>
+</blockquote>
+<p>用所提供的元素替换nil元素。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/replaceNil.webp" width=50% height=50%>
+<h2 id="scan__"><code>scan(_:_:)</code></h2>
+<blockquote>
+<p>Transforms elements by applying a closure that receives its previous return value and the next element from the upstream publisher.</p>
+</blockquote>
+<p>通过应用一个闭包来转换元素，该闭包从上游发布者那里接收其先前的返回值和下一个元素。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/scan.webp" width=50% height=50%>
+<h2 id="switchtolatest"><code>switchToLatest()</code></h2>
+<blockquote>
+<p>Republishes elements sent by the most recently received publisher.</p>
+</blockquote>
+<p>重新发布由最近收到的发布者发送的元素。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/switchToLatest.webp" width=50% height=50%>
+<h2 id="zip_"><code>zip(_:)</code></h2>
+<blockquote>
+<p>Waits until both publishers emit an element, then publishes the oldest unconsumed element from each one as a tuple.</p>
+</blockquote>
+<p>等待，直到两个发布者都发出一个元素，然后将每个发布者中最古老的未被吸收的元素作为一个元组发布。</p>
+<img src="https://rakuyomo.github.io/post-images/cheatsheet-combine-operators/zip.webp" width=50% height=50%>
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/gitlab-ci-config-runner/" class="post-title gt-a-link">
+                    GitLab-CI（三）：配置 GitLab-Runner
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

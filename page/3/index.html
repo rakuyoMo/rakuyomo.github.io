@@ -1,0 +1,738 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <div class="main-content">
+        <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+
+        <div class="post-list-container">
+    <div class="post-inner">
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/synology-with-wireguard/">
+                            <span class="post-title gt-c-content-color-first">群晖NAS公网访问配置（二）：配置WireGuard</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        因为配置了公网 ip，为了安全，使用 WireGuard 控制访问。
+本文参考自：群晖DS220+安装 WireGuard 保姆级教程
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2024-01-30 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/nas/" class="post-tag">
+                                # nas
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/synology-config-ddns/">
+                            <span class="post-title gt-c-content-color-first">群晖NAS公网访问配置（一）：配置DDNS</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        本文使用DSM 7.0。请您确保已经获取了公网 ip，并且已经购买了域名。
+因为我的域名在腾讯云上，所以为了方便 DDNS 使用腾讯云的服务，步骤参考：群晖（Synology）NAS 启用腾讯云 DDNS 并安装免费证书
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2024-01-30 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/nas/" class="post-tag">
+                                # nas
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/troubleshooting-package_swift-downgrade-issues/">
+                            <span class="post-title gt-c-content-color-first">Package.swift 降级问题排查</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        过去 Package.swift 没有好好写，toolchain 版本跟着 Xcode 走，没有兼容不同的版本。最近研究用 SPM 代替 CocoaPods，所以认真的研究折腾了一下。
+本文总结把 Package.swift 从 5.9 降至 5.1 过程中遇到的一些问题。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2024-01-24 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/swift-package-manager/" class="post-tag">
+                                # swift-package-manager
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/fix-spm-cache/">
+                            <span class="post-title gt-c-content-color-first">解决重置SPM缓存失败的问题</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        相信经常使用 SPM 的小伙伴，应该都遇到过使用 Reset Package Caches 时报错：An unknown error occurred. reference 'refs/remotes/origin/main' not found (-1)，或者其他分支。
+关于这个问题在 stackoverflow 上有比较多的讨论，例如这个 SPM unknown error reference not found when changing branch。
+思来想去决定根据上面的回答，记录一下解决方案。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2024-01-23 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/swift-package-manager/" class="post-tag">
+                                # swift-package-manager
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/xcode/" class="post-tag">
+                                # xcode
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/remove-illegal-characters-from-string/">
+                            <span class="post-title gt-c-content-color-first">移除字符串中的�</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2023-07-24 ·
+                        </time>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/ji-podspec-zhuan-podspecjson/">
+                            <span class="post-title gt-c-content-color-first">记 podspec 转 podspec.json</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2023-05-25 ·
+                        </time>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/cgo-and-wireGuardkit-compilation/">
+                            <span class="post-title gt-c-content-color-first">CGO 与 WireGuardKit 编译</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        CGO 是一种在 iOS 平台上运行 Go 代码的方案。而 WireGuard 一种 VPN 技术，其中包含了一部分 Go 代码，同时项目提供了一个 Makefile 脚本，使用 CGO 来将相关代码编译成 iOS 静态库。
+写这篇文章的契机是，因为希望使用 Mac Catalyst 将内部工具带到 macOS 平台，我又回过头去看一年前（恰巧是22年3月）研究 WireGuard 的过程。
+发现虽然当时的研究成功，.xcframewrok 文件还在，但是过程已经模糊不清了。另外还需要针对 Mac Cataglyst 构建出新的静态库，所以又要从头进行梳理不过好在是 “模糊不清”，而不是 “一干二净”，多少还记得一些。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2023-03-31 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/epoxy-source-code-notes-1/">
+                            <span class="post-title gt-c-content-color-first">epoxy 源码笔记1：Diffing 算法</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        最近开始阅读学习 epoxy 的源码，开个新的系列来记录一下学习成功。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2023-03-16 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/epoxy/" class="post-tag">
+                                # epoxy
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/accelerated-swift-package-manager/">
+                            <span class="post-title gt-c-content-color-first">加速 Swift Package Manager</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        虽然国内实际开发用 Swift Package Manager（后称 SPM）的比较少，但是国外的一些开源库里却经常用到。所以经常遇到项目 clone 下来之后，SPM 加载失败导致项目无法运行的问题。
+网上关于 SPM 加速的文章也有很多，方法也是五花八门，本文挑选几个进行记录。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2023-03-15 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/swift-package-manager/" class="post-tag">
+                                # swift-package-manager
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/HEvQ-e7X7/" class="post-tag">
+                                # swift
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/off-screen-rendering-practice/">
+                            <span class="post-title gt-c-content-color-first">圆角 &amp; 离屏渲染实践</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        下文主要针对各种加圆角的情况进行实践，看看会不会出现离屏渲染的情况。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2023-03-06 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/ios-self-paced-test-questions/">
+                            <span class="post-title gt-c-content-color-first">iOS自编笔试题</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        最近要负责面试，于是各处搜罗了一些面试题，用于笔试（不包含算法），也当作自己的一个复习。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2023-03-06 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/mian-shi/" class="post-tag">
+                                # 面试
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/HEvQ-e7X7/" class="post-tag">
+                                # swift
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/ios-self-paced-interview-questions/">
+                            <span class="post-title gt-c-content-color-first">iOS自编面试题</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        最近要负责面试，于是各处搜罗了一些面试题，用于当面面试使用（非笔试题），也当作自己的一个复习。同时提供了一个我自己角度的评判，仅供参考。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2023-03-03 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/mian-shi/" class="post-tag">
+                                # 面试
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/HEvQ-e7X7/" class="post-tag">
+                                # swift
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/simple-use-of-python-celery/">
+                            <span class="post-title gt-c-content-color-first">Python：Celery 的简单使用</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        最近写的后端项目需要用到队列，其中有一些东西折腾了好一会儿，在这里记录一下。
+Celery 是一个开源的分布式任务队列，可实现异步任务调度、定时任务、任务结果处理等功能。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2023-02-23 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/python/" class="post-tag">
+                                # python
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/composable-uicollectionview-layout-uicollectionviewcompositionallayout/">
+                            <span class="post-title gt-c-content-color-first">可组合的 UICollectionView 布局：UICollectionViewCompositionalLayout</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        UICollectionViewCompositionalLayout 是 Apple 在 iOS 13 引入的，用于构建基于组合的 UICollectionView 布局的类。它允许开发者根据一系列的组合布局，更轻松、更灵活地创建复杂的 UICollectionView 布局。
+本文主要围绕 UICollectionViewCompositionalLayout 中 “可组合” 这个特性进行讨论。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2023-02-22 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/uicollectionviewcompositionallayout/" class="post-tag">
+                                # UICollectionViewCompositionalLayout
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/notes-of-nscollectionlayoutgroup/">
+                            <span class="post-title gt-c-content-color-first">NSCollectionLayoutGroup 之子视图的填充</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        本篇主要讲解 NSCollectionLayoutGroup 内 “子视图” 的填充方式。
+算是为 UICollectionViewCompositionalLayout 的讲解做一些铺垫，毕竟把 Item 的填充方式了解清楚了之后，才能组合多种 Group 来进行更复杂的布局。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2023-02-19 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/uicollectionviewcompositionallayout/" class="post-tag">
+                                # UICollectionViewCompositionalLayout
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/note-of-orthogonalscrollingbehavior/">
+                            <span class="post-title gt-c-content-color-first">NSCollectionLayoutSection 注意事项之 orthogonalScrollingBehavior</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        本篇文章记录使用 NSCollectionLayoutSection 类的 orthogonalScrollingBehavior 属性的过程中遇到的问题。
+通过设置该属性可以控制对应 Section 的滑动效果。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2023-02-19 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/uicollectionviewcompositionallayout/" class="post-tag">
+                                # UICollectionViewCompositionalLayout
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/fastlane-match-error-503/">
+                            <span class="post-title gt-c-content-color-first">fastlane match error: 503</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        使用 match 命令更新开发证书的时候，遇到了 503 Service Temporarily Unavailable 的报错，搜到解决方案后想着还是记录一下吧。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2023-01-29 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/difference-between-vpn-entitlement-config-in-ios-and-macos/">
+                            <span class="post-title gt-c-content-color-first">VPN 配置在 iOS 和 macOS 下的区别</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        最近尝试使用 Mac Catalyst 将 App 移植到 macOS 上，打包时遇到了该问题，故记录一下。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2023-01-29 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/cheatsheet-combine-operators/">
+                            <span class="post-title gt-c-content-color-first">Combine 操作符速查表</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        文章以图文的形式，记录 Combine 中各操作符的用法以及效果。下文为原文章内容的转载 + 翻译。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2023-01-29 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/HEvQ-e7X7/" class="post-tag">
+                                # swift
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/gitlab-ci-config-runner/">
+                            <span class="post-title gt-c-content-color-first">GitLab-CI（三）：配置 GitLab-Runner</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        
+本文针对 GitLab-Runner 的配置进行讲解说明。
+
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2022-04-15 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/cicd/" class="post-tag">
+                                # CI/CD
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+    </div>
+</div>
+
+        <div class="pagination-container">
+    
+        <a href="https://blog.rakuyo.dev/page/2/" class="prev-page gt-a-link">上一页</a>
+    
+    
+        <a href="https://blog.rakuyo.dev/page/4/" class="prev-page gt-a-link">下一页</a>
+    
+</div>
+
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

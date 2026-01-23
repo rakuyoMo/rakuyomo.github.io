@@ -1,0 +1,430 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>群晖NAS公网访问配置（二）：配置WireGuard | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    群晖NAS公网访问配置（二）：配置WireGuard
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2024-01-30 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/nas/" class="post-tags">
+                            # nas
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>因为配置了公网 ip，为了安全，使用 WireGuard 控制访问。</p>
+<p>本文参考自：<a href="https://zhuanlan.zhihu.com/p/660225168">群晖DS220+安装 WireGuard 保姆级教程</a></p>
+<!-- more -->
+<p>本文为《群晖 NAS 公网访问配置》系列文章的第二篇。全部文章请参考：</p>
+<p><a href="/synology-config-ddns/">群晖 NAS 公网访问配置（一）：配置 DDNS</a><br>
+<a href="/synology-with-wireguard/">群晖 NAS 公网访问配置（二）：配置 WireGuard</a><br>
+<a href="/synology-docker-public-access/">群晖 NAS 公网访问配置（三）：配置 Nginx 访问 Docker 服务</a><br>
+<a href="/synology-with-cloud/">群晖 NAS 公网访问配置（四）：配置云服务器</a><br>
+<a href="/synology-ssl-with-certd/">群晖 NAS 公网访问配置（五）：使用 certd 免费版配置泛域名证书</a></p>
+<h1 id="安装-wireguard-套件">安装 WireGuard 套件</h1>
+<br>
+<h2 id="开启-ssh">开启 SSH</h2>
+<p>因为 WireGuard 安装后需要通过 SSH 执行相关命令，所以我们需要先开启群晖的 SSH 功能。</p>
+<p>在群晖 “终端机和SNMP -&gt; 终端机” 中勾选 <strong>启动SSH功能</strong>，端口号使用默认即可。然后点击应用即可完成开启。</p>
+<p>随后您可以尝试在终端中通过内网或公网ip/域名访问群晖。</p>
+<blockquote>
+<p>如果您还没有公网ip，那么您需要在内网环境下完成后续操作，因为群晖的 QC 是不支持 SSH 访问的。</p>
+</blockquote>
+<h2 id="安装-wireguard-套件-2">安装 WireGuard 套件</h2>
+<p>首先在 “套件中心 -&gt; 设置 -&gt; 套件来源” 中添加 <code>spk7.imnks.com/</code> 矿神源。随后搜索 <strong>WireGuard</strong>，找到对应套件后点击安装。</p>
+<p>安装完成后我们通过 SSH 访问群晖NAS。</p>
+<blockquote>
+<p>我这里为了方便，首先执行了 <code>sudo su</code> 命令，避免后续权限问题。</p>
+</blockquote>
+<p>SSH 登录群晖 NAS 后，我们执行下面的命令：</p>
+<pre><code class="language-shell"># 赋予Wireguard套件权限，在安装群晖套件时，我们在简介处也看到了该命令。
+sudo sed -i 's/package/root/g' /var/packages/WireGuard/conf/privilege
+</code></pre>
+<p>至此 WireGuard 套件安装完成。</p>
+<h1 id="配置-wireguard-服务端">配置 WireGuard 服务端</h1>
+<p>依次执行下面的命令进入 WireGuard 配置文件夹：</p>
+<pre><code class="language-shell"># 创建相关目录，该目录可能已经存在，无视相关报错即可。
+mkdir /etc/wireguard/
+
+# 进入Wireguard文件夹，后续操作都将在该文件夹中进行。
+cd /etc/wireguard/
+</code></pre>
+<h2 id="创建公私钥">创建公私钥</h2>
+<p>在该文件夹中，我们需要生成<strong>服务端公私钥</strong>以及<strong>客户端公私钥</strong>：</p>
+<pre><code class="language-shell">#生成服务器端私钥
+wg genkey &gt; server_privateKey 
+
+#生成服务器端私钥对应的公钥
+wg pubkey &lt; server_privateKey &gt; server_publicKey
+
+# 生成客户端私钥及对应的公钥
+wg genkey | tee client_privateKey | wg pubkey &gt; client_publicKey
+
+# 使用 cat 命令查看对应内容。
+cat server_privateKey
+cat server_publicKey
+cat client_privateKey
+cat client_publicKey
+</code></pre>
+<p>复制好这些秘钥，后面配置文件时需要用到。</p>
+<h2 id="创建服务端配置文件">创建服务端配置文件</h2>
+<p>按照注释，将下面配置中的内容替换为您在上一步中生成的内容。</p>
+<pre><code class="language-ini">[Interface]
+PrivateKey = serverprivatekey # 替换为服务器私钥
+Address = 10.8.0.1/24
+PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -A FORWARD -o %i -j ACCEPT; iptables -t nat -A POSTROUTING -o eth+ -j MASQUERADE
+PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -o eth+ -j MASQUERADE
+ListenPort = 51820 # 端口默认 51820，也可以自定义
+MTU = 1420
+
+
+[Peer]
+PublicKey = clientpublickey # 替换为客户端公钥
+AllowedIPs = 10.8.0.2/32
+</code></pre>
+<blockquote>
+<p>说明：<br><br>
+上述配置文件中的 Address 和 AllowedIPs，前三位需要在同一局域网内对齐。最后一位详见后文 <a href="#%E6%B7%BB%E5%8A%A0%E6%96%B0%E7%9A%84%E5%AE%A2%E6%88%B7%E7%AB%AF">添加新的客户端</a> 一节。</p>
+</blockquote>
+<p>编辑后内容后回到终端，使用 vim 或其他手段在 <code>/etc/wireguard/</code> 路径下创建 <code>wg0.conf</code> 文件，其内容为上述配置。</p>
+<h2 id="启动服务">启动服务</h2>
+<p>先回到群晖<strong>套件中心</strong>，启动 WireGuard 套件。<br>
+<img src="https://blog.rakuyo.dev/post-images/1706597538304.png" alt="" loading="lazy"></p>
+<blockquote>
+<p>之前启动了也无所谓，顺序不重要</p>
+</blockquote>
+<p>再回到SSH终端，使用下面的命令加载配置文件：</p>
+<pre><code class="language-shell"># 使用 `up` 命令加载 wg0 配置
+sudo wg-quick up wg0
+
+# 使用 `down` 命令停止 wg0，当前不执行
+# sudo wg-quick down wg0
+</code></pre>
+<p>随后我们使用 <code>wg</code> 命令即可查看当前状态：<br>
+<img src="https://blog.rakuyo.dev/post-images/1706597879878.png" alt="" loading="lazy"></p>
+<blockquote>
+<p>说明：<br>
+有客户端连接的时候 peer 才会显示 keepalive，此时我们还没有配置客户端连接，能够展示出来对应的配置即可。</p>
+</blockquote>
+<p>最后我们为 wg0 服务添加开机自启动：</p>
+<pre><code class="language-shell">sudo wg-autostart enable wg0 # 开启自启动
+
+# sudo wg-autostart disable wg0 # 关闭自启动
+</code></pre>
+<blockquote>
+<p>备注：群晖的 WireGuard 套件无法通过 systemctl 来配置开启自启动，不知道是 DSM 的问题还是套件的问题，这里没有进一步深究。</p>
+</blockquote>
+<h1 id="路由器设置监听端口号转发">路由器设置监听端口号转发</h1>
+<p>为了更好的理解后面的操作，我们先大致讲一下借助 WireGuard 要做的事情：</p>
+<p>我们之前在 <a href="/synology-config-ddns/">群晖NAS配置DDNS</a> 一文中配置了 DDNS，在后面的操作中，我们将借助上面的域名来构建 WireGuard 隧道。等到隧道建立好了之后，我们再借助端口转发，通过隧道走内网服务。</p>
+<h2 id="腾讯云上的配置">腾讯云上的配置</h2>
+<p>因为之前我们创建的记录被我们用来建立隧道，所以我们需要新建一条记录来作为 NAS 真正的入口。</p>
+<p>所以这里我们新建一条记录，主机记录随你定，注意记录值需要填写为 NAS 在<strong>内网</strong>中的 IP 地址。</p>
+<blockquote>
+<p>后文我们使用以下域名作为示例：<br>
+用于创建 WireGuard 隧道的域名：gwa.baidu.com，记录值为公网 ip（39.156.66.10）<br>
+作为 NAS 入口的域名：sana.baidu.com，记录值为 NAS 内网 ip（192.168.47.29）</p>
+</blockquote>
+<h2 id="路由器静态-ip-分配">路由器静态 IP 分配</h2>
+<p>因为路由器重启会导致 ip 变化，而我们需要 NAS 内网的 IP 值。好在现在大部分路由器都支持 DHCP 静态 IP 分配。</p>
+<p>登录路由器后台，根据你的路由器的设置，将群晖对应设备的 IP 添加到 DHCP 静态 IP 列表，使其拥有固定的 IP 值。</p>
+<h2 id="通过-nas-设置端口转发">通过 NAS 设置端口转发</h2>
+<blockquote>
+<p>我这里选择的方案是通过群晖设置端口转发，而不是通过路由器。如果你希望通过路由器进行转发，则可以在路由器后台上进行设置。</p>
+</blockquote>
+<p>先留在路由器管理后台，我们需要开启路由器的 UPnP 功能，这样我们才能使用 NAS 来设置端口转发。</p>
+<p>开启路由器的 UPnP 之后，我们回到 NAS，来到 “控制面板 -&gt; 外部访问 -&gt; 路由器配置” 页面，如下图所示：<br>
+<img src="https://blog.rakuyo.dev/post-images/1706600108159.png" alt="" loading="lazy"></p>
+<p>点击<strong>新增</strong>按钮，选择 “自定义端口”，点击下一步。</p>
+<p>在接下来的步骤中，<strong>通讯协议</strong>我们选择 UDP，端口设置为 <a href="#%E5%88%9B%E5%BB%BA%E6%9C%8D%E5%8A%A1%E7%AB%AF%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6">创建服务端配置文件</a> 一节中，<code>ListenPort</code> 的值。<br>
+<img src="https://blog.rakuyo.dev/post-images/1706600155575.png" alt="" loading="lazy"></p>
+<p>最后点击完成。完成后我们可以回到路由器的 UPnP 页面，刷新看看是否有对应的记录。</p>
+<h1 id="配置-wireguard-客户端">配置 WireGuard 客户端</h1>
+<h2 id="下载客户端">下载客户端</h2>
+<p>WireGuard 客户端下载参考：<a href="https://itlanyan.com/wireguard-clients/">WireGuard客户端</a>。Apple 平台均需要国外的 Apple ID。</p>
+<h2 id="创建客户端配置文件">创建客户端配置文件</h2>
+<p>安装客户端的间隙，我们先准备好客户端配置文件：</p>
+<pre><code class="language-ini">[Interface]
+PrivateKey = clientprivatekey # 替换为客户端私钥
+Address = 10.8.0.2/32 # 这里需要对应上文 [创建服务端配置文件] 一节中，peer.AllowedIPs 里对应的值 
+MTU = 1420
+
+[Peer]
+PublicKey = serverpublickey # 替换为服务端公钥
+Endpoint = gwa.baidu.com:51820 # 用于创建 WireGuard 隧道的域名，加上上文设置的 ListenPort 端口
+AllowedIPs = 10.8.0.1/24, 192.168.47.29/24 # 分别是 [创建服务端配置文件] 一节中,Interface.Address，以及 NAS 内网 IP
+PersistentKeepalive = 25
+</code></pre>
+<p>将上述内容保存为 <code>wgnas.conf</code>（文件名随意）。之后我们打开 WireGuard 客户端，选择通过文件创建隧道，选择 <code>wgnas.conf</code>，即可完成配置设置。</p>
+<p>至此，您的域名配置应该符合下面的情况：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">WireGuard 开启状态</th>
+<th style="text-align:center">gwa.baidu.com</th>
+<th style="text-align:center">sana.baidu.com</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">开启</td>
+<td style="text-align:center">无法访问</td>
+<td style="text-align:center">能访问 NAS</td>
+</tr>
+<tr>
+<td style="text-align:center">关闭</td>
+<td style="text-align:center">无法访问</td>
+<td style="text-align:center">无法访问</td>
+</tr>
+</tbody>
+</table>
+<p>即只有在开着 WireGuard 的前提下，可以通过 <code>sana.baidu.com</code> 访问您的 NAS 服务。</p>
+<h2 id="添加新的客户端">添加新的客户端</h2>
+<p>上面的步骤里我们只添加了一个客户端，因为同一时间 WireGuard 只能识别一个隧道，如果您有多台设备，或者多人公用同一台 NAS，则需要设置多个 WireGuard 客户端配置，不能多台设备同时使用同一个配置文件。</p>
+<p>让我们打开 <a href="#%E5%88%9B%E5%BB%BA%E6%9C%8D%E5%8A%A1%E7%AB%AF%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6">创建服务端配置文件</a> 中的创建的配置文件。<br>
+其中 <code>Peer</code> 的部分代表着每个客户端。当我们需要新增客户端时，服务端需要添加一套新的 <code>Peer</code> 配置。</p>
+<pre><code class="language-ini">[Interface]
+PrivateKey = serverprivatekey
+Address = 10.8.0.1/24
+...
+ListenPort = 51820
+MTU = 1420
+# 上述内容保持不变
+
+[Peer]
+PublicKey = clientpublickey
+AllowedIPs = 10.8.0.2/32
+
+[Peer] # 新的 Peer 配置
+PublicKey = clientpublickey01 # 一套新的客户端公钥
+AllowedIPs = 10.8.0.3/32 # 注意这里需要修改 ip 地址最后一位，一般+1即可
+</code></pre>
+<p>随后按照 <a href="#%E5%88%9B%E5%BB%BA%E5%AE%A2%E6%88%B7%E7%AB%AF%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6">创建客户端配置文件</a> 中的方法，在新的客户端中加载新的配置文件即可。</p>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/synology-config-ddns/" class="post-title gt-a-link">
+                    群晖NAS公网访问配置（一）：配置DDNS
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

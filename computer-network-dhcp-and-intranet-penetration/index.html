@@ -1,0 +1,444 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>计算机网络之三 - DHCP 与内网穿透 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    计算机网络之三 - DHCP 与内网穿透
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2025-08-11 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/ji-suan-ji-wang-luo/" class="post-tags">
+                            # 计算机网络
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>本篇是计算机网络系列的第三篇，主要讲 DHCP 和内网穿透。在探索广阔的外网之前，先把内网相关的内容做个收尾。</p>
+<!-- more -->
+<p>其余几篇的目录：</p>
+<ul>
+<li><a href="/computer-network-ip-and-port/">计算机网络之一 - IP 与端口</a></li>
+<li><a href="/computer-network-url-and-dns/">计算机网络之二 - URL 与 DNS</a></li>
+<li><a href="/computer-network-virtual-nic-and-wireguard">计算机网络之四 - 虚拟网卡与 WireGuard</a></li>
+<li><a href="/computer-network-http-and-https">计算机网络之五 - HTTP 与 HTTPS</a></li>
+<li><a href="/computer-network-tcp-and-udp">计算机网络之六 - 可靠的 TCP 与高效的 UDP</a></li>
+<li><a href="/computer-network-osi-and-tcpip-models">计算机网络之七 - OSI 与 TCP/IP 分层模型</a></li>
+</ul>
+<hr>
+<h2 id="局域网的自动配置dhcp-的世界">局域网的自动配置：DHCP 的世界</h2>
+<p>任何设备要接入网络，首要任务是获取一个有效的网络配置，包括 IP 地址、子网掩码等信息。手动为每台设备配置这些信息不仅效率低下，还极易出错。为此，<strong>DHCP</strong>（动态主机配置协议）应运而生，它实现了网络参数的自动化分配。</p>
+<h3 id="dhcp-的工作流程-dora">DHCP 的工作流程 (DORA)</h3>
+<p><strong>DHCP (Dynamic Host Configuration Protocol)</strong> 是一种基于 UDP 的网络管理协议，其核心工作流程包含四个步骤，通常简称为 <strong>DORA</strong> 过程：</p>
+<ol>
+<li><strong>Discover (发现)</strong>：客户端设备启动并接入网络后，以广播形式发送一个 DHCP Discover 报文，在物理网段内寻找可用的 DHCP 服务器。</li>
+<li><strong>Offer (提供)</strong>：所有收到 Discover 报文的 DHCP 服务器，会从其地址池中选择一个可用的 IP 地址，并连同其他网络配置一起，构建一个 DHCP Offer 报文，发送给客户端。</li>
+<li><strong>Request (请求)</strong>：客户端选择一个 Offer（通常是第一个收到的），然后向网络广播一个 DHCP Request 报文，正式请求使用该地址，并告知所有服务器它的选择。</li>
+<li><strong>Acknowledge (确认)</strong>：被选择的 DHCP 服务器收到 Request 报文后，执行最终的绑定操作，并发送 DHCP Acknowledge 报文给客户端，正式确认配置生效。租约开始计时。</li>
+</ol>
+<p>整个过程可以用下面的序列图来概括：</p>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyo.dev/post-images/1755597114944.svg" alt="" loading="lazy"></figure>
+<h3 id="dhcp-在实践中的角色">DHCP 在实践中的角色</h3>
+<p>理论上，DHCP 服务可以由网络中的任何服务器提供。在绝大多数家庭和小型网络中，<strong>DHCP 服务器功能都集成在路由器内</strong>。这台我们熟悉的设备，其实在扮演着两个截然不同的角色：</p>
+<ul>
+<li><strong>对内（LAN）是 DHCP 服务器</strong>：它管理着一个私网地址池（如 <code>192.168.1.0/24</code>），为所有接入的电脑、手机等设备分配内网 IP 地址和相关配置。</li>
+<li><strong>对外（WAN）是 DHCP 客户端</strong>：那么，路由器自身的公网 IP 又是从何而来的呢？很多情况下，它同样是通过 DHCP 获取的。此时，路由器扮演一个客户端，向您的互联网服务提供商（ISP）的 DHCP 服务器发起请求。ISP 的服务器从其管理的<strong>公网 IP 地址池</strong>中，取出一个地址“租”给您的路由器。</li>
+</ul>
+<p>因此，DHCP 是一个通用的地址分配协议，既被 ISP 用来分配公网 IP，也被路由器用来分配私网 IP。当然，除 DHCP 外，ISP 也常用 PPPoE（需要账户密码拨号）等方式来分配公网 IP。</p>
+<h2 id="dhcp-的核心参数详解与实践">DHCP 的核心：参数详解与实践</h2>
+<p>DHCP 在 Acknowledge 阶段提供的“大礼包”中，包含了以下至关重要的网络参数。理解这些参数的理论和实践，是掌握网络配置的关键。</p>
+<h3 id="ip-地址">IP 地址</h3>
+<p>设备在网络中的唯一数字标识，用于寻址和数据包路由。DHCP 分配的通常是私有 IP 地址，仅在局域网（LAN）内有效。</p>
+<h3 id="子网掩码-subnet-mask">子网掩码 (Subnet Mask)</h3>
+<p>子网掩码是一个 32 位数值，其核心功能是<strong>划分 IP 地址的网络部分和主机部分</strong>，是设备进行路由决策的基础。</p>
+<h4 id="历史背景从有类地址到子网划分">历史背景：从有类地址到子网划分</h4>
+<p>在早期，IP 地址根据其第一个八位字节被划分为 A、B、C 等<strong>有类（Classful）地址</strong>，每个类别有固定的网络位和主机位。这种方式缺乏灵活性，常常导致大量 IP 地址被浪费。</p>
+<p><strong>例如，早期的有类网络划分如下：</strong></p>
+<ul>
+<li><strong>A 类地址</strong> (首位为<code>0</code>，范围 1-126): 默认子网掩码 <code>255.0.0.0</code>。一个 A 类网络可容纳超过 1600 万台主机，若分配给仅需数百地址的组织，是巨大的浪费。</li>
+<li><strong>B 类地址</strong> (首位为<code>10</code>，范围 128-191): 默认子网掩码 <code>255.255.0.0</code>。一个 B 类网络可容纳 65,534 台主机，对很多组织来说依然过大。</li>
+<li><strong>C 类地址</strong> (首位为<code>110</code>，范围 192-223): 默认子网掩码 <code>255.255.255.0</code>。一个 C 类网络仅能容纳 254 台主机，对于需要稍多设备（如 300 台）的组织来说又太小。</li>
+</ul>
+<p>正是为了解决这种“要么太大，要么太小”的僵化问题，子网掩码应运而生，它允许网络管理员根据实际需求，灵活地将大网络划分为多个小<strong>子网 (Subnet)</strong>，极大地提高了 IP 地址的利用率。</p>
+<h4 id="核心原理网络地址与主机地址">核心原理：网络地址与主机地址</h4>
+<p>子网掩码通过<strong>按位与 (bitwise AND) 运算</strong>来提取网络地址。这是设备进行路由决策的根本依据。</p>
+<p><strong>计算网络地址：</strong><br>
+假设 IP 地址为 <code>192.168.1.100</code>，子网掩码为 <code>255.255.255.0</code> (<code>/24</code>)。</p>
+<pre><code>  11000000.10101000.00000001.01100100  (IP: 192.168.1.100)
+&amp; 11111111.11111111.11111111.00000000  (Mask: 255.255.255.0)
+------------------------------------
+  11000000.10101000.00000001.00000000  (Network ID: 192.168.1.0)
+</code></pre>
+<p>运算的核心在于，子网掩码中为 <code>1</code> 的部分会保留 IP 地址的位，为 <code>0</code> 的部分会将 IP 地址的位清零，从而得到纯粹的网络地址。</p>
+<p>那么如何计算主机地址呢？与计算网络地址相对应，我们也可以计算出地址中的主机部分。这需要对子网掩码进行“<strong>按位非</strong>”（NOT）运算（即 <code>1</code> 变 <code>0</code>，<code>0</code> 变 <code>1</code>），得到<strong>反掩码</strong>，然后再与原 IP 地址进行“<strong>按位与</strong>”。</p>
+<ul>
+<li><strong>反掩码</strong>: <code>NOT 255.255.255.0</code> -&gt; <code>0.0.0.255</code></li>
+<li><strong>运算</strong>: <code>192.168.1.100 AND 0.0.0.255</code> -&gt; <code>0.0.0.100</code></li>
+</ul>
+<p>这个 <code>100</code> 就是这台设备在该子网中的主机标识。完整的 IP 地址可以看作是<strong>网络地址 (<code>192.168.1.0</code>) + 主机地址 (<code>0.0.0.100</code>)</strong> 的结果。</p>
+<h4 id="cidr-表示法">CIDR 表示法</h4>
+<p>在现代网络中，使用<strong>无类别域间路由 (CIDR)</strong> 表示法来指定子网掩码更为常见。它在 IP 地址后附加一个斜杠和数字（如 <code>/24</code>），表示子网掩码中前 24 位为 <code>1</code>。</p>
+<h4 id="网络容量与扩容问题">网络容量与扩容问题</h4>
+<p>子网掩码的设定直接决定了网络的容量。例如，<code>/24</code> (255.255.255.0) 的网络，主机位有 8 位，最多支持 <code>2^8 - 2 = 254</code> 台设备。</p>
+<p>当地址池被用尽后，新设备将无法获取 IP 地址。其 DHCP Discover 请求会因服务器无地址可供 Offer 而石沉大海。最终，新设备可能会获取一个 <code>169.254.x.x</code> 的自动专用地址（无法访问互联网），或直接提示 IP 配置失败。</p>
+<p>网络设计有一个核心原则：<strong>稳定性与确定性</strong>。子网掩码作为网络的基础架构定义，其变更属于架构级调整，必须由管理员进行统一规划和手动实施。自动扩容会因无法通知到所有老设备、可能与现有网络规划冲突等原因，造成网络混乱和安全问题，因此在设计上是不被允许的。</p>
+<h3 id="默认网关-default-gateway">默认网关 (Default Gateway)</h3>
+<p>默认网关是局域网连接到其他网络的“出口”，物理上通常是路由器的内网接口 IP。其核心作用是<strong>路由转发</strong>。</p>
+<h4 id="数据包的旅程一个完整的故事">数据包的旅程：一个完整的故事</h4>
+<p>为了理解默认网关的真正作用，我们来完整地追踪一个数据包从内网主机 A 到外网服务器 B 的旅程。</p>
+<p><strong>主角</strong>:</p>
+<ul>
+<li><strong>主机 A</strong>: 你的电脑，IP 地址 <code>192.168.1.100</code>。</li>
+<li><strong>默认网关</strong>: 你的路由器，IP 地址 <code>192.168.1.1</code>。</li>
+<li><strong>服务器 B</strong>: 远端网站服务器，IP 地址 <code>8.8.8.8</code>。</li>
+</ul>
+<p><strong>第一步：主机 A 的“思考”—— 我该把信交给谁？</strong></p>
+<p>主机 A 想要发送数据给 <code>8.8.8.8</code>。它首先要解决一个问题：“这个目标是在我的局域网内，还是在互联网上？”</p>
+<p>它通过自己的<strong>子网掩码</strong> (<code>255.255.255.0</code>) 进行计算，发现 <code>8.8.8.8</code> 并不和自己在同一个网络（<code>192.168.1.0</code>）内。于是，主机 A 得出结论：不能直接把数据发送给目标，必须先把数据交给<strong>默认网关</strong>，让它负责转发。</p>
+<p><strong>第二步：主机 A 的“打包”—— 准备好信封和快递盒</strong></p>
+<p>现在主机 A 知道，逻辑上要把数据发给网关 <code>192.168.1.1</code>。但在局域网这个物理世界里，数据传输依靠的是硬件的物理地址（MAC 地址）。</p>
+<ol>
+<li>
+<p><strong>寻找物理地址 (ARP)</strong>: 如果主机 A 不知道网关的 MAC 地址，它会先通过 <strong>ARP (地址解析协议)</strong> 在局域网里广播：“请问谁的 IP 是 <code>192.168.1.1</code>？请把你的 MAC 地址告诉我。” 路由器会回应：“是我的，我的 MAC 地址是 <code>AA:BB:CC:DD:EE:FF</code>。”</p>
+</li>
+<li>
+<p><strong>进行双层封装</strong>: 主机 A 现在开始打包数据。这是一个精妙的双层结构：</p>
+<ul>
+<li><strong>内层信封 (IP 数据包)</strong>: 这里写的是<strong>最终目标</strong>。
+<ul>
+<li><code>收件人 IP</code>: <code>8.8.8.8</code></li>
+<li><code>发件人 IP</code>: <code>192.168.1.100</code></li>
+</ul>
+</li>
+<li><strong>外层快递盒 (以太网帧)</strong>: 这里写的是<strong>下一跳目标</strong>。
+<ul>
+<li><code>收件人 MAC</code>: <code>AA:BB:CC:DD:EE:FF</code> (网关的 MAC 地址)</li>
+<li><code>发件人 MAC</code>: 主机 A 自己的 MAC 地址</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<p><strong>第三步：网关的“转发”—— 拆开快递盒，送出信封</strong></p>
+<p>主机 A 将这个“快递盒”发送到局域网上。网络中的所有设备都会看到它，但只有 MAC 地址为 <code>AA:BB:CC:DD:EE:FF</code> 的路由器会接收并拆开它。</p>
+<ol>
+<li>路由器拆开“外层快递盒”（以太网帧）。</li>
+<li>它看到里面的“内层信封”（IP 数据包），发现收件人是 <code>8.8.8.8</code>，不是自己。</li>
+<li>于是，路由器执行它的核心功能：<strong>路由</strong>。它会查询自己的路由表，找到通往 <code>8.8.8.8</code> 的最佳路径（比如指向 ISP 的下一个路由器）。</li>
+<li>最后，它将这个<strong>原始的 IP 数据包</strong>（里面的 IP 地址不变）拿出来，套上一个<strong>新的快递盒</strong>（新的以太网帧，目标 MAC 地址是下一个路由器的 MAC 地址），然后发往互联网。</li>
+</ol>
+<p>这个“拆包-查路-重新打包”的过程会在每一跳的路由器上重复，直到数据包最终抵达服务器 B。下面的序列图清晰地展示了这一旅程：</p>
+<figure data-type="image" tabindex="2"><img src="https://blog.rakuyo.dev/post-images/1755597149490.svg" alt="" loading="lazy"></figure>
+<h3 id="dns-服务器地址">DNS 服务器地址</h3>
+<p>DHCP 同样会分配 DNS 服务器的地址，使设备能将域名解析为 IP 地址。</p>
+<h4 id="dns-的分配模式直接下发与代理转发">DNS 的分配模式：直接下发与代理转发</h4>
+<p>在实践中，路由器上的 DHCP 服务分配 DNS 时，通常有两种模式：</p>
+<ul>
+<li><strong>直接下发 (Passthrough)</strong>：路由器将从 ISP 获取到的上游 DNS 地址（如 <code>8.8.8.8</code>）直接分配给内网设备。</li>
+<li><strong>代理转发 (Proxy/Forwarder)</strong>：路由器将<strong>自身 IP</strong> (<code>192.168.1.1</code>) 作为 DNS 服务器分配给内网设备。设备向路由器查询，路由器再向上游 DNS 查询，并可缓存结果以加速后续访问。</li>
+</ul>
+<h2 id="跨越网关内网穿透技术">跨越网关：内网穿透技术</h2>
+<p>现在，我们的设备已通过 DHCP 在局域网中完美运行。但如果我们想从公司、酒店或任何外部网络，访问这台内网中的设备（如 NAS、Web 服务器），就会遇到 NAT 的阻碍。<strong>内网穿透</strong>就是解决这个问题的技术集合。</p>
+<h3 id="端口映射-port-forwarding">端口映射 (Port Forwarding)</h3>
+<p>这是最基础和常用的穿透方式。它在路由器上创建一条静态转发规则，将 <code>路由器公网IP:外部端口</code> 收到的访问请求，转发到 <code>内网指定设备IP:内部端口</code>。</p>
+<h4 id="与-dhcp-的关键结合点静态-ip-分配">与 DHCP 的关键结合点：静态 IP 分配</h4>
+<p>端口映射的规则是写死的，它需要内网设备的 IP 地址<strong>永远不变</strong>。但 DHCP 默认分配的 IP 地址是有租期的，可能会变化。</p>
+<blockquote>
+<p>对于大多数家庭用户来说，公网 IP 本身也是动态变化的，这为端口映射带来了另一个挑战，也是后续 VPN 和第三方服务方案的优势之一</p>
+</blockquote>
+<p><strong>解决方案</strong>就是使用路由器的 <strong>DHCP 静态地址分配 (Static DHCP Lease)</strong> 功能，通过 MAC 地址绑定，确保特定设备永远获得同一个 IP 地址。这是实现可靠内网穿透的重要前提。</p>
+<h3 id="upnp-通用即插即用">UPnP (通用即插即用)</h3>
+<p>UPnP (Universal Plug and Play) 是一种更为便捷的穿透技术，它的目标是实现“零配置”的网络连接。</p>
+<h4 id="upnp-是什么">UPnP 是什么？</h4>
+<p>它是一系列协议的组合，允许局域网中的设备（如电脑、游戏机、打印机、摄像头）彼此自动发现，并动态地建立网络服务。在内网穿透的场景下，我们主要利用的是它的 <strong>IGD (Internet Gateway Device) 协议</strong>。</p>
+<h4 id="它是如何工作的">它是如何工作的？</h4>
+<p>UPnP IGD 可以看作是<strong>自动化的端口映射</strong>。其工作流程如下：</p>
+<ol>
+<li>内网中一个支持 UPnP 的应用程序（如游戏、下载软件）启动后，会先在局域网中寻找支持 UPnP IGD 的网关设备（即你的路由器）。</li>
+<li>找到路由器后，应用程序会向路由器发送一个请求，例如：“你好，我是 <code>192.168.1.101</code>，请帮我把你的公网 <code>XXXX</code> 端口，映射到我自己的 <code>YYYY</code> 端口上。”</li>
+<li>路由器接收到这个请求后，如果开启了 UPnP 功能，就会自动在自己的 NAT 表中添加这条端口映射规则，无需任何人工干预。</li>
+<li>应用程序还可以通过 UPnP 查询路由器当前的公网 IP，以及检查映射是否成功。</li>
+</ol>
+<h4 id="便利性与风险">便利性与风险</h4>
+<ul>
+<li><strong>优点</strong>：极其方便，用户完全无感，应用程序可以自行完成所有穿透配置，大大提升了联机游戏、P2P 下载等应用的体验。</li>
+<li><strong>缺点</strong>：存在安全风险。由于该过程是自动的，局域网中的任何程序（包括恶意软件）都有可能利用 UPnP 在你不知情的情况下打开路由器的端口，将内部服务暴露于公网，从而带来安全隐患。因此，很多对安全性要求较高的用户会选择手动关闭路由器的 UPnP 功能。</li>
+</ul>
+<h3 id="基于隧道的解决方案代理与-vpn">基于隧道的解决方案：代理与 VPN</h3>
+<p>当手动配置端口映射不便或不可行时（例如，你没有路由器的管理权限，或者你的 ISP 不提供公网 IP），基于隧道技术的穿透方案便成为了主流选择。它们的本质都是在内网设备与一台公网服务器之间，建立一条稳定、加密的“隧道”，所有流量都通过这个隧道进行转发。</p>
+<h4 id="反向代理隧道-frp-ngrok">反向代理隧道 (frp, Ngrok)</h4>
+<p>这类工具的核心思想是<strong>暴露单个服务</strong>。</p>
+<ul>
+<li>
+<p><strong>原理</strong>：你在内网的机器上运行一个客户端，主动连接到一台你部署在公网的 frp 服务端或 Ngrok 的公共服务器。连接成功后，服务端会提供一个公网地址（域名或 IP）和端口，并将所有访问这个公网地址的请求，通过已经建立好的隧道，原封不动地转发给内网的客户端，客户端再将请求发给本地的 Web 服务或 SSH 服务。</p>
+</li>
+<li>
+<p><strong>适用场景</strong>：非常适合临时或长期地将某个特定的 Web 服务、API 或远程桌面分享出去。其工作原理如下图所示：</p>
+</li>
+</ul>
+<figure data-type="image" tabindex="3"><img src="https://blog.rakuyo.dev/post-images/1755598123794.svg" alt="" loading="lazy"></figure>
+<h4 id="vpn-与-wireguard">VPN 与 WireGuard</h4>
+<p>VPN 的目标则更为宏大，它致力于<strong>构建一个安全的虚拟局域网</strong>，将你的所有设备都“拉”进这个虚拟网络中，让它们如同真的在同一个房间里一样可以互相通信。<strong>WireGuard</strong> 是实现这一目标的现代化、高性能的 VPN 协议。</p>
+<blockquote>
+<p>未来我们将更加详细地介绍 WireGuard，此处先简单介绍一下。</p>
+</blockquote>
+<ul>
+<li><strong>原理</strong>：与 frp 类似，你也需要一台拥有公网 IP 的服务器作为所有设备的“汇集点”。所有设备（家里的 NAS、公司的电脑、你的手机）都作为客户端，通过加密隧道连接到这台服务器。成功后，每个设备都会被分配一个全新的、虚拟的 IP 地址（例如 <code>10.0.0.x</code>）。</li>
+<li><strong>区别与优势</strong>：
+<ul>
+<li><strong>全网络访问</strong>：一旦连上 WireGuard VPN，你访问的就不再是单个服务，而是<strong>整台设备</strong>。你可以通过 <code>10.0.0.x</code> 这个虚拟 IP，访问到设备上的任何端口和服务（Web、SSH、文件共享等），就像在本地访问一样。</li>
+<li><strong>极高的安全性</strong>：你只需要在公网服务器上开放<strong>一个 UDP 端口</strong>给 WireGuard 使用，就能访问内网设备的所有服务，极大地减小了公网暴露面。</li>
+<li><strong>性能卓越与配置简单</strong>：WireGuard 以其高性能、低延迟和简洁的配置著称，非常适合个人和团队自建使用。</li>
+</ul>
+</li>
+</ul>
+<p>总的来说，如果你只想快速分享一个应用，frp/Ngrok 这类反向代理隧道更轻便；如果你希望安全、全面地远程管理和访问你的整个内网环境，构建一个 WireGuard VPN 是目前最优的实践之一。下图描绘了这种虚拟网络的拓扑结构：</p>
+<figure data-type="image" tabindex="4"><img src="https://blog.rakuyo.dev/post-images/1755598091545.svg" alt="" loading="lazy"></figure>
+<h2 id="总结">总结</h2>
+<p>至此，我们完成了计算机网络系列中关于内网部分的探索。现在，让我们将三篇文章的知识点串联起来，回顾一台设备从开机到成功访问 <code>www.google.com</code> 的完整流程：</p>
+<ol>
+<li>
+<p><strong>路由器就位</strong>：路由器开机后，首先作为客户端，通过 <strong>DHCP</strong> 或 <strong>PPPoE</strong> 从互联网服务提供商（ISP）处获取到<strong>公网 IP</strong> 和上游 <strong>DNS 服务器地址</strong>。</p>
+</li>
+<li>
+<p><strong>设备入网</strong>：你的电脑开机并连接 Wi-Fi，它会立即发送 <strong>DHCP Discover</strong> 广播。路由器作为 DHCP 服务器响应，为你分配一个<strong>内网 IP</strong>（如 <code>192.168.1.100</code>）、<strong>子网掩码</strong>和<strong>默认网关</strong>（通常是路由器自身地址 <code>192.168.1.1</code>）。</p>
+</li>
+<li>
+<p><strong>域名解析</strong>：你在浏览器输入 <code>www.google.com</code>。操作系统会向路由器（或上游 DNS）发起 <strong>DNS 查询</strong>，通过层层解析，最终将域名翻译成服务器的公网 IP 地址，例如 <code>142.250.199.68</code>。</p>
+</li>
+<li>
+<p><strong>访问公网</strong>：</p>
+<ul>
+<li>电脑通过<strong>子网掩码</strong>计算，发现目标 IP <code>142.250.199.68</code> 并不在本地局域网。</li>
+<li>它将数据包的目标 IP 设为 <code>142.250.199.68</code>，但数据链路层的目标 MAC 地址则设为<strong>默认网关</strong>（路由器）的 MAC 地址。</li>
+<li>数据包被发往路由器，路由器执行 <strong>NAT</strong>，将数据包的源 IP 从你的内网 IP 替换为家庭的公网 IP，然后发往互联网。</li>
+</ul>
+</li>
+</ol>
+<p>通过这一系列的流程，你的请求才得以顺利抵达远方的服务器。</p>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/mise/" class="post-title gt-a-link">
+                    mise: 统一且高效的开发环境管理工具
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

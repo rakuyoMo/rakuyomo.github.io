@@ -1,0 +1,762 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>从源码看如何刷新 Epoxy 列表 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    从源码看如何刷新 Epoxy 列表
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2024-08-05 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/epoxy/" class="post-tags">
+                            # epoxy
+                        </a>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tags">
+                            # ios
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>如何正确的刷新 <a href="https://github.com/airbnb/epoxy-ios">Epoxy</a> 列表可以说是熟练使用这个框架的关键，初上手时总会有 “为什么列表刷新后数据没变” 和 “为什么它刷新后数据就变了” 的疑惑。</p>
+<p>本文从源码分析的角度，带大家来梳理 Epoxy 列表刷新的原理，并学会如何正确刷新 Epoxy 列表。</p>
+<!-- more -->
+<p>Epoxy 列表本质上还是 <code>UICollectionView</code>，只不过实现了 diff 算法，封装了 reuse id 的创建。</p>
+<p>对于一个常见的 <code>UICollectionViewCell</code> 或 <code>UITableViewCell</code>，我的习惯是：</p>
+<ul>
+<li>Cell 初始化时创建 <code>subviews</code>，添加到 <code>contentView</code> 上，并设置布局。</li>
+<li>对外暴露 <code>config()</code> 方法，或直接暴露 <code>subviews</code>
+<ul>
+<li>在 <code>collectionView(_: cellForItemAt:)</code> 方法中将数据设置到 <code>subviews</code> 上。</li>
+</ul>
+</li>
+</ul>
+<p>如果想要列表上 Cell 中的数据发生变化，无外乎以下几种方法：</p>
+<ul>
+<li>创建不同的 Cell。不同的数据对应不同的 Cell，抛弃或部分抛弃重用机制。</li>
+<li>在 Cell 创建或复用后，重新设置 <code>subviews</code> 上的数据。这包括两种方法：
+<ul>
+<li><code>collectionView(_: cellForItemAt:)</code> 方法中调用 <code>config()</code>，或直接使用 <code>subviews</code>。</li>
+<li>使用响应式框架，比如 <code>Combine</code>，将数据绑定到 Cell 的 <code>subviews</code> 上。</li>
+</ul>
+</li>
+</ul>
+<p>那么接下来，我们就从这几种方法上入手，看看如何正确刷新 Epoxy 列表。</p>
+<h2 id="cell-创建流程">Cell 创建流程</h2>
+<p>首先我们需要知道 Epoxy 是如何创建一个 Cell。在使用框架时，我们没有显式创建过 reuse id，Epoxy 框架是如何创建它的？</p>
+<h3 id="源码分析">源码分析</h3>
+<p>在 <code>CollectionView/Internal/CollectionViewDataSource.swift</code> 中，关于 Cell 的创建如下所示：</p>
+<pre><code class="language-swift">  func collectionView(
+    _ collectionView: UICollectionView,
+    cellForItemAt indexPath: IndexPath)
+    -&gt; UICollectionViewCell
+  {
+    guard
+      let item = data?.item(at: indexPath),
+      let section = data?.section(at: indexPath.section),
+      let reuseID = reuseIDStore.registeredReuseID(for: item.viewDifferentiator)
+    else {
+      // The `item(…)` or `registeredReuseID(…)` methods will assert in this scenario.
+      return UICollectionViewCell()
+    }
+
+    let cell = collectionView.dequeueReusableCell(withReuseIdentifier: reuseID, for: indexPath)
+
+    if let cell = cell as? CollectionViewCell {
+      self.collectionView?.configure(
+        cell: cell,
+        with: item,
+        at: .init(itemDataID: item.dataID, section: .dataID(section.dataID)),
+        animated: false)
+    } else {
+      EpoxyLogger.shared.assertionFailure(
+        &quot;Only CollectionViewCell and subclasses are allowed in a CollectionView.&quot;)
+    }
+    return cell
+  }
+</code></pre>
+<p>首先关注创建 Cell 时使用的标识符，即 <code>reuseID</code> 这个变量是从何而来的。</p>
+<pre><code class="language-swift">let reuseID = reuseIDStore.registeredReuseID(for: item.viewDifferentiator)
+</code></pre>
+<p>这里包含两个需要明白的内容，分别是 <code>reuseIDStore</code> 和 <code>viewDifferentiator</code>。</p>
+<p>从后往前看，<code>viewDifferentiator</code> 定义在 <code>ViewDifferentiatorProviding</code> 协议里，它的类型 <code>ViewDifferentiator</code> 是一个遵循 <code>Hashable</code> 的结构体：</p>
+<pre><code class="language-swift">// MARK: - ViewDifferentiatorProviding
+
+public protocol ViewDifferentiatorProviding {
+  var viewDifferentiator: ViewDifferentiator { get }
+}
+
+// MARK: - ViewDifferentiator
+
+public struct ViewDifferentiator: Hashable {
+  public init(viewType: AnyClass, styleID: AnyHashable?) {
+    viewTypeDescription = &quot;\(type(of: viewType.self))&quot;
+    self.styleID = styleID
+  }
+
+  public var viewTypeDescription: String
+  public var styleID: AnyHashable?
+}
+</code></pre>
+<p>从源码注释上可以看出来这两个类型就是服务于 reuseID 创建的。<code>ItemModel</code> 是这么实现 <code>ViewDifferentiatorProviding</code> 协议的：</p>
+<pre><code class="language-swift">extension ItemModel {
+  public var viewDifferentiator: ViewDifferentiator {
+    .init(viewType: View.self, styleID: styleID)
+  }
+  ...
+}
+</code></pre>
+<p>这里的 View 是一个范型，可以理解为一个实现了 <code>EpoxyableView</code> 的 UIView 对象。<code>styleID</code> 定义在 <code>StyleIDProviding</code> 协议中，是一个扩展出来的存储属性，其类型是 <code>AnyHashable</code>，这里就省略展示它的定义了。</p>
+<p>那么使用时它的值是哪儿来的呢？</p>
+<pre><code class="language-swift">public struct ItemModel&lt;View: UIView&gt;: ViewEpoxyModeled {
+  ...
+  
+  public init&lt;Params: Hashable, Content: Equatable&gt;(
+    dataID: AnyHashable,
+    params: Params,
+    content: Content,
+    makeView: @escaping (Params) -&gt; View,
+    setContent: @escaping (CallbackContext, Content) -&gt; Void)
+  {
+    self.dataID = dataID
+    styleID = params // ⬅️ 在这里进行赋值
+    erasedContent = content
+    self.makeView = { makeView(params) }
+    self.setContent = { setContent($0, content) }
+    isErasedContentEqual = { otherModel in
+      guard let otherContent = otherModel.erasedContent as? Content else { return false }
+      return otherContent == content
+    }
+  }
+  
+  ...
+}
+</code></pre>
+<p>上面这个是 <code>ItemModel</code> 的初始、基本初始化方法，可以看到在初始化时，是使用 <code>params</code> 这个参数初始化 <code>styleID</code> 属性的。但是基本上我们都很少使用这个初始化方法，而是使用下面这个：</p>
+<pre><code class="language-swift">extension StyledView where Self: BehaviorsConfigurableView &amp; ContentConfigurableView {
+  public static func itemModel(
+    dataID: AnyHashable,
+    content: Content,
+    behaviors: Behaviors? = nil,
+    style: Style)
+    -&gt; ItemModel&lt;Self&gt;
+  {
+    ItemModel&lt;Self&gt;(
+      dataID: dataID,
+      params: style, // ⬅️ 发现 params 的来源
+      content: content,
+      makeView: Self.init(style:),
+      setContent: { context, content in
+        context.view.setContent(content, animated: context.animated)
+      })
+      .setBehaviors { context in
+        context.view.setBehaviors(behaviors)
+      }
+  }
+}
+</code></pre>
+<p>看到这里就明白了：这个 <code>styleID</code> 就是创建 <code>EpoxyableView</code> 时定义的 <code>Style</code>。所以 <code>viewDifferentiator</code> 代表的就是遵循 <code>EpoxyableView</code> 协议的这个类型本身以及它所包含的 <code>Style</code> 对象。<strong>当同一个 View 但是 Style 不同时，<code>viewDifferentiator</code> 也就不同。</strong></p>
+<p>看完了 <code>viewDifferentiator</code>，让我们再回过头来看 <code>reuseIDStore</code>。</p>
+<p>它的类型是一个类 <code>ReuseIDStore</code>，从命名上可以看出这个类是专门用来存储 reuse id 的。通过<a href="">源码</a>可以看到，这个类内部使用两个 Dictionary 来封装 reuse id 的创建、存储以及读取逻辑。</p>
+<p>对外主要提供了两个方法：<code>reuseID(byRegistering:)</code> 和 <code>registeredReuseID(for:)</code>，参数都是 <code>ViewDifferentiator</code>。前者用于存储 reuse id，后者负责查询读取。</p>
+<p>内部包含以下两个 Dictionary:</p>
+<pre><code class="language-swift">private var uniqueViewDifferentiatorCountsForViewTypes = [String: Int]()
+private var reuseIDsForViewDifferentiators = [ViewDifferentiator: String]()
+</code></pre>
+<p><code>uniqueViewDifferentiatorCountsForViewTypes</code> 负责计数，即一个 CollectionView 注册了几次这个 View（Cell）。</p>
+<p>通过追踪调用栈，可以发现每次调用 <code>setSections(_: strategy:)</code> 方法时，如果存在新的 <code>ViewDifferentiator</code>，就会调用 <code>reuseID(byRegistering:)</code> 进行注册。</p>
+<p>这里我们结合注册方法 <code>reuseID(byRegistering:)</code> 的实现来一起看：</p>
+<pre><code class="language-swift">public func reuseID(byRegistering viewDifferentiator: ViewDifferentiator) -&gt; String {
+  if let existingReuseID = reuseIDsForViewDifferentiators[viewDifferentiator] {
+    return existingReuseID
+  }
+
+  let viewType = viewDifferentiator.viewTypeDescription
+  let uniqueViewDifferentiatorCount = uniqueViewDifferentiatorCountsForViewTypes[viewType] ?? 0
+  uniqueViewDifferentiatorCountsForViewTypes[viewType] = uniqueViewDifferentiatorCount + 1
+
+  let reuseID = &quot;\(viewType)_\(uniqueViewDifferentiatorCount)&quot; // ⬅️ 类型加出现次数
+  reuseIDsForViewDifferentiators[viewDifferentiator] = reuseID
+  return reuseID
+}
+</code></pre>
+<p><code>ViewDifferentiator</code> 是遵循 <code>Hashable</code> 的，对于同一个 <code>View</code> 类型而言，不同的 <code>Style</code> 实例意味着不同的 <code>ViewDifferentiator</code>，每一种都会调用 <code>reuseID(byRegistering:)</code> 进行注册。通过累加 count，可以保证不同的 <code>ViewDifferentiator</code> 对应不同的 reuse id。</p>
+<h3 id="小结">小结</h3>
+<p>到这里我们可以用一个例子来总结一下 reuse id 的创建过程和创建结果。</p>
+<p>假设定义如下一个 View：</p>
+<pre><code class="language-swift">final class TextRow: UIView, EpoxyableView {
+  enum Style {
+    case small, large
+  }
+}
+</code></pre>
+<p>使用时如下：</p>
+<pre><code class="language-swift">// ... other row
+
+TextRow.itemModel(dataID: &quot;small&quot;, style: .small)
+
+// ... other row
+
+TextRow.itemModel(dataID: &quot;large&quot;, style: .large)
+
+// ... other row
+</code></pre>
+<p>那么当我们调用 <code>collectionView.setSections(_: strategy:)</code> 时，因为两个 <code>ItemModel</code> 实例对应的 Style 不同，<code>CollectionView</code> 中就会注册两个 Cell，reuse id 分别为 <code>TextRow_0</code> 和 <code>TextRow_1</code>。</p>
+<p>所以如果你希望抛弃或部分抛弃 Cell 的重用机制，那么你就需要保证 reuse id 各不相同，即 <strong>使用不同的 View，或者不同的 View.Style</strong>。</p>
+<p>在实际使用时，我们常通过字面含义，将比如 TextColor 等 UI 样式封装在 Style 中。在遇到 “可用时显示黑色，不可用时展示灰色” 这种需求时，动态修改 TextColor，随后调用 <code>setSections(_: strategy:)</code> 刷新列表。这时列表数据发生变动，其实是 reuse id 不同，系统创建了新的 Cell 来展示不同的文字颜色。很多时候这种现象其实违背了开发者的初衷。</p>
+<h2 id="更新-cell-数据">更新 Cell 数据</h2>
+<p>另外一种方法就是更新 Cell 上子视图的数据，比如 Label 的 <code>text</code> 等。在 Epoxy 中，我们常将数据定义在 Content 里，并在 <code>setContent(_: animated:)</code> 方法内将数据渲染到 UI 上，比如这样：</p>
+<pre><code class="language-swift">extension HeaderRow: ContentConfigurableView {
+    struct Content: Equatable {
+        let title: String
+        let tips: String?
+    }
+    
+    func setContent(_ content: Content, animated: Bool) {
+        titleLabel.text = content.title
+        tipsLabel.text = content.tips
+    }
+}
+</code></pre>
+<p>那么是不是修改了 <code>Content</code> 之后，再调用 <code>setSections(_: strategy:)</code> 刷新列表即可刷新 UI？让我们来看一下源码。</p>
+<h3 id="content-设置流程">Content 设置流程</h3>
+<br>
+<h4 id="源码分析-2">源码分析</h4>
+<p>首先看一下 <code>itemModel(dataID: content: behaviors: style:)</code> 方法的定义，它是 <code>EpoxyableView</code> 创建 <code>ItemModel</code> 的方法。</p>
+<pre><code class="language-swift">extension StyledView where Self: BehaviorsConfigurableView &amp; ContentConfigurableView {
+  public static func itemModel(
+    dataID: AnyHashable,
+    content: Content,
+    behaviors: Behaviors? = nil,
+    style: Style)
+    -&gt; ItemModel&lt;Self&gt;
+  {
+    ItemModel&lt;Self&gt;(
+      dataID: dataID,
+      params: style,
+      content: content, // ⬅️ 传入
+      makeView: Self.init(style:),
+      setContent: { context, content in // ⬅️ 在闭包内又吐了出来，相当于闭包持有了 Content 实例
+        context.view.setContent(content, animated: context.animated)
+      })
+      .setBehaviors { context in
+        context.view.setBehaviors(behaviors)
+      }
+  }
+}
+</code></pre>
+<p>从实现上看，<code>content</code> 实例被包裹进了 <code>setContent</code>  闭包，延迟到合适的时机再进行调用：</p>
+<pre><code class="language-swift">extension ItemModel: InternalItemModeling {
+  ...
+
+  public func configure(cell: ItemWrapperView, with metadata: ItemCellMetadata) {
+    // Even if there's no `setContent` closure, we need to make sure to call `viewForCell` to ensure that the cell is set up.
+    let view = viewForCell(cell)
+    setContent?(.init(view: view, metadata: metadata))
+  }
+
+  ...
+}
+</code></pre>
+<blockquote>
+<p>这里插一句，在寻找 <code>setContent</code> 闭包的 Caller 时，你有可能会注意到下面这个方法：</p>
+<pre><code class="language-swift">extension AnyItemModel: InternalItemModeling {
+  ...
+  public func configure(cell: ItemWrapperView, with metadata: ItemCellMetadata) {
+    model.configure(cell: cell, with: metadata)
+    if let view = cell.view {
+      setContent?(.init(view: view, metadata: metadata))
+    }
+  }
+  ...
+}
+</code></pre>
+<p>这个方法属于 <code>AnyItemModel</code>，这个类型擦除负责包裹不同的 <code>ItemModel</code> 实例，方法第一行的 <code>model</code> 即是它所包装的 <code>ItemModel</code> 实例。</p>
+<p>为什么提到这个方法呢？因为这个方法看上去调用了两次 <code>setContent</code> 闭包。然而实际上，不止 <code>setContent</code>，<code>AnyItemModel</code> 中的其他类似的属性（比如 <code>setBehaviors</code>）都是 <code>nil</code>，所以 <code>setContent</code> 闭包只调用了一次，重点还是关注 <code>ItemModel</code> 的 <code>configure(cell: with:)</code> 方法。</p>
+<p><code>AnyItemModel</code> 的 <code>setContent</code> 是 <code>nil</code> 是设计上决定的，项目中搜索不到对其进行赋值的代码。至于为什么明明没有赋值，却还有调用，猜测是为了架构上的统一？</p>
+</blockquote>
+<p>继续向上寻找调用方，可以发现是在上文中提到的 <code>collectionView(_: cellForItemAt:)</code> 方法内调用的。方法实现内有一行 <code>self.collectionView?.configure( ... )</code>，该方法内无判断地调用了 model 的 <code>configure(cell: with:)</code> 方法。</p>
+<h4 id="小结-2">小结</h4>
+<p>总结一下逻辑和调用链：</p>
+<p>刷新 <code>CollectionView</code> 时，执行 <code>collectionView(_: cellForItemAt:)</code>，通过层层调用，最终 <code>model.setContent</code> 闭包被调用，View 的 <code>setContent(_: animated)</code> 被调用，新的 <code>Content</code> 被设置到 UI 上。</p>
+<p>到这里结束了吗？还不要高兴的太早，不要忘记了 <code>CollectionView</code> 还存在 Diff 的逻辑：更新 <code>Content</code> 实例后调用 <code>setSections(_: strategy:)</code>，<code>CollectionView</code> 一定会被刷新吗？未必。</p>
+<h3 id="collectionview-刷新时机">CollectionView 刷新时机</h3>
+<br>
+<h4 id="源码分析-3">源码分析</h4>
+<p>让我们自顶向下看，先看 <code>setSections(_: strategy:)</code> 的实现：</p>
+<pre><code class="language-swift">open class CollectionView: UICollectionView {
+  ...
+
+  public func setSections(_ sections: [SectionModel], animated: Bool) {
+    let strategy: UpdateStrategy
+    if configuration.usesBatchUpdatesForAllReloads {
+      strategy = animated ? .animatedBatchUpdates : .nonanimatedBatchUpdates
+    } else {
+      strategy = animated ? .animatedBatchUpdates : .reloadData
+    }
+    setSections(sections, strategy: strategy)
+  }
+
+  public func setSections(_ sections: [SectionModel], strategy: UpdateStrategy) {
+    EpoxyLogger.shared.assert(Thread.isMainThread, &quot;This method must be called on the main thread.&quot;)
+    epoxyDataSource.registerSections(sections)
+    apply(.make(sections: sections), strategy: strategy)
+  }
+
+  ...
+}
+</code></pre>
+<p><code>registerSections()</code> 上文有提到，负责注册 Section 以及 Cell。重点关注下面的 <code>apply(_: strategy:)</code> 方法。查看该的实现，可以看到其内部调用了下面这个方法：</p>
+<pre><code class="language-swift">open class CollectionView: UICollectionView {
+  ...
+
+  private func updateView(with data: CollectionViewData, strategy: UpdateStrategy) {
+    updateState = .preparingUpdate
+
+    let performUpdates = {
+      self.performBatchUpdates({
+        self.performUpdates(data: data, animated: strategy.animated)
+      }, completion: { _ in
+        if let nextUpdate = self.queuedUpdate, self.window != nil {
+          self.queuedUpdate = nil
+          self.updateView(with: nextUpdate.newData, strategy: nextUpdate.strategy)
+        } else {
+          self.completeUpdates()
+        }
+      })
+    }
+
+    // There's two cases in which we should always have a strategy of `.reloadData`:
+    // - The first update, since we're going from empty content to non-empty content, and we don't want to animate that update.
+    // - Before the first layout of this collection view when `bounds.size` is still zero, since there's no benefit to doing batch updates in that scenario.
+    let override = (epoxyDataSource.data == nil || bounds.size == .zero) ? .reloadData : strategy
+
+    switch override {
+    case .animatedBatchUpdates:
+      performUpdates()
+    case .nonanimatedBatchUpdates:
+      UIView.performWithoutAnimation {
+        performUpdates()
+      }
+    case .reloadData:
+      let result = epoxyDataSource.applyData(data)
+      updateState = .updating(from: result.oldData)
+      reloadData()
+      completeUpdates()
+    }
+  }
+
+  ...
+}
+</code></pre>
+<p>通过上面的实现我们可以得到第一个<strong>刷新方案</strong>：如果 <code>strategy</code> 是 <code>.reloadData</code>，那么会直接调用 <code>UICollectionView</code> 的 <code>reloadData</code> 方法（即不使用 Epoxy 内置的 Diff 算法），此时 <code>collectionView(_: cellForItemAt:)</code> 方法<strong>必执行</strong>，新的 <code>Content</code> 可以被正确地更新。</p>
+<p>之所以保留注释，是因为这里的注释比较关键。通过注释我们可以得知：初次加载时，或者对一个尚未具有尺寸的 <code>CollectionView</code> 调用刷新时，将<strong>忽略</strong>外部参数，<strong>永远使用</strong> <code>.reloadData</code> 方式进行刷新。</p>
+<p>那如果使用其他的 <code>strategy</code> 呢？就需要关注 <code>performUpdates</code> 闭包里调用的 <code>performUpdates(data: animated:)</code> 方法了。</p>
+<blockquote>
+<p>这里稍微提一下 <code>UICollectionView</code> 的 <code>performBatchUpdates(_: completion:)</code> 方法，它是用来将多个操作（update、insert、delete 等），合并至一个动画内进行展示。<br>
+因为 <code>performUpdates(data: animated:)</code> 里使用了 diff 算法，该算法会同时计算出上述多种操作，所以为了更好的 UI 交互展示，需要将这些操作合并至一个动画内展示。</p>
+</blockquote>
+<p><code>performUpdates(data: animated:)</code> 方法实现比较多，这里挑一些我们关注的贴一下：</p>
+<pre><code class="language-swift">open class CollectionView: UICollectionView {
+  ...
+
+  private func performUpdates(data: CollectionViewData, animated: Bool) {
+    let result = epoxyDataSource.applyData(data)
+    updateState = .updating(from: result.oldData)
+
+    for (fromIndexPath, toIndexPath) in result.changeset.itemChangeset.updates {
+      if
+        let cell = cellForItem(at: fromIndexPath) as? CollectionViewCell,
+        let item = epoxyDataSource.data?.item(at: toIndexPath)
+      {
+        let metadata = ItemCellMetadata(
+          traitCollection: traitCollection,
+          state: cell.state,
+          animated: animated)
+        item.configure(cell: cell, with: metadata) // ⬅️ 熟悉的老朋友
+        item.configureStateChange(in: cell, with: metadata)
+      }
+    }
+
+    ...
+
+    deleteSections(result.changeset.sectionChangeset.deletes)
+    deleteItems(at: result.changeset.itemChangeset.deletes)
+
+    for (fromIndex, toIndex) in result.changeset.sectionChangeset.moves {
+      moveSection(fromIndex, toSection: toIndex)
+    }
+
+    for (fromIndexPath, toIndexPath) in result.changeset.itemChangeset.moves {
+      moveItem(at: fromIndexPath, to: toIndexPath) // ⬅️ moveItem 未必会触发 cell 加载
+    }
+
+    insertSections(result.changeset.sectionChangeset.inserts)
+    insertItems(at: result.changeset.itemChangeset.inserts) // ⬅️ insertItems 也会触发 cell 加载
+  }
+
+  ...
+}
+</code></pre>
+<p>方法实现的第一行，<code>epoxyDataSource.applyData(data)</code> 就是应用 diff 算法。之前写的 Epoxy 源码分析系列文章中，<a href="/epoxy-source-code-notes-1/">第一篇</a>就是有关 Epoxy 的 Diff 算法的，这里就不再赘述算法原理。</p>
+<p>在这个方法实现中可以说有两个刷新逻辑：</p>
+<ul>
+<li>熟悉的朋友：<code>item.configure(cell: cell, with: metadata)</code>。也就是说如果上面的条件都满足，那么 <code>configure(cell: with:)</code> 方法就会被调用，<code>Content</code> 就会被更新。</li>
+<li>又或者归到 <code>inserts</code> 里，作为一个新的 Cell 插入到列表中。</li>
+</ul>
+<blockquote>
+<p><code>IndexPathChangeset</code> 包含以下几种情况：</p>
+<pre><code class="language-swift">public struct IndexPathChangeset {
+  ...
+
+  /// The inserted `IndexPath`s needed to get from the old collection to the new collection.
+  public var inserts: [IndexPath]
+
+  /// The deleted `IndexPath`s needed to get from the old collection to the new collection.
+  public var deletes: [IndexPath]
+
+  /// The updated `IndexPath`s needed to get from the old collection to the new collection.
+  public var updates: [(old: IndexPath, new: IndexPath)]
+
+  /// The moved `IndexPath`s needed to get from the old collection to the new collection.
+  public var moves: [(old: IndexPath, new: IndexPath)]
+
+  ...
+}
+</code></pre>
+</blockquote>
+<p>这两个方案中，<code>inserts</code> 的逻辑很简单。让我们忽略 diff 算法的逻辑，直接说结论：只要 <code>dataID</code> 发生变化，它就是一个新的 <code>ItemModel</code>，就会执行 delete &amp; insert。所以第二个<strong>刷新方案</strong>就是：修改前后，<code>ItemModel</code> 的 <code>dataID</code> 不同。</p>
+<p>那 <code>configure(cell: with:)</code> 的前置条件都有哪些呢？首先是 for 循环的数组不为空，其次是两个 if。聪明的你应该可以发现，这两个 if 不是逻辑重点，第一个 if 只是为了满足 Swift 语法的类型转换，而第二个 if 是为了判断 Cell 是否展示出来，避免 <code>configure(cell: with:)</code> 多次调用。所以重点就在于 <code>result.changeset.itemChangeset.updates</code> 是否为空。</p>
+<p>所以我们关注的重点就是：如何修改我们的数据源，可以让其归到 <code>updates</code> 集合里。条件有以下几点：</p>
+<ul>
+<li>这个 <code>ItemModel</code> 在刷新前已经存在于列表中，在列表中具有 Index。</li>
+<li><code>ItemModel</code> 的 <code>isDiffableItemEqual(to:)</code> 方法返回 <code>false</code>。</li>
+</ul>
+<p>相关方法的实现如下：</p>
+<pre><code class="language-swift">extension ItemModel: Diffable {
+  ...
+
+  public func isDiffableItemEqual(to otherDiffableItem: Diffable) -&gt; Bool {
+    guard let other = otherDiffableItem as? Self else {
+      return false
+    }
+    return isErasedContentEqual?(other) ?? true
+  }
+}
+</code></pre>
+<p><code>isErasedContentEqual</code> 在 <code>ItemModel</code> 初始化时进行设置：</p>
+<pre><code class="language-swift">public struct ItemModel&lt;View: UIView&gt;: ViewEpoxyModeled {
+  ...
+
+  public init&lt;Content: Equatable&gt;(
+    dataID: AnyHashable,
+    content: Content,
+    setContent: @escaping (CallbackContext, Content) -&gt; Void)
+  {
+    self.dataID = dataID
+    erasedContent = content // ⬅️ erasedContent 就是 content
+    self.setContent = { setContent($0, content) }
+    isErasedContentEqual = { otherModel in
+      guard let otherContent = otherModel.erasedContent as? Content else { return false }
+      return otherContent == content // ⬅️ Content 遵循 Equatable 的目的就在此
+    }
+  }
+
+  ...
+}
+</code></pre>
+<p>从上面两个方法实现中我们可以得到结论：</p>
+<ul>
+<li>如果 <code>EpoxyableView</code> 没有定义 <code>Content</code>，那么也就不存在 <code>updates</code> 的逻辑。</li>
+<li>更新前后，两个 <code>ItemModel</code> 的 <code>Content</code> 不相等，<code>EpoxyableView</code> 的 <code>setContent(_: animated:)</code> 方法才会被调用。</li>
+</ul>
+<p>那么第三种<strong>刷新方案</strong>就是：确保修改前后的 <code>Content</code> 不相等。</p>
+<h4 id="小结-3">小结</h4>
+<p>现在我们知道了，在调用 <code>setSections(_: strategy:)</code> 方法之后，<code>Style</code> 不变的前提下，以下几种情况 <code>EpoxyableView</code> 的 <code>setContent(_: animated)</code> 方法将被调用：</p>
+<ul>
+<li><code>strategy</code> 为 <code>.reloadData</code> 时。
+<ul>
+<li>包括空 <code>CollectionView</code> 初次加载数据，或者 <code>CollectionView</code> 尚没有 Size 时。</li>
+</ul>
+</li>
+<li>修改数据前后，<code>ItemModel</code> 的 <code>dataID</code> 发生了改变。</li>
+<li>修改数据前后，<code>Content</code> 的 <code>==</code> 返回 <code>false</code>，即两个 <code>Content</code> 不相等。</li>
+</ul>
+<p>比如下面的例子就是有效的：</p>
+<pre><code class="language-swift">  private var count = 0 {
+    didSet { setItems(items, animated: true) }
+  }
+
+  @ItemModelBuilder 
+  private var items: [ItemModeling] {
+    TextRow.itemModel(
+      dataID: DataID.row,
+      content: .init(
+        title: &quot;Count \(count)&quot;,
+        body: &quot;Tap to increment&quot;),
+      style: .large)
+      .didSelect { [weak self] _ in
+        self?.count += 1
+      }
+  }
+</code></pre>
+<h2 id="总结-中场总结-">总结 <!-- 中场总结 --></h2>
+<p>到这里让我们总结一下，借助 Epoxy 的机制我们应该如何刷新列表。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">方法</th>
+<th style="text-align:left">描述</th>
+<th style="text-align:center">推荐指数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">使用不同的 <code>dataID</code></td>
+<td style="text-align:left">比如声明一个 <code>enum DataID { case some(value: String) }</code>，每次刷新时修改 value 的值。<br> 或者将 <code>dataID</code> 和数组的下标做对应，这样在移动 Cell 时，相当于同一个 ItemModel 的 Content 发生了变化。</td>
+<td style="text-align:center">🌟</td>
+</tr>
+<tr>
+<td style="text-align:left">使用不同的 <code>Style</code></td>
+<td style="text-align:left">将需要变化的值定义在 <code>Style</code> 里，刷新 <code>Style</code> 后刷新列表</td>
+<td style="text-align:center">🌟🌟</td>
+</tr>
+<tr>
+<td style="text-align:left">利用 <code>Equatable</code>，修改 <code>Content</code></td>
+<td style="text-align:left">确保 <code>Content</code> 的判等逻辑符合您的要求，修改 <code>Content</code> 后刷新列表</td>
+<td style="text-align:center">🌟🌟🌟🌟</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>有一个刷新之外的引申话题，上文也提到过，那就是什么样的数据该放到 <code>Style</code> 中。希望看完这篇文章后，对于这个问题你也能有新的思考和理解。</p>
+</blockquote>
+<p>想必对于聪明的你来说，上述分析过程有点太简单了，只要稍微深入追一下代码，就能梳理清楚这些情况。甚至 Epoxy 的 demo 和<a href="https://github.com/airbnb/epoxy-ios/wiki/EpoxyCollectionView">文档</a>中已经介绍的很清楚了。</p>
+<p>但是有的时候，生活就是这么诡异。不把这些过程写下来的话，对于使用还不熟练的我而说，经常会陷入文章开头的疑问：“为什么列表刷新后数据没变” 和 “为什么它刷新后数据就变了”。也就是说即使我们知道了 “当 <code>Content</code> 不一致时刷新列表，列表数据会发生变化” 并按之付出实践时，依然会有不生效的情况发生。</p>
+<p>这篇文章还不是完全体，日后当我再次发现刷新失效的情况时，我将完善这篇文章，补充对应的解决方案。</p>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/thread-safety-with-lazy/" class="post-title gt-a-link">
+                    Lazy var 的线程安全问题
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

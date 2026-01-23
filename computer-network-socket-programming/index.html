@@ -1,0 +1,1079 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>计算机网络之七 - Socket 编程实战：从原理到 iOS (Swift) 实践 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    计算机网络之七 - Socket 编程实战：从原理到 iOS (Swift) 实践
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2025-08-22 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/ios/" class="post-tags">
+                            # iOS
+                        </a>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/swift/" class="post-tags">
+                            # Swift
+                        </a>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/ji-suan-ji-wang-luo/" class="post-tags">
+                            # 计算机网络
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>在前几篇文章中，我们探讨了 IP、端口、URL、DNS、DHCP、HTTP、TCP 与 UDP 等核心网络概念。这些协议共同构成了互联网通信的基础。然而，应用程序是如何与这些底层协议进行交互，从而发送和接收数据的呢？这就要引出本文的主角：<strong>Socket</strong>。Socket 是应用层与传输层（TCP/UDP）进行交互的 API 接口，是网络编程的基石。本文将深入探讨 Socket 的核心概念，并通过 Swift 语言，展示如何在 iOS 和 macOS 平台上进行 TCP 和 UDP 的 Socket 编程实践。为了让读者能够完整地体验通信过程，本文不仅提供了客户端代码，还提供了可在 macOS 上运行的服务器端示例。</p>
+<!-- more -->
+<p>本系列其余几篇的目录：</p>
+<ul>
+<li><a href="/computer-network-ip-and-port/">计算机网络之一 - IP 与端口</a></li>
+<li><a href="/computer-network-url-and-dns/">计算机网络之二 - URL 与 DNS</a></li>
+<li><a href="/computer-network-dhcp-and-intranet-penetration/">计算机网络之三 - DHCP 与内网穿透</a></li>
+<li><a href="/computer-network-virtual-nic-and-wireguard">计算机网络之四 - 虚拟网卡与 WireGuard</a></li>
+<li><a href="/computer-network-http-and-https">计算机网络之五 - HTTP 与 HTTPS</a></li>
+<li><a href="/computer-network-tcp-and-udp">计算机网络之六 - 可靠的 TCP 与高效的 UDP</a></li>
+</ul>
+<h2 id="引言">引言</h2>
+<p>在前文 [计算机网络之六 - 可靠的 TCP 与高效的 UDP] 中，我们详细剖析了 TCP 和 UDP 这两种核心传输层协议的设计哲学与工作机制。TCP 通过复杂的握手、确认、重传等机制保证了数据的可靠传输，而 UDP 则以极简的方式提供了高效的数据报投递服务。</p>
+<p>然而，这些协议本身是内核的一部分，应用程序无法直接调用。为了让应用层能够利用这些协议进行网络通信，操作系统提供了一套标准的 API 接口，这套接口就是 Socket。Socket 抽象了网络通信的过程，使得开发者可以像操作文件一样读写网络数据，而无需关心底层协议的具体实现细节。</p>
+<p>本文将：</p>
+<ol>
+<li>解释 Socket 的基本概念和工作原理。</li>
+<li>通过 Swift 代码，分别演示如何使用原生 BSD Socket API 和 Apple 的 <code>Network</code> 框架实现 TCP 和 UDP 通信。</li>
+<li>对比两种实现方式的优缺点，并探讨在实际开发中的选择策略。</li>
+</ol>
+<h2 id="socket-基础概念">Socket 基础概念</h2>
+<p>Socket，通常翻译为“套接字”，是应用层与传输层（TCP/UDP）进行交互的 API 接口。它提供了一组抽象，使得应用程序可以像读写文件一样进行网络数据的发送和接收，而无需关心底层网络协议的具体实现。</p>
+<h3 id="socket-的核心作用">Socket 的核心作用</h3>
+<p>Socket 的核心作用是<strong>唯一标识一个网络连接</strong>。一个 Socket 通常由以下四个元素组成，称为“四元组”：</p>
+<ul>
+<li><strong>源 IP 地址</strong>: 发送方的 IP 地址。</li>
+<li><strong>源端口号</strong>: 发送方应用程序监听的端口号。</li>
+<li><strong>目标 IP 地址</strong>: 接收方的 IP 地址。</li>
+<li><strong>目标端口号</strong>: 接收方应用程序监听的端口号。</li>
+</ul>
+<p>这四个元素共同构成了一个独一无二的网络连接标识符。例如，当你在浏览器中访问 <code>https://blog.rakuyo.dev:443</code> 时，浏览器会创建一个 Socket，其四元组可能是 <code>(你的IP, 一个随机端口, blog.rakuyoo.top的IP, 443)</code>。</p>
+<h3 id="socket-的类型">Socket 的类型</h3>
+<p>根据传输层协议的不同，Socket 主要分为两大类：</p>
+<ol>
+<li>
+<p><strong>Stream Socket (<code>SOCK_STREAM</code>)</strong>:</p>
+<ul>
+<li>这是面向连接的 Socket，通常与 <strong>TCP</strong> 协议绑定。</li>
+<li>它提供一个<strong>有序的、可靠的、双向的字节流</strong>服务。</li>
+<li>数据通过 Stream Socket 发送，就像水流一样，没有边界，接收方收到的数据流与发送方发出的顺序完全一致，并且保证不丢失、不重复。</li>
+</ul>
+</li>
+<li>
+<p><strong>Datagram Socket (<code>SOCK_DGRAM</code>)</strong>:</p>
+<ul>
+<li>这是无连接的 Socket，通常与 <strong>UDP</strong> 协议绑定。</li>
+<li>它提供一个<strong>尽力而为的数据报</strong>服务。</li>
+<li>数据被封装成一个个独立的“包裹”（数据报）进行发送。这些数据报可能会丢失、重复或乱序到达。</li>
+</ul>
+</li>
+</ol>
+<h3 id="socket-的工作流程">Socket 的工作流程</h3>
+<p>无论是 TCP 还是 UDP，使用 Socket 进行编程都遵循一个基本的流程，但具体细节会有所不同。</p>
+<h4 id="tcp-socket-工作流程">TCP Socket 工作流程</h4>
+<p>TCP 是面向连接的协议，其 Socket 通信流程可以概括为以下几步：</p>
+<ol>
+<li><strong>创建 Socket</strong>: 应用程序调用系统调用（如 <code>socket()</code>）创建一个 Socket 实例。</li>
+<li><strong>绑定地址 (服务器端)</strong>: 服务器端将 Socket 与一个本地的 IP 地址和端口号绑定（<code>bind()</code>），以便客户端能够找到它。</li>
+<li><strong>监听连接 (服务器端)</strong>: 服务器端调用 <code>listen()</code> 进入监听状态，等待客户端的连接请求。</li>
+<li><strong>发起连接 (客户端)</strong>: 客户端调用 <code>connect()</code>，主动向服务器的指定地址发起连接请求。这会触发 TCP 的三次握手过程。</li>
+<li><strong>接受连接 (服务器端)</strong>: 服务器端调用 <code>accept()</code>，接受客户端的连接请求。这标志着三次握手的完成，一个新的、专用于与该客户端通信的 Socket 会在服务器端被创建。</li>
+<li><strong>数据传输</strong>: 连接建立后，客户端和服务器端可以通过 <code>send()</code> 和 <code>recv()</code>（或 <code>write()</code> 和 <code>read()</code>）等函数进行双向的数据传输。</li>
+<li><strong>关闭连接</strong>: 通信结束后，任意一方都可以调用 <code>close()</code> 来关闭 Socket，这会触发 TCP 的四次挥手过程，安全地释放连接资源。</li>
+</ol>
+<p>下图展示了 TCP Socket 的典型工作流程：</p>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant C as TCP 客户端 (Swift)
+    participant S as TCP 服务器 (nc)
+    
+    C-&gt;&gt;S: 1. socket() 创建 Socket
+    Note over C: socketFD = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)
+    
+    C-&gt;&gt;S: 2. connect() 发起连接
+    Note over C: connect(socketFD, serverAddr, addrLen)
+    S--&gt;&gt;C: 3. 三次握手 (SYN, SYN-ACK, ACK)
+    Note over S,C: TCP 连接建立
+    
+    C-&gt;&gt;S: 4. send() 发送数据
+    Note over C: send(socketFD, &quot;Hello&quot;, ...)
+    S--&gt;&gt;C: 5. recv() 接收数据
+    Note over S: print(&quot;Hello&quot;)
+    
+    S-&gt;&gt;C: 6. send() 回传响应
+    Note over S: echo &quot;Hello&quot; back
+    C--&gt;&gt;S: 7. recv() 接收响应
+    Note over C: print(&quot;Hello&quot;)
+    
+    C-&gt;&gt;S: 8. close() 关闭连接
+    Note over C: close(socketFD)
+    S--&gt;&gt;C: 9. 四次挥手 (FIN, ACK, FIN, ACK)
+    Note over S,C: TCP 连接关闭
+</code></pre>
+<h4 id="udp-socket-工作流程">UDP Socket 工作流程</h4>
+<p>UDP 是无连接的协议，其 Socket 通信流程相对简单：</p>
+<ol>
+<li><strong>创建 Socket</strong>: 调用 <code>socket()</code> 创建一个 Socket 实例。</li>
+<li><strong>绑定地址 (可选)</strong>: 对于接收数据的端（无论是服务器还是客户端），通常需要调用 <code>bind()</code> 将 Socket 与一个本地地址绑定。发送数据的端通常不需要显式绑定，操作系统会自动分配一个临时端口。</li>
+<li><strong>数据传输</strong>: 发送方使用 <code>sendto()</code> 将数据报发送到指定的目标地址。接收方使用 <code>recvfrom()</code> 接收来自任意发送方的数据报。每一次 <code>sendto()</code> 和 <code>recvfrom()</code> 都是独立的操作。</li>
+<li><strong>关闭 Socket</strong>: 通信结束后，调用 <code>close()</code> 关闭 Socket。</li>
+</ol>
+<p>下图展示了 UDP Socket 的典型工作流程：</p>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant C as UDP 客户端 (Swift)
+    participant S as UDP 服务器 (nc)
+    
+    C-&gt;&gt;S: 1. socket() 创建 Socket
+    Note over C: socketFD = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)
+    
+    C-&gt;&gt;S: 2. sendto() 发送数据报
+    Note over C: sendto(socketFD, &quot;Hello&quot;, ..., serverAddr, addrLen)
+    S--&gt;&gt;C: 3. recvfrom() 接收数据报
+    Note over S: print(&quot;Hello&quot;)
+    
+    S-&gt;&gt;C: 4. sendto() 回传响应 (可选)
+    Note over S: echo &quot;Hello&quot; back
+    C--&gt;&gt;S: 5. recvfrom() 接收响应 (可选)
+    Note over C: print(&quot;Hello&quot;)
+    
+    C-&gt;&gt;S: 6. close() 关闭 Socket
+    Note over C: close(socketFD)
+</code></pre>
+<h3 id="socket-地址结构">Socket 地址结构</h3>
+<p>在进行 Socket 编程时，需要指定通信双方的地址信息。操作系统提供了标准的 C 结构体来表示这些地址，例如 <code>sockaddr_in</code> 用于 IPv4 地址。这些结构体包含 IP 地址和端口号等信息。在 Swift 等高级语言中，通常会提供更现代化的封装来处理这些底层结构。</p>
+<p>理解了这些基本概念后，我们就可以开始动手实践，看看如何在 Swift 中实现这些流程。</p>
+<h2 id="tcp-socket-实战-swift">TCP Socket 实战 (Swift)</h2>
+<p>为了让读者能够完整地体验 TCP Socket 通信的全过程，本文提供了一个用 Swift 编写的简单 TCP 服务器示例。读者可以在 Mac 上创建一个 Command Line Tool 项目来运行此服务器代码。</p>
+<p>下面是一个使用 Swift 原生 API 创建的 TCP 服务器示例：</p>
+<pre><code class="language-swift">import Foundation
+
+// Import the necessary BSD Socket library
+#if os(Linux)
+import Glibc
+#else
+import Darwin
+#endif
+
+func createTCPServerNative(port: Int) {
+    var serverSocketFD: Int32 = -1
+    var serverAddress = sockaddr_in()
+    
+    do {
+        // 1. Create a TCP socket (SOCK_STREAM)
+        serverSocketFD = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)
+        guard serverSocketFD != -1 else {
+            throw SocketError.socketCreationFailed
+        }
+        print(&quot;Server Socket created successfully.&quot;)
+        
+        // 2. Prepare the server address structure
+        bzero(&amp;serverAddress, MemoryLayout&lt;sockaddr_in&gt;.size)
+        serverAddress.sin_family = sa_family_t(AF_INET)
+        // INADDR_ANY means the socket will bind to all available interfaces.
+        serverAddress.sin_addr.s_addr = in_addr_t(INADDR_ANY).bigEndian
+        serverAddress.sin_port = in_port_t(port).bigEndian
+        
+        // 3. Bind the socket to the address
+        let bindResult = withUnsafePointer(to: &amp;serverAddress) {
+            bind(serverSocketFD, UnsafePointer&lt;sockaddr&gt;(OpaquePointer($0)), socklen_t(MemoryLayout&lt;sockaddr_in&gt;.size))
+        }
+        guard bindResult != -1 else {
+            throw SocketError.bindFailed
+        }
+        print(&quot;Server Socket bound to port \(port).&quot;)
+        
+        // 4. Start listening for incoming connections
+        // The second parameter (backlog) defines the maximum length of the queue for pending connections.
+        let listenResult = listen(serverSocketFD, 5)
+        guard listenResult != -1 else {
+            throw SocketError.listenFailed
+        }
+        print(&quot;Server is listening on port \(port)...&quot;)
+        
+        // 5. Accept and handle incoming connections in a loop
+        while true {
+            print(&quot;Waiting for a client to connect...&quot;)
+            var clientAddress = sockaddr_in()
+            var clientAddressLength = socklen_t(MemoryLayout&lt;sockaddr_in&gt;.size)
+            
+            let clientSocketFD = withUnsafeMutablePointer(to: &amp;clientAddress) {
+                accept(serverSocketFD, UnsafeMutablePointer&lt;sockaddr&gt;(OpaquePointer($0)), &amp;clientAddressLength)
+            }
+            
+            if clientSocketFD == -1 {
+                print(&quot;Accept failed, continuing to listen...&quot;)
+                continue
+            }
+            
+            // Get client information
+            let clientIP = String(cString: inet_ntoa(clientAddress.sin_addr))
+            let clientPort = Int(clientAddress.sin_port.byteSwapped) // Convert from network byte order
+            print(&quot;Client connected: \(clientIP):\(clientPort)&quot;)
+            
+            // 6. Handle the client connection
+            handleTCPClient(clientSocketFD: clientSocketFD)
+            
+            // 7. Close the client socket
+            close(clientSocketFD)
+            print(&quot;Client connection closed.&quot;)
+        }
+        
+    } catch {
+        print(&quot;Server Error: \(error)&quot;)
+    }
+    
+    // 8. Close the server socket
+    if serverSocketFD != -1 {
+        close(serverSocketFD)
+        print(&quot;Server Socket closed.&quot;)
+    }
+}
+
+func handleTCPClient(clientSocketFD: Int32) {
+    let bufferSize = 1024
+    var buffer = [CChar](repeating: 0, count: bufferSize)
+    
+    // Receive data from the client
+    let recvResult = recv(clientSocketFD, &amp;buffer, bufferSize - 1, 0)
+    if recvResult &gt; 0 {
+        buffer[recvResult] = 0
+        if let request = String(cString: buffer, encoding: .utf8) {
+            print(&quot;Received from client: \(request)&quot;)
+            
+            // Echo the message back to the client
+            let response = &quot;Echo: \(request)&quot;
+            _ = send(clientSocketFD, response, response.count, 0)
+        }
+    } else if recvResult == 0 {
+        print(&quot;Client closed the connection.&quot;)
+    } else {
+        print(&quot;Error receiving data from client.&quot;)
+    }
+}
+
+// Define custom errors for better error handling
+enum SocketError: Error {
+    case socketCreationFailed
+    case bindFailed
+    case listenFailed
+    case acceptFailed
+    case sendFailed
+    case receiveFailed
+}
+
+// Start the server
+// To run this server, create a Swift command line tool project and replace its main.swift with this code.
+// Then run the project. The server will start listening on port 8080.
+// createTCPServerNative(port: 8080)
+</code></pre>
+<p><strong>服务器代码解析:</strong></p>
+<ol>
+<li><strong>创建 Socket</strong>: 与客户端类似，服务器也需要创建一个 Socket。对于 TCP 服务器，我们使用 <code>SOCK_STREAM</code> 和 <code>IPPROTO_TCP</code>。</li>
+<li><strong>绑定地址</strong>: 服务器需要将自己的 Socket 绑定到一个特定的 IP 地址和端口号上，这样客户端才能通过这个地址找到服务器。<code>INADDR_ANY</code> 表示服务器将监听所有可用的网络接口。</li>
+<li><strong>监听连接</strong>: <code>listen()</code> 函数使服务器进入监听状态，准备接收客户端的连接请求。<code>backlog</code> 参数指定了等待处理的连接请求队列的最大长度。</li>
+<li><strong>接受连接</strong>: <code>accept()</code> 函数用于接受客户端的连接请求。当一个新的连接请求到达时，<code>accept()</code> 会返回一个新的 Socket 文件描述符，专门用于与该客户端通信。原来的服务器 Socket 继续监听其他连接请求。</li>
+<li><strong>处理客户端</strong>: <code>handleTCPClient()</code> 函数负责与已连接的客户端进行数据交互。</li>
+<li><strong>循环监听</strong>: 服务器通常在一个无限循环中运行，持续监听并处理新的连接请求。</li>
+</ol>
+<p>在运行客户端示例之前，请先启动这个 TCP 服务器。服务器启动后，它会监听 8080 端口，等待客户端连接。</p>
+<h3 id="使用原生-bsd-socket-api">使用原生 BSD Socket API</h3>
+<p>使用 Swift 直接调用底层的 BSD Socket API 是一种更接近操作系统的方式。这种方式提供了最大的控制力，但也意味着需要处理更多的细节和潜在的平台差异（如 Linux 和 Darwin）。</p>
+<p>下面是一个使用 Swift 原生 API 创建 TCP 客户端的示例。这段代码演示了创建 Socket、连接服务器、发送数据、接收响应以及关闭连接的完整流程。</p>
+<pre><code class="language-swift">import Foundation
+
+// Import the necessary BSD Socket library
+#if os(Linux)
+import Glibc
+#else
+import Darwin
+#endif
+
+func createTCPClientNative(host: String, port: Int) {
+    var socketFD: Int32 = -1
+    var serverAddress = sockaddr_in()
+
+    do {
+        // 1. Create a TCP socket (SOCK_STREAM)
+        // PF_INET specifies the IPv4 protocol family.
+        // SOCK_STREAM indicates a stream socket (TCP).
+        // IPPROTO_TCP specifies the TCP protocol.
+        socketFD = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)
+        guard socketFD != -1 else {
+            throw SocketError.socketCreationFailed
+        }
+        print(&quot;Socket created successfully.&quot;)
+
+        // 2. Prepare the server address structure
+        // Clear the serverAddress struct by filling it with zeros.
+        bzero(&amp;serverAddress, MemoryLayout&lt;sockaddr_in&gt;.size)
+        // Set the address family to IPv4.
+        serverAddress.sin_family = sa_family_t(AF_INET)
+        // Set the port number (convert to network byte order).
+        serverAddress.sin_port = in_port_t(port).bigEndian
+        // Convert the IP address string to a network address structure.
+        // INADDR_ANY means any IP address on the local machine.
+        // For connecting to a specific host, we use inet_pton.
+        if host == &quot;localhost&quot; || host == &quot;127.0.0.1&quot; {
+            serverAddress.sin_addr.s_addr = in_addr_t(INADDR_LOOPBACK).bigEndian
+        } else {
+            // For other hosts, convert the string IP address.
+            guard inet_pton(AF_INET, host, &amp;serverAddress.sin_addr) == 1 else {
+                throw SocketError.invalidAddress
+            }
+        }
+
+        // 3. Connect to the server
+        // Cast sockaddr_in to the generic sockaddr pointer required by connect().
+        let connectResult = withUnsafePointer(to: &amp;serverAddress) {
+            connect(socketFD, UnsafePointer&lt;sockaddr&gt;(OpaquePointer($0)), socklen_t(MemoryLayout&lt;sockaddr_in&gt;.size))
+        }
+        guard connectResult != -1 else {
+            throw SocketError.connectionFailed
+        }
+        print(&quot;Connected to server at \(host):\(port)&quot;)
+
+        // 4. Send a message to the server
+        let message = &quot;Hello from Swift TCP Client (Native)!&quot;
+        let sendResult = send(socketFD, message, message.count, 0)
+        guard sendResult != -1 else {
+            throw SocketError.sendFailed
+        }
+        print(&quot;Message sent: \(message)&quot;)
+
+        // 5. Receive a response from the server
+        // Allocate a buffer to store the incoming data.
+        let bufferSize = 1024
+        var buffer = [CChar](repeating: 0, count: bufferSize)
+        let recvResult = recv(socketFD, &amp;buffer, bufferSize - 1, 0) // -1 to leave space for null terminator
+        guard recvResult &gt; 0 else {
+            if recvResult == 0 {
+                print(&quot;Server closed the connection.&quot;)
+            } else {
+                throw SocketError.receiveFailed
+            }
+        }
+        // Null-terminate the received data to safely convert to a String.
+        buffer[recvResult] = 0
+        if let response = String(cString: buffer, encoding: .utf8) {
+            print(&quot;Received response: \(response)&quot;)
+        }
+
+    } catch {
+        print(&quot;Error: \(error)&quot;)
+    }
+
+    // 6. Close the socket
+    // It's crucial to close the socket to free up resources.
+    if socketFD != -1 {
+        close(socketFD)
+        print(&quot;Socket closed.&quot;)
+    }
+}
+
+// Define custom errors for better error handling
+enum SocketError: Error {
+    case socketCreationFailed
+    case invalidAddress
+    case connectionFailed
+    case sendFailed
+    case receiveFailed
+}
+
+// Example usage:
+// To test this, first start the TCP server provided in this article.
+// Then run this client code in a Swift Playground or iOS project.
+// createTCPClientNative(host: &quot;127.0.0.1&quot;, port: 8080)
+</code></pre>
+<p><strong>代码解析:</strong></p>
+<ol>
+<li><strong>导入库</strong>: 根据操作系统导入不同的底层 Socket 库 (<code>Darwin</code> for macOS/iOS, <code>Glibc</code> for Linux)。</li>
+<li><strong>创建 Socket</strong>: <code>socket(domain, type, protocol)</code> 是创建 Socket 的核心函数。<code>PF_INET</code> 表示 IPv4，<code>SOCK_STREAM</code> 表示 TCP 流式 Socket，<code>IPPROTO_TCP</code> 指定使用 TCP 协议。</li>
+<li><strong>配置地址</strong>: <code>sockaddr_in</code> 结构体用于存储 IPv4 地址信息。我们填充了地址族 (<code>sin_family</code>)、端口 (<code>sin_port</code>，注意使用 <code>bigEndian</code> 转换为主机字节序) 和 IP 地址 (<code>sin_addr</code>)。</li>
+<li><strong>建立连接</strong>: <code>connect()</code> 函数用于发起 TCP 连接，它会触发三次握手过程。</li>
+<li><strong>数据传输</strong>: <code>send()</code> 和 <code>recv()</code> 分别用于发送和接收数据。</li>
+<li><strong>关闭连接</strong>: <code>close()</code> 函数用于关闭 Socket，释放资源，并触发 TCP 的四次挥手过程。</li>
+<li><strong>错误处理</strong>: 通过自定义 <code>SocketError</code> 枚举和 <code>do-catch</code> 块来处理可能出现的错误。</li>
+</ol>
+<p>要运行此示例，请先启动 <code>nc</code> 服务器，然后在 Swift Playground 或 iOS 项目中调用 <code>createTCPClientNative(host: &quot;127.0.0.1&quot;, port: 8080)</code>。</p>
+<h3 id="使用-network-框架">使用 Network 框架</h3>
+<p>Apple 的 <code>Network</code> 框架是为 Swift 量身打造的现代化网络库，它提供了更高层次的抽象和更好的异步支持（与 Swift Concurrency 集成），并且是跨平台的（iOS, macOS, watchOS, tvOS, catalyst）。</p>
+<p>下面的示例展示了如何使用 <code>Network</code> 框架实现一个 TCP 客户端。</p>
+<pre><code class="language-swift">import Foundation
+import Network
+
+func createTCPClientWithNetworkFramework(host: String, port: Int) {
+    // 1. Define the server endpoint
+    // NWEndpoint.Host can be a hostname or an IP address string.
+    // NWEndpoint.Port can be a well-known port or a raw port number.
+    guard let serverHost = NWEndpoint.Host(host), let serverPort = NWEndpoint.Port(rawValue: port) else {
+        print(&quot;Invalid host or port&quot;)
+        return
+    }
+    let connection = NWConnection(host: serverHost, port: serverPort, using: .tcp)
+    
+    // 2. Set up the state update handler
+    // This handler is called whenever the connection state changes.
+    connection.stateUpdateHandler = { newState in
+        switch newState {
+        case .ready:
+            print(&quot;Connection ready.&quot;)
+            // Connection is established, now we can send data.
+            let message = &quot;Hello from Swift TCP Client (Network Framework)!&quot;
+            let messageData = message.data(using: .utf8)!
+            connection.send(content: messageData, completion: .contentProcessed { error in
+                if let error = error {
+                    print(&quot;Send error: \(error)&quot;)
+                } else {
+                    print(&quot;Message sent: \(message)&quot;)
+                }
+            })
+            
+        case .waiting(let error):
+            print(&quot;Connection waiting with error: \(error)&quot;)
+        case .failed(let error):
+            print(&quot;Connection failed with error: \(error)&quot;)
+            // It's important to cancel the connection on failure.
+            connection.cancel()
+        case .cancelled:
+             print(&quot;Connection cancelled.&quot;)
+        case .preparing:
+             print(&quot;Connection is preparing.&quot;)
+        case .setup:
+             print(&quot;Connection is being set up.&quot;)
+        @unknown default:
+            print(&quot;Unknown connection state.&quot;)
+            connection.cancel()
+        }
+    }
+    
+    // 3. Set up the receive handler
+    // This function tells the connection to start listening for incoming data.
+    func receive() {
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { data, _, isComplete, error in
+            if let data = data, !data.isEmpty {
+                if let response = String(data: data, encoding: .utf8) {
+                    print(&quot;Received response: \(response)&quot;)
+                }
+            }
+            
+            if let error = error {
+                print(&quot;Receive error: \(error)&quot;)
+                connection.cancel()
+            } else if isComplete {
+                // isComplete being true usually means the connection is closing.
+                print(&quot;Connection complete, closing.&quot;)
+                connection.cancel()
+            } else {
+                // Continue to receive data.
+                receive()
+            }
+        }
+    }
+    
+    // 4. Start the connection
+    connection.start(queue: .main)
+    
+    // 5. Set up a timeout or a way to stop the connection after some time/activity
+    // For simplicity, we'll just schedule a cancel after a few seconds.
+    DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+        if connection.state == .ready {
+            print(&quot;Test duration over, closing connection.&quot;)
+            connection.cancel()
+        }
+    }
+}
+
+// Example usage:
+// To test this, first start the TCP server provided in this article.
+// Then run this client code in a Swift Playground or iOS project.
+// createTCPClientWithNetworkFramework(host: &quot;127.0.0.1&quot;, port: 8080)
+</code></pre>
+<p><strong>代码解析:</strong></p>
+<ol>
+<li><strong>创建连接</strong>: <code>NWConnection</code> 是 <code>Network</code> 框架中表示连接的核心类。我们通过指定主机、端口和协议 (<code>.tcp</code>) 来创建它。</li>
+<li><strong>状态管理</strong>: 通过 <code>stateUpdateHandler</code> 监听连接状态的变化（准备就绪、等待、失败等）。这是处理连接生命周期的关键。</li>
+<li><strong>发送数据</strong>: 使用 <code>connection.send(content:completion:)</code> 方法发送数据。<code>.contentProcessed</code> 完成回调可以处理发送成功或失败的情况。</li>
+<li><strong>接收数据</strong>: 通过递归调用 <code>connection.receive(...)</code> 方法来持续监听来自服务器的数据。</li>
+<li><strong>启动与关闭</strong>: <code>connection.start(queue:)</code> 启动连接过程。<code>connection.cancel()</code> 用于取消连接，释放资源。</li>
+</ol>
+<p><code>Network</code> 框架的优势在于其声明式的 API 和强大的异步支持，使得网络代码更加清晰和易于管理。它也内置了对 TLS/SSL 的支持，便于实现安全连接。</p>
+<h2 id="udp-socket-实战-swift">UDP Socket 实战 (Swift)</h2>
+<p>为了让读者能够完整地体验 UDP Socket 通信的全过程，本文提供了一个用 Swift 编写的简单 UDP 服务器示例。读者可以在 Mac 上创建一个 Command Line Tool 项目来运行此服务器代码。</p>
+<p>下面是一个使用 Swift 原生 API 创建的 UDP 服务器示例：</p>
+<pre><code class="language-swift">import Foundation
+
+// Import the necessary BSD Socket library
+#if os(Linux)
+import Glibc
+#else
+import Darwin
+#endif
+
+func createUDPServerNative(port: Int) {
+    var serverSocketFD: Int32 = -1
+    var serverAddress = sockaddr_in()
+    
+    do {
+        // 1. Create a UDP socket (SOCK_DGRAM)
+        serverSocketFD = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)
+        guard serverSocketFD != -1 else {
+            throw SocketError.socketCreationFailed
+        }
+        print(&quot;UDP Server Socket created successfully.&quot;)
+        
+        // 2. Prepare the server address structure
+        bzero(&amp;serverAddress, MemoryLayout&lt;sockaddr_in&gt;.size)
+        serverAddress.sin_family = sa_family_t(AF_INET)
+        // INADDR_ANY means the socket will bind to all available interfaces.
+        serverAddress.sin_addr.s_addr = in_addr_t(INADDR_ANY).bigEndian
+        serverAddress.sin_port = in_port_t(port).bigEndian
+        
+        // 3. Bind the socket to the address
+        let bindResult = withUnsafePointer(to: &amp;serverAddress) {
+            bind(serverSocketFD, UnsafePointer&lt;sockaddr&gt;(OpaquePointer($0)), socklen_t(MemoryLayout&lt;sockaddr_in&gt;.size))
+        }
+        guard bindResult != -1 else {
+            throw SocketError.bindFailed
+        }
+        print(&quot;UDP Server Socket bound to port \(port).&quot;)
+        
+        print(&quot;UDP Server is listening on port \(port)...&quot;)
+        
+        // 4. Receive and handle incoming datagrams in a loop
+        while true {
+            print(&quot;Waiting for a UDP datagram...&quot;)
+            let bufferSize = 1024
+            var buffer = [CChar](repeating: 0, count: bufferSize)
+            var clientAddress = sockaddr_in()
+            var clientAddressLength = socklen_t(MemoryLayout&lt;sockaddr_in&gt;.size)
+            
+            let recvfromResult = withUnsafeMutablePointer(to: &amp;clientAddress) {
+                recvfrom(serverSocketFD, &amp;buffer, bufferSize - 1, 0, UnsafeMutablePointer&lt;sockaddr&gt;(OpaquePointer($0)), &amp;clientAddressLength)
+            }
+            
+            if recvfromResult &gt; 0 {
+                // Get client information
+                let clientIP = String(cString: inet_ntoa(clientAddress.sin_addr))
+                let clientPort = Int(clientAddress.sin_port.byteSwapped) // Convert from network byte order
+                print(&quot;Datagram received from: \(clientIP):\(clientPort)&quot;)
+                
+                // Null-terminate the received data
+                buffer[recvfromResult] = 0
+                if let request = String(cString: buffer, encoding: .utf8) {
+                    print(&quot;Received from client: \(request)&quot;)
+                    
+                    // Echo the message back to the client
+                    let response = &quot;UDP Echo: \(request)&quot;
+                    let sendtoResult = withUnsafePointer(to: &amp;clientAddress) {
+                        sendto(serverSocketFD, response, response.count, 0, UnsafePointer&lt;sockaddr&gt;(OpaquePointer($0)), clientAddressLength)
+                    }
+                    if sendtoResult == -1 {
+                        print(&quot;Error sending response to client.&quot;)
+                    }
+                }
+            } else {
+                print(&quot;Error receiving datagram.&quot;)
+            }
+        }
+        
+    } catch {
+        print(&quot;UDP Server Error: \(error)&quot;)
+    }
+    
+    // 5. Close the server socket
+    if serverSocketFD != -1 {
+        close(serverSocketFD)
+        print(&quot;UDP Server Socket closed.&quot;)
+    }
+}
+
+// Define custom errors for better error handling (reusing from TCP example)
+// enum SocketError: Error { ... } // Already defined in the TCP example
+
+// Start the UDP server
+// To run this server, create a Swift command line tool project and replace its main.swift with this code.
+// Then run the project. The server will start listening on port 8080.
+// createUDPServerNative(port: 8080)
+</code></pre>
+<p><strong>UDP 服务器代码解析:</strong></p>
+<ol>
+<li><strong>创建 Socket</strong>: 与 TCP 服务器不同，UDP 服务器创建的是数据报 Socket，使用 <code>SOCK_DGRAM</code> 和 <code>IPPROTO_UDP</code>。</li>
+<li><strong>绑定地址</strong>: 与 TCP 服务器相同，UDP 服务器也需要绑定到一个特定的 IP 地址和端口号。</li>
+<li><strong>接收数据报</strong>: UDP 是无连接的，服务器不需要 <code>listen()</code> 和 <code>accept()</code>。它直接使用 <code>recvfrom()</code> 函数来接收来自任意客户端的数据报。<code>recvfrom()</code> 不仅能接收到数据，还能获取发送方的地址信息。</li>
+<li><strong>发送响应</strong>: 服务器使用 <code>sendto()</code> 函数将响应数据报发送回客户端，需要提供客户端的地址信息。</li>
+<li><strong>循环监听</strong>: UDP 服务器同样在一个无限循环中运行，持续接收和处理数据报。</li>
+</ol>
+<p>在运行 UDP 客户端示例之前，请先启动这个 UDP 服务器。服务器启动后，它会监听 8080 端口，等待 UDP 数据报。</p>
+<h3 id="使用原生-bsd-socket-api-2">使用原生 BSD Socket API</h3>
+<p>下面是一个使用 Swift 原生 API 创建 UDP 客户端的示例。</p>
+<pre><code class="language-swift">import Foundation
+
+// Import the necessary BSD Socket library
+#if os(Linux)
+import Glibc
+#else
+import Darwin
+#endif
+
+func createUDPClientNative(host: String, port: Int) {
+    var socketFD: Int32 = -1
+    var serverAddress = sockaddr_in()
+
+    do {
+        // 1. Create a UDP socket (SOCK_DGRAM)
+        // PF_INET specifies the IPv4 protocol family.
+        // SOCK_DGRAM indicates a datagram socket (UDP).
+        // IPPROTO_UDP specifies the UDP protocol.
+        socketFD = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)
+        guard socketFD != -1 else {
+            throw SocketError.socketCreationFailed
+        }
+        print(&quot;UDP Socket created successfully.&quot;)
+
+        // 2. Prepare the server address structure
+        // Clear the serverAddress struct by filling it with zeros.
+        bzero(&amp;serverAddress, MemoryLayout&lt;sockaddr_in&gt;.size)
+        // Set the address family to IPv4.
+        serverAddress.sin_family = sa_family_t(AF_INET)
+        // Set the port number (convert to network byte order).
+        serverAddress.sin_port = in_port_t(port).bigEndian
+        // Convert the IP address string to a network address structure.
+        if host == &quot;localhost&quot; || host == &quot;127.0.0.1&quot; {
+            serverAddress.sin_addr.s_addr = in_addr_t(INADDR_LOOPBACK).bigEndian
+        } else {
+            // For other hosts, convert the string IP address.
+            guard inet_pton(AF_INET, host, &amp;serverAddress.sin_addr) == 1 else {
+                throw SocketError.invalidAddress
+            }
+        }
+
+        // 3. Send a message to the server
+        let message = &quot;Hello from Swift UDP Client (Native)!&quot;
+        let sendResult = withUnsafePointer(to: &amp;serverAddress) {
+            sendto(socketFD, message, message.count, 0, UnsafePointer&lt;sockaddr&gt;(OpaquePointer($0)), socklen_t(MemoryLayout&lt;sockaddr_in&gt;.size))
+        }
+        guard sendResult != -1 else {
+            throw SocketError.sendFailed
+        }
+        print(&quot;UDP Message sent: \(message)&quot;)
+
+        // 4. Receive a response from the server (Optional, as UDP is connectionless)
+        // Allocate a buffer to store the incoming data.
+        let bufferSize = 1024
+        var buffer = [CChar](repeating: 0, count: bufferSize)
+        // For recvfrom, we also need to provide the address of the sender.
+        var senderAddress = sockaddr_in()
+        var senderAddressLength = socklen_t(MemoryLayout&lt;sockaddr_in&gt;.size)
+        
+        let recvfromResult = withUnsafeMutablePointer(to: &amp;senderAddress) {
+            recvfrom(socketFD, &amp;buffer, bufferSize - 1, 0, UnsafeMutablePointer&lt;sockaddr&gt;(OpaquePointer($0)), &amp;senderAddressLength)
+        }
+        
+        guard recvfromResult &gt; 0 else {
+            if recvfromResult == 0 {
+                print(&quot;No data received or server closed (though uncommon for UDP).&quot;)
+            } else {
+                // Receiving might fail if nothing is sent back, which is normal for simple tests.
+                // We can treat this as a non-fatal outcome for a basic example.
+                print(&quot;No response received (expected for simple 'nc' tests).&quot;)
+                // throw SocketError.receiveFailed
+            }
+        }
+        
+        if recvfromResult &gt; 0 {
+            // Null-terminate the received data to safely convert to a String.
+            buffer[recvfromResult] = 0
+            if let response = String(cString: buffer, encoding: .utf8) {
+                print(&quot;UDP Received response: \(response)&quot;)
+            }
+        }
+
+    } catch {
+        print(&quot;UDP Error: \(error)&quot;)
+    }
+
+    // 5. Close the socket
+    // It's crucial to close the socket to free up resources.
+    if socketFD != -1 {
+        close(socketFD)
+        print(&quot;UDP Socket closed.&quot;)
+    }
+}
+
+// Define custom errors for better error handling (reusing from TCP example)
+// enum SocketError: Error { ... } // Already defined in the TCP example
+
+// Example usage:
+// To test this, first start the UDP server provided in this article.
+// Then run this client code in a Swift Playground or iOS project.
+// createUDPClientNative(host: &quot;127.0.0.1&quot;, port: 8080)
+</code></pre>
+<p><strong>代码解析:</strong></p>
+<ol>
+<li><strong>创建 Socket</strong>: 与 TCP 不同，这里使用 <code>SOCK_DGRAM</code> 和 <code>IPPROTO_UDP</code> 来创建 UDP Socket。</li>
+<li><strong>配置地址</strong>: 地址配置与 TCP 相同。</li>
+<li><strong>发送数据</strong>: 使用 <code>sendto()</code> 函数发送数据报到指定的目标地址。与 TCP 的 <code>send()</code> 不同，<code>sendto()</code> 需要显式提供目标地址。</li>
+<li><strong>接收数据</strong>: 使用 <code>recvfrom()</code> 函数接收数据报。它可以获取发送方的地址信息。</li>
+<li><strong>关闭连接</strong>: 同样使用 <code>close()</code> 关闭 Socket。</li>
+</ol>
+<h3 id="使用-network-框架-2">使用 Network 框架</h3>
+<p>下面的示例展示了如何使用 <code>Network</code> 框架实现一个 UDP 客户端。</p>
+<pre><code class="language-swift">import Foundation
+import Network
+
+func createUDPClientWithNetworkFramework(host: String, port: Int) {
+    // 1. Define the server endpoint
+    guard let serverHost = NWEndpoint.Host(host), let serverPort = NWEndpoint.Port(rawValue: port) else {
+        print(&quot;Invalid host or port&quot;)
+        return
+    }
+    
+    // 2. Create a UDP connection using NWUDPSession
+    // NWUDPSession is specifically designed for UDP communication.
+    let udpSession = NWUDPSession(using: .udp, to: NWEndpoint.hostPort(host: serverHost, port: serverPort))
+    
+    // 3. Set up the state update handler
+    udpSession.stateUpdateHandler = { newState in
+        switch newState {
+        case .ready:
+            print(&quot;UDP Session ready.&quot;)
+            // Session is ready, now we can send data.
+            let message = &quot;Hello from Swift UDP Client (Network Framework)!&quot;
+            let messageData = message.data(using: .utf8)!
+            udpSession.send(content: messageData) { error in
+                if let error = error {
+                    print(&quot;UDP Send error: \(error)&quot;)
+                } else {
+                    print(&quot;UDP Message sent: \(message)&quot;)
+                }
+            }
+            
+        case .waiting(let error):
+            print(&quot;UDP Session waiting with error: \(error)&quot;)
+        case .failed(let error):
+            print(&quot;UDP Session failed with error: \(error)&quot;)
+            udpSession.cancel()
+        case .cancelled:
+             print(&quot;UDP Session cancelled.&quot;)
+        case .preparing:
+             print(&quot;UDP Session is preparing.&quot;)
+        case .setup:
+             print(&quot;UDP Session is being set up.&quot;)
+        @unknown default:
+            print(&quot;Unknown UDP session state.&quot;)
+            udpSession.cancel()
+        }
+    }
+    
+    // 4. Set up the receive handler
+    func receive() {
+        // For UDP, we listen for incoming datagrams.
+        udpSession.receive { data, endpoint, error in
+            if let data = data, !data.isEmpty {
+                if let response = String(data: data, encoding: .utf8) {
+                    print(&quot;UDP Received response: \(response)&quot;)
+                    // Optionally, print the sender's endpoint
+                    print(&quot;From endpoint: \(endpoint?.debugDescription ?? &quot;Unknown&quot;)&quot;)
+                }
+            }
+            
+            if let error = error {
+                print(&quot;UDP Receive error: \(error)&quot;)
+                // For UDP, not receiving data is often not an error, just no data.
+                // We might not cancel here unless it's a real error.
+            } else {
+                // Continue to receive data.
+                receive()
+            }
+        }
+    }
+    
+    // 5. Start the session
+    udpSession.start(queue: .main)
+    
+    // 6. Schedule a cancel after some time to end the test
+    DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+        if udpSession.state == .ready {
+            print(&quot;UDP Test duration over, closing session.&quot;)
+            udpSession.cancel()
+        }
+    }
+}
+
+// Example usage:
+// To test this, first start the UDP server provided in this article.
+// Then run this client code in a Swift Playground or iOS project.
+// createUDPClientWithNetworkFramework(host: &quot;127.0.0.1&quot;, port: 8080)
+</code></pre>
+<p><strong>代码解析:</strong></p>
+<ol>
+<li><strong>创建会话</strong>: 使用 <code>NWUDPSession</code> 类来创建 UDP 会话，指定协议为 <code>.udp</code> 并提供目标端点。</li>
+<li><strong>状态管理</strong>: 与 TCP 连接类似，通过 <code>stateUpdateHandler</code> 监听会话状态。</li>
+<li><strong>发送数据</strong>: 使用 <code>udpSession.send(content:completion:)</code> 方法发送数据报。</li>
+<li><strong>接收数据</strong>: 通过 <code>udpSession.receive(completion:)</code> 方法监听来自服务器的数据报。</li>
+<li><strong>启动与关闭</strong>: 使用 <code>udpSession.start(queue:)</code> 启动会话，使用 <code>udpSession.cancel()</code> 关闭会话。</li>
+</ol>
+<h2 id="对比与选择">对比与选择</h2>
+<p>通过上面的示例，我们可以看到使用原生 BSD Socket API 和 <code>Network</code> 框架实现 TCP/UDP 通信的异同。</p>
+<h3 id="原生-bsd-socket-api">原生 BSD Socket API</h3>
+<p><strong>优点:</strong></p>
+<ul>
+<li><strong>控制力强</strong>: 可以直接访问底层 Socket API，对网络通信的每个细节都有完全的控制权。</li>
+<li><strong>性能</strong>: 由于没有额外的抽象层，理论上可能有更优的性能表现。</li>
+<li><strong>兼容性</strong>: 代码可以在支持 BSD Socket 的各种平台上运行（需要处理平台差异）。</li>
+</ul>
+<p><strong>缺点:</strong></p>
+<ul>
+<li><strong>复杂性高</strong>: 需要手动管理内存、处理 C 风格的 API、处理平台差异（如 Darwin vs Glibc）。</li>
+<li><strong>易错性</strong>: 手动管理资源（如 <code>close</code> Socket）容易出错，导致资源泄露。</li>
+<li><strong>异步支持</strong>: 原生 API 的异步支持相对较弱，需要开发者自行实现或使用其他库（如 GCD）。</li>
+</ul>
+<h3 id="network-框架">Network 框架</h3>
+<p><strong>优点:</strong></p>
+<ul>
+<li><strong>现代化</strong>: 为 Swift 量身打造，API 设计更符合 Swift 的编程范式。</li>
+<li><strong>异步支持</strong>: 内置强大的异步支持，与 Swift Concurrency (async/await) 集成良好。</li>
+<li><strong>安全性</strong>: 内置对 TLS/SSL 的支持，易于实现安全通信。</li>
+<li><strong>跨平台</strong>: 是 Apple 平台的统一网络框架，支持 iOS, macOS, watchOS, tvOS, catalyst。</li>
+<li><strong>错误处理</strong>: 提供了更清晰的错误处理机制。</li>
+</ul>
+<p><strong>缺点:</strong></p>
+<ul>
+<li><strong>平台限制</strong>: 仅限于 Apple 平台。</li>
+<li><strong>学习曲线</strong>: 对于习惯了 C 风格 API 的开发者来说，可能需要一些时间来适应其声明式的编程模型。</li>
+</ul>
+<h3 id="如何选择">如何选择?</h3>
+<ul>
+<li><strong>如果你需要在 Apple 平台上进行网络开发，并且希望获得现代化、易用且强大的异步支持</strong>，那么 <code>Network</code> 框架是首选。</li>
+<li><strong>如果你需要在多个平台（包括 Linux）上运行代码，或者需要对底层网络通信进行精细控制</strong>，那么原生 BSD Socket API 可能更合适。</li>
+<li><strong>对于学习目的</strong>，了解原生 API 有助于深入理解网络通信的本质，而 <code>Network</code> 框架则更适合快速开发高质量的应用。</li>
+</ul>
+<p>无论选择哪种方式，本文提供的完整示例代码都可以帮助你在 macOS 上快速搭建测试环境，并在 iOS 模拟器或真机上运行客户端代码，从而完整地体验 Socket 编程的全过程。</p>
+<h2 id="总结">总结</h2>
+<p>Socket 是网络编程的基础，它为应用程序提供了与传输层协议（TCP/UDP）交互的接口。通过本文的实践，我们不仅学习了 Socket 的核心概念，还通过 Swift 代码亲身体验了如何使用原生 BSD Socket API 和 Apple 的 <code>Network</code> 框架来实现 TCP 和 UDP 通信。</p>
+<p>TCP 作为一种面向连接、可靠的协议，其 Socket 编程涉及连接的建立、维护和释放，提供了有序的数据流传输。而 UDP 作为一种无连接、尽力而为的协议，其 Socket 编程更简单直接，适用于对实时性要求高、可以容忍少量数据丢失的场景。</p>
+<p><code>Network</code> 框架作为 Apple 推出的现代化网络库，以其简洁的 API、强大的异步支持和跨平台兼容性，正在成为 Apple 平台网络开发的首选工具。</p>
+<p>理解 Socket 编程不仅是掌握网络通信技术的关键一步，也为进一步学习 HTTP、WebSocket、实时通信等高级网络技术打下了坚实的基础。希望本文能帮助你建立起对 Socket 编程的全面认识，并激发你在网络编程领域的进一步探索。</p>
+
+                </div>
+            </article>
+        </div>
+
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

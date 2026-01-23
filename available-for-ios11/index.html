@@ -1,0 +1,345 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>iOS 开发之适配 iOS11 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    iOS 开发之适配 iOS11
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2017-09-21 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tags">
+                            # ios
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>好了，现在 Xcode 9 的正式版终于推送了，那么我们也该适配 iOS 11了。</p>
+<p>iOS 11的改动还是挺大的，这篇文章主要只是把自己遇到的问题记录下来，没有遇到的暂时先不会出现在文章内。等有时间的话会去网上找一找然后总结下来的。</p>
+<!--more-->
+<h1 id="navigationbar">NavigationBar</h1>
+<h2 id="titleview-宽度">TitleView 宽度</h2>
+<p>我的 App 中是有这么一个自定义的<code>NavigationBar TitleView</code>的，其宽度原本应该与屏幕宽度一致。在 <code>iOS 10</code> 以及 <code>Xcode 8.3.3</code> 上一切安然无恙。但是在 <code>iOS 11</code> 以及 <code>Xcode 9</code> 上就变成了下图所示的模样，挤到了一起。</p>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyo.dev/post-images/1676797931303.jpg" alt="" loading="lazy"></figure>
+<p>我们查看层次结构可以发现，<code>TitleView</code>变得这么小了。</p>
+<figure data-type="image" tabindex="2"><img src="https://blog.rakuyo.dev/post-images/1676797944104.png" alt="" loading="lazy"></figure>
+<h3 id="解决方法">解决方法</h3>
+<p>我们先来看<strong>解决方法</strong>，再来说原因。</p>
+<p>解决方法很简单，在自定义的 <code>TitleView</code> 的类中添加下面的代码，就ok了。</p>
+<pre><code class="language-objc">// 适配iOS11的NavigationBar Tiltle宽度。
+- (CGSize)intrinsicContentSize {
+    return UILayoutFittingExpandedSize;
+}
+</code></pre>
+<p>现在我们再运行程序，一切正常：</p>
+<figure data-type="image" tabindex="3"><img src="https://blog.rakuyo.dev/post-images/1676797979719.png" alt="" loading="lazy"></figure>
+<h3 id="原因">原因</h3>
+<p>通过<strong>参考1</strong>，里面有这么一句话：</p>
+<blockquote>
+<p>As an explanation: the titleView is now laid out with Auto Layout. Since it looks for the intrinsicContentSize, this is what worked.</p>
+</blockquote>
+<p>我翻译不好就不翻译了，大概的意思好像就是现在 <code>TitleView</code> 会去寻找 <code>intrinsicContentSize</code> 这个属性，所以我们现在如果需要去重写一下这个属性的 <code>get方法</code> 。</p>
+<p>然而这个属性是<strong>只读</strong>的，所以我们要么重写这个属性，然后给它赋值，要么重写 <code>get方法</code> ，直接 <code>return</code> 。</p>
+<figure data-type="image" tabindex="4"><img src="https://blog.rakuyo.dev/post-images/1676798005570.png" alt="" loading="lazy"></figure>
+<p>更加详细的可以移步到<a href="https://stackoverflow.com/questions/44932084/ios-11-navigationitem-titleview-width-not-set">参考1</a>去查看。</p>
+<h2 id="右侧视图">右侧视图</h2>
+<p>今天测试妹子提了这么一个 <code>bug</code>，操作步骤简化一下是这样的：</p>
+<ol>
+<li>点击页面（该页面 <code>NavigationBar</code> 包含一个自定义的 <code>rightBarButtonItem</code> ）中的一个 <code>UISearchBar</code> ，调用一个点击手势，<code>push</code> 到一个新的页面 <code>newViewController</code>。</li>
+<li><code>newViewController</code> 的 <code>NavigationBar</code> 的 <code>titleView</code> 是一个自定义的视图。其包含了一个 <code>UISearchBar</code> 和一个取消按钮。同时 <code>NavigationBar</code> 的左侧是没有返回按钮的。</li>
+</ol>
+<p>理想的效果是，在进入 <code>newViewController</code> 的同时，其 <code>NavigationBar</code> 上的 <code>UISearchBar</code> 应该变成<strong>第一响应者</strong>并弹出键盘。</p>
+<p>但是实际上，键盘是出现了一瞬间，然后就消失了。</p>
+<h3 id="解决方法-2">解决方法</h3>
+<p>在点击手势的方法中，将 <code>NavigationBar</code> 的 <code>rightBarButtonItem</code> 置为 <strong>nil</strong>。然后在 <code>viewWillAppear</code> 中对 <code>rightBarButtonItem</code> 重新赋值。</p>
+<ul>
+<li>注意：隐藏是无效的，必须置 <code>nil</code> 才可以。</li>
+</ul>
+<h3 id="原因-2">原因</h3>
+<p>这个是什么原因我也不太清楚....找了一上午实在找不到，发现和 <code>UISearchBar</code> 以及控制器本身无关。和 <code>NavigationBar</code>（空白的）也无关。无奈只能挨个注释模块，最终找到了这个 <code>rightBarButtonItem</code>  的问题。</p>
+<p>推测与 <code>iOS 11 </code>中 <code>rightBarButtonItem</code> 的占位有关。但是为何会导致键盘消失还是不太清楚....</p>
+<hr>
+<h1 id="tabaleview">TabaleView</h1>
+<h2 id="切换时的滑动动画">切换时的滑动动画</h2>
+<p>在 <code>iOS 11</code> 上，<code>push</code> 进入 <code>Table View</code> 或者 <code>pop</code> 出 <code>Table View</code> 的时候，会有一个 <strong>自下而上</strong> 的滑动效果。</p>
+<h3 id="解决方法-3">解决方法</h3>
+<p>将 <code>Table View</code> 的 <code>contentInsetAdjustmentBehavior</code> 属性设为 <code>UIScrollViewContentInsetAdjustmentNever</code> 即可。</p>
+<ul>
+<li>注意：需要做版本判断。这个属性是从 <code>iOS 11</code> 开始才有的。</li>
+</ul>
+<p>参考代码如下：</p>
+<pre><code class="language-objc">if (@available(iOS 11.0, *)) {
+    self.tableView.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
+    self.tableView.contentInset = UIEdgeInsetsMake(0, 0, [[UIScreen mainScreen] bounds].size.height == 812 ? 83 : 49, 0);
+    self.tableView.scrollIndicatorInsets = _tableView.contentInset;
+}
+</code></pre>
+<h3 id="原因-3">原因</h3>
+<p>这个效果实际上不是 <code>Table View</code> 的。而是 <code>Scroll View</code> 的，详情见下面的 <code>Scroll View</code> 小节。</p>
+<hr>
+<h1 id="scrollview">ScrollView</h1>
+<p><code>Scroll View</code>在 <code>iOS 11</code> 新增的两个属性：<code>adjustContentInset</code> 和 <code>contentInsetAdjustmentBehavior</code>。</p>
+<p><code>adjustContentInset</code> 表示 <code>contentView.frame.origin</code> 偏移了<code>scrollview.frame.origin</code> 多少；是系统计算得来的，计算方式由 <code>contentInsetAdjustmentBehavior</code> 决定。 <code>contentInsetAdjustmentBehavior</code> 是个结构体，具体如下：</p>
+<pre><code class="language-objc">typedef NS_ENUM(NSInteger, UIScrollViewContentInsetAdjustmentBehavior) {  
+    UIScrollViewContentInsetAdjustmentAutomatic, 
+    UIScrollViewContentInsetAdjustmentScrollableAxes,
+    UIScrollViewContentInsetAdjustmentNever,
+    UIScrollViewContentInsetAdjustmentAlways,
+}
+</code></pre>
+<p>每一种分别代表着一种计算方式：</p>
+<ol>
+<li><code>UIScrollViewContentInsetAdjustmentAutomatic</code>：如果 <code>Scroll View</code> 在一个 <code>automaticallyAdjustsScrollViewContentInset = YES</code> 的 <strong>控制器</strong> 上，并且这个 <strong>控制器</strong> 包含在一个 <code>Navigation Controller</code> 中，这种情况下会设置在 <code>top &amp; bottom</code> 上<code> adjustedContentInset = safeAreaInset + contentInset</code> 不管是否滚动。其他情况下与第二个的 <code>UIScrollViewContentInsetAdjustmentScrollableAxes</code> 相同。</li>
+<li><code>UIScrollViewContentInsetAdjustmentScrollableAxes</code>：在<strong>可滚动方向</strong>上 <code>adjustedContentInset = safeAreaInset + contentInset</code> ，在<strong>不可滚动方向</strong>上 <code>adjustedContentInset = contentInset</code> ；依赖于 <code>Scroll Enabled</code> 和<code>alwaysBounceHorizontal / vertical = YES</code>，<code>scrollEnabled </code>默认为 <code>yes</code>，所以大多数情况下，计算方式还是 <code>adjustedContentInset = safeAreaInset + contentInset</code></li>
+<li><code>UIScrollViewContentInsetAdjustmentNever</code>：<code>adjustedContentInset = contentInset</code>。 <code>adjustContentInset</code> 值不受 <code>SafeAreaInset</code> 值的影响。</li>
+<li><code>UIScrollViewContentInsetAdjustmentAlways</code>：<code> adjustedContentInset = safeAreaInset + contentInset</code></li>
+</ol>
+<hr>
+<h1 id="权限">权限</h1>
+<h2 id="保存图片">保存图片</h2>
+<p>在 <code>iOS 11</code> 中，如果你使用 <code>XCode 9</code> 及以上版本打包。那么在保存图片的时候，可能会遇到下面这个崩溃：</p>
+<blockquote>
+<p>This app has crashed because it attempted to access privacy-sensitive data without a usage description.  The app's Info.plist must contain an NSPhotoLibraryAddUsageDescription key with a string value explaining to the user how the app uses this data.</p>
+</blockquote>
+<h2 id="解决方法-4">解决方法</h2>
+<p>我们可以用 <code>Source Code</code> 的方式打开 <code>info.plist</code> 文件 输入下面的代码：</p>
+<pre><code class="language-xml">&lt;key&gt;NSPhotoLibraryAddUsageDescription&lt;/key&gt;
+&lt;string&gt;App需要您的同意,才能保存图片&lt;/string&gt;
+</code></pre>
+<p>又或者选择 <code>Property List</code> 方法，在 <code>App Transport Security Settings</code> 项中点击加号，添加 <code>Photo Library Additions Usage Description</code> 字段。<code>Type</code> 选择 <code>String</code>，然后在 <code>Value</code> 中添加提示语。</p>
+<h3 id="原因-4">原因</h3>
+<p>这个崩溃的原因是因为，在 <code>iOS 11</code> 中，保存图片也像调用相机一样，<strong>需要获取权限</strong>了。</p>
+<hr>
+<h1 id="参考">参考</h1>
+<ol>
+<li><a href="https://stackoverflow.com/questions/44932084/ios-11-navigationitem-titleview-width-not-set">iOS 11 navigationItem.titleView Width Not Set</a></li>
+<li><a href="http://www.jianshu.com/p/370d82ba3939">你可能需要为你的APP适配iOS11</a></li>
+<li><a href="https://juejin.im/entry/59b8fbff6fb9a00a62711b64">iOS 11中APP中tableView内容下移20pt或下移64pt的问题适配的一个总结</a></li>
+<li><a href="http://www.jianshu.com/p/bf7de88be6e1">iOS 11 NSPhotoLibraryAddUsageDescription 错误的解决办法</a></li>
+</ol>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/nullable-of-objc/" class="post-title gt-a-link">
+                    Objective-C 中的 nullable、__nullable 和 _Nullable
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

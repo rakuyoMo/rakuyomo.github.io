@@ -1,0 +1,340 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>面试整理 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    面试整理
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2025-03-18 ·
+                    </time>
+                    
+                </div>
+                <div class="post-content">
+                    <h2 id="自我介绍">自我介绍</h2>
+<p>大家好，我是吴高羽，本科读的是天津科技大学软件工程专业，我毕业时的绩点在专业里排前15%。<br>
+在上一家公司我的工作是移动团队的 leader，平时的工作包括团队管理，项目管理以及一线开发。在过去的一年里，我大概七成时间在做开发，三成时间在做管理。我平时会关注技术博客，比如“喵神”文章和“老司机周报”，而且热爱开源，经常在 GitHub 上浏览并参与开源项目，也维护了自己的几个开源仓库。这些能够让我保持对行业前沿的敏感度。<br>
+我觉得自己主要有两个优势：<br>
+第一，我是科班出身，iOS是大学期间自学的，这让我对新技术上手特别快，遇到问题也能迅速定位和解决；<br>
+第二，我比较有主动性和责任心，经常主动承担超出职责范围的工作，也因此给团队和公司带来了不少正面成果。<br>
+我相信这几点能帮我快速融入团队并产生实际价值。谢谢大家！</p>
+<h2 id="性能优化">性能优化</h2>
+<h3 id="开屏时间优化">开屏时间优化</h3>
+<ol>
+<li>通过延迟加载内部框架，将一个占用 40% 启动时间的库从 <code>application:didFinishLaunching</code> 中剥离，放到首页渲染后再异步初始化，使冷启动时间减少了近 30%</li>
+<li>利用 Apple 在 WWDC19 推出的 App Launch Instrument，分析发现主线程被 Storyboard 反序列化和资源加载阻塞。我们将 LaunchScreen 简化为纯色背景+Logo，减少节点数，并将推送注册、统计上报等非关键逻辑延迟到后台线程执行，启动渲染速度提升了约 25%</li>
+<li>联合后台减少首屏接口的数据量，并借助阿里云对所需的图片进行裁切和压缩，进一步降低 I/O 开销</li>
+</ol>
+<h3 id="安装包体积优化">安装包体积优化</h3>
+<ol>
+<li>统一将图片资源转换为 HEIF 格式，并利用 Asset Catalog 压缩功能，单张图片体积平均减少约 40%。部分不支持 HEIF 的场景下，确保 png 为 8 位格式。</li>
+<li>在 build setting 中开启一些优化项，可以去除未引用的符号和多余架构。</li>
+<li>可以将大体积的图片和视频资源，或者主题和皮肤这些不常用的资源迁移到 ODR，使用时按需加载。</li>
+<li>Bitcode 现在已经被 apple 弃用了。</li>
+</ol>
+<h3 id="列表性能优化">列表性能优化</h3>
+<ol>
+<li>除了常见的比如少减少列表中的离屏渲染；在后台线程预先计算 Cell 高度；减少 Cell 内视图层级；减少对 UIKit 属性的操作，比如对 frame 的操作；使用隐藏和显示来代替子视图的增加和删除；这些常规优化操作之外，如果项目最低支持是 iOS 13，那么我们还可以引入 diff 算法。</li>
+</ol>
+<h2 id="锁">锁</h2>
+<h3 id="操作系统的锁有哪几种">操作系统的锁有哪几种</h3>
+<ol>
+<li>互斥锁：@synchronized，NSLock，还有一些更底层的 api</li>
+<li>条件锁，NSCondition：允许线程在特定条件满足时才继续执行</li>
+<li>读写锁：GCD提供的栅栏函数，支持多读单写</li>
+<li>递归锁和自旋锁</li>
+<li>信号量 和 dispatch_once，严格意义来说不是锁，但是能起到锁的效果</li>
+</ol>
+<h3 id="oc如何实现类似swift的异步函数的同步实现不考虑性能问题">OC如何实现类似Swift的异步函数的同步实现（不考虑性能问题）</h3>
+<ol>
+<li>使用 GCD 的信号量或者 <code>NSCondition</code> 去卡线程和异步回调。不过需要注意线程问题，否则有可能导致界面假死甚至死锁。</li>
+<li>使用 GCD 的 group，用 enter、leave 和 wait 这三个 api 来控制。</li>
+<li>使用 <code>NSOperationQueue</code> 设置子任务之间的依赖性，达到顺序执行的目的</li>
+<li>还可以在执行异步操作之后，用 while + RunLoop 的 runMode beforeDate api 做一个轮询。</li>
+</ol>
+<h2 id="swift-协程">Swift 协程</h2>
+<h3 id="actor">actor</h3>
+<p>actor 是 Swift 协程提供的引用类型，内部状态通过串行化执行队列保护，保证同一时刻只有一个执行上下文访问其可变属性，进而实现属性的的线程安全。</p>
+<h2 id="jsbridge">JSBridge</h2>
+<p>JSBridge 基本就是对 <code>evaluateJavaScript</code> 和 <code>window.webkit.messageHandlers.&lt;handler&gt;.postMessage()</code> 的封装，内部用一个 <code>callbackId</code> + 闭包的字典存回调。</p>
+<p>可以通过拦截 prompt 对话框的方式实现 js 同步获取到 Native 的返回值。因为 web 端会等待方法的返回。<br>
+缺点：</p>
+<ol>
+<li>非常规用途，在某些版本的 iOS / Safari 可能弹出警告窗口或行为变化</li>
+<li>JS 可以随便调 prompt，如果没做好校验可能被滥用</li>
+<li>只能传字符串，但是 <code>postMessage</code> 在 iOS 这边可以传一些复杂数据结构，比如对象，在 iOS 这边会被映射为字典。</li>
+</ol>
+<p>另外理论上还可以通过拦截 url 重定向来同步返回结果。</p>
+<h2 id="coretext">CoreText</h2>
+<h3 id="图片混排">图片混排</h3>
+<p>可以添加一个占位符，然后通过 CTRunDelegate 设置这个占位符的大小和位置，最后用 <code>drawRect</code> 把这个图片画在这个位置上就行。</p>
+<h3 id="点击交互">点击交互</h3>
+<p>可以在 <code>touchesBegan</code> 方法里获取到点击坐标，然后把这个坐标转换为 CoreText 的坐标，因为 UIKit 的坐标系原点在左上角，但是 CoreText 的原点是在左下角的。<br>
+然后可以用 GetLines 和 GetStringIndexForPosition 获取到点击的字符串的索引。最后判断是否在可点击的文本范围内。</p>
+<h2 id="gcd-的核心概念">GCD 的核心概念</h2>
+<p>GCD 是一种基于队列的并发编程技术，主要用于管理任务的提交和执行。<br>
+GCD 主要使用任务和队列的概念，任务是需要执行的代码块，队列决定如何执行</p>
+<p>同步：当前任务必须等待同步代码块执行完毕后才能继续，会阻塞当前线程<br>
+异步：提交任务后立即返回，不会阻塞当前线程，任务可能会在后台执行</p>
+<p>串行队列：任务按照添加顺序依次执行，无论同步还是异步，都是按顺序执行<br>
+并发队列：任务可以并发执行，异步时开启多个线程执行任务，同步则仍然会阻塞当前线程，不会开启新线程</p>
+<h2 id="ios-应用的内存布局">iOS 应用的内存布局</h2>
+<p>栈：存放局部变量，函数调用信息。由系统自动管理，访问速度快，空间较小，数据生命周期短。<br>
+堆：动态分配的对象，闭包捕获的变量。由开发者手动管理，访问速度慢，空间更大，数据生命周期长</p>
+<pre><code class="language-swift">class Person {
+    var name: String
+    init(name: String) {
+        self.name = name
+    }
+}
+
+let p = Person(name: &quot;John&quot;) // p 存储在栈上，但 Person 实例存储在堆上
+</code></pre>
+<p>全局/静态存储区：全局变量，静态（static）变量。程序启动时分配，进程结束才释放。<br>
+常量区：只读数据，例如 <code>let</code> 声明的变量，Swift 编译优化后的静态常量。访问速度快，因为只读所以不可修改。<br>
+代码区：程序的可执行代码，函数的二进制指令。只读，防止恶意篡改，由系统加载到内存，执行时直接读取。</p>
+<h2 id="objc-方法查找流程">ObjC 方法查找流程</h2>
+<ol>
+<li>方法缓存查找：如果缓存中有方法实现，则直接执行</li>
+<li>方法列表中查找：如果缓存未命中，则从类的方法列表中查找</li>
+<li>沿继承链向上查找：如果当前类找不到，则沿着 superclass 继续查找</li>
+<li>动态方法解析：如果方法未实现，可以通过动态方法机洗添加方法</li>
+<li>消息转发：如果解析失败，ObjC 允许消息转发给其他对象处理</li>
+<li>最终触发崩溃</li>
+</ol>
+<h2 id="runloop">RunLoop</h2>
+<p>RunLoop 是事件驱动的循环，本质是一个事件处理机制，它的作用是 <strong>管理线程的生命周期，并处理输入员和定时器等事件</strong>。<br>
+每个线程都有一个 RunLoop，只有主线程的 RunLoop 默认是开启的，子线程需要手动开启 RunLoop。每个线程最多只有一个 RunLoop。</p>
+<h3 id="执行流程">执行流程</h3>
+<ol>
+<li>进入 RunLoop，获取当前模式</li>
+<li>检查当前模式下是否有带处理的事件</li>
+<li>如果有事件，处理事件后继续循环</li>
+<li>如果没有事件，则让线程进入休眠状态，等待新的事件到来</li>
+<li>如果 RunLoop 退出，则线程结束或者 RunLoop 停止运行</li>
+</ol>
+<h3 id="应用常见">应用常见</h3>
+<ol>
+<li>可以通过 RunLoop + NSMachPort 实现线程保活。比如后台任务线程，Socket 连接线程。</li>
+<li>通过 <code>DispatchQueue.main.async</code> 将任务提交到主线程 RunLoop，以实现在 RunLoop 空闲时执行任务的功能，比如空闲时再绘制 UI。</li>
+<li>在子线程调用 <code>perform(_:with:afterDelay:)</code> 方法时，需要手动开启 RunLoop 确保任务执行。</li>
+</ol>
+<h2 id="ios-应用启动过程">iOS 应用启动过程</h2>
+
+                </div>
+            </article>
+        </div>
+
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

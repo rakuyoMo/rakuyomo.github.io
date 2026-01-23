@@ -1,0 +1,582 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <div class="main-content">
+        <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+
+        <div class="post-list-container">
+    <div class="post-inner">
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/gitlab-ci-register-runner/">
+                            <span class="post-title gt-c-content-color-first">GitLab-CI（二）：注册 GitLab-Runner</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        
+本文仅针对 macOS 和 Linux 平台，讲解如何注册 GitLab-Runner。Windows 平台不包含在本文介绍范围内。
+
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2022-04-14 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/cicd/" class="post-tag">
+                                # CI/CD
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/gitlab-ci-build-ios-environment/">
+                            <span class="post-title gt-c-content-color-first">GitLab-CI（一）：搭建 iOS CI 环境</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        
+本文档用于介绍如何搭建适用于构建 iOS 项目的 GitLab-CI 环境。
+
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2022-04-13 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/cicd/" class="post-tag">
+                                # CI/CD
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/objc-delegate-optimization/">
+                            <span class="post-title gt-c-content-color-first">Objective-C delegate 性能小优化</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        之前也是对 delegate 怨念颇深——每次都需要检查 deleagte 并且检查是否响应了某个方法。不过那个时候的怨念是来自于 需要写那么一大段代码，而不是怨念性能。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2018-04-24 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/objective-c/" class="post-tag">
+                                # Objective-C
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/enums-in-objc/">
+                            <span class="post-title gt-c-content-color-first">C 与 Objective-C 中的枚举</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        本文介绍 C 与 Objective-C 中的枚举，同时对 Objective-C 中的字符串枚举进行介绍
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2018-02-25 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/objective-c/" class="post-tag">
+                                # Objective-C
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/c/" class="post-tag">
+                                # c
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/sql-basic-and-sqlite-basic/">
+                            <span class="post-title gt-c-content-color-first">SQL 基础语句与 SQLite 基础操作</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        这篇文章主要是围绕 SQLite，记录总结 SQL 的一些用法。
+至于 iOS 中其余的几种存储方式例如 .plist 等，以及数据库的概念，SQL 的概念等，先不做介绍。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2018-02-23 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/sql/" class="post-tag">
+                                # SQL
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/remove-implicit-animation/">
+                            <span class="post-title gt-c-content-color-first">去掉隐式动画</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        实际上 iOS 好像是会在很多地方默认添加上动画的。这些动画倒也还好，但是有的时候就和需求不符就比较烦人了。
+前几天偶然的再次查到了这个方法，于是决定开个文章记录一下。
+
+感谢参考1，原作者的总结。本文基本引用自参考1。
+
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2018-01-21 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/pushKit-integration/">
+                            <span class="post-title gt-c-content-color-first">PushKit 的集成</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        实际上项目中很早就由我提出要将现有的 APNs 更改为 PushKit 了。只不过当初后端的同学很忙，没有时间搞这个...
+现在因为要接入 CallKit，所以这个不搞不行了。那么也来记录一下吧。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2018-01-03 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/jump-from-share-extension-to-app/">
+                            <span class="post-title gt-c-content-color-first">从 Share Extension 跳转到 Containing App</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        Share Extension 这篇文章就不多讲了。
+单纯的说一下从前辈那里请教来的如何从 Share Extension 跳转到 Containing App 吧。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2017-10-24 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/xcode9-shortcuts/">
+                            <span class="post-title gt-c-content-color-first">Xcode9 快捷键</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        开个贴记录一下 Xcode 9 下自己常用的几个发生了变化的快捷键。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2017-09-21 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/xcode/" class="post-tag">
+                                # xcode
+                            </a>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/available-for-ios11/">
+                            <span class="post-title gt-c-content-color-first">iOS 开发之适配 iOS11</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        好了，现在 Xcode 9 的正式版终于推送了，那么我们也该适配 iOS 11了。
+iOS 11的改动还是挺大的，这篇文章主要只是把自己遇到的问题记录下来，没有遇到的暂时先不会出现在文章内。等有时间的话会去网上找一找然后总结下来的。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2017-09-21 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tag">
+                                # ios
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/nullable-of-objc/">
+                            <span class="post-title gt-c-content-color-first">Objective-C 中的 nullable、__nullable 和 _Nullable</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        这次的内容是关于 nullable、__nullable 和 _Nullable 的。对于我们这样的初学者，在看第三方框架或者官方文档的时候经常会看到这样的字样。然而平时也没有去研究它到底是什么，这次就来好好记录一下一下吧。
+
+本次的内容转载自参考1，感觉原作者的分享与贡献。
+
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2017-09-06 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/objective-c/" class="post-tag">
+                                # Objective-C
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/objc-block-basic-usage/">
+                            <span class="post-title gt-c-content-color-first">Objective-C 之 Block 基础用法</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        这两天改bug改的太忙了....实际上该整理的知识点挺多的，今天就先说一下 Block 吧。
+本篇文章中大量内容参考、转载自文章末尾的参考1，感谢原作者的总结与分享。原文中还有更多更详细的内容，欢迎大家点击原文学习更多内容。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2017-07-26 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/objective-c/" class="post-tag">
+                                # Objective-C
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/use-of-id-and-instancetype/">
+                            <span class="post-title gt-c-content-color-first">Objective-C 中 id 和 instancetype 的使用与异同</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        今天记录一下在Objective-C中，保留字id和instancetype各自的用法，以及异同。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2017-07-24 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/objective-c/" class="post-tag">
+                                # Objective-C
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/variable-types-in-c/">
+                            <span class="post-title gt-c-content-color-first">C语言的变量类型</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        c语言复习之路，之一
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2017-07-21 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/c/" class="post-tag">
+                                # c
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+            <div class="post gt-bg-theme-color-second">
+                <div class="post-left">
+                    <div>
+                        
+                        <a href="https://blog.rakuyo.dev/git/">
+                            <span class="post-title gt-c-content-color-first">Git 基本操作总结</span>
+                        </a>
+                    </div>
+                    <div class="gt-post-content post-abstract gt-c-content-color-second">
+                        总结一下 Mac 下 Git 的一些基本操作。
+
+                    </div>
+                    <div class="post-info">
+                        <time class="post-time gt-c-content-color-first">
+                            发布于 · 2016-12-31 ·
+                        </time>
+                        
+                            <a href="https://blog.rakuyo.dev/tag/git/" class="post-tag">
+                                # git
+                            </a>
+                        
+                    </div>
+                </div>
+                
+            </div>
+        
+    </div>
+</div>
+
+        <div class="pagination-container">
+    
+        <a href="https://blog.rakuyo.dev/page/3/" class="prev-page gt-a-link">上一页</a>
+    
+    
+</div>
+
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

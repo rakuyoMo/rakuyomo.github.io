@@ -1,0 +1,471 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>HarmonyOS 与 ArkTS 开发注意事项 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    HarmonyOS 与 ArkTS 开发注意事项
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2024-09-25 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/arkts/" class="post-tags">
+                            # ArkTS
+                        </a>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/harmonyos/" class="post-tags">
+                            # HarmonyOS
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>本文<strong>持续</strong>记录一些使用 ArkTS 进行 HarmonyOS 开发时遇到的一些问题以及解决方案。以及一些可能称不上是问题，但是在我看来有必要记录一下的点。</p>
+<!-- more -->
+<p>本文的主要结构将分为 <a href="#arkts">ArkTS</a> 和 <a href="#harmonyos">HarmonyOS</a> 两部分。同时内容多与 iOS 开发以及 Swift 语言进行对比。</p>
+<blockquote>
+<p>因为代码高亮限制，本文中涉及到 ArkTS 的代码，都将使用 TypeScript 的语法高亮设置</p>
+</blockquote>
+<h2 id="arkts">ArkTS</h2>
+<p>ArkTS 是 TS 的超集，同时也阉割了一些 TS 的用法。</p>
+<p>本节所记录的内容是从一个 TS 零基础小白的视角出发所遇到的问题。所以某些内容未必属于 ArkTS 引入，也有可能是 TS 就存在。某些小节可能会指出该小节的内容是属于 ArkTS 独有，还是 TS 就有。但是大多数小节可能并不会做此区分。</p>
+<h3 id="async-与-await">async 与 await</h3>
+<p>ArkTS 的异步协程不像是 Swift 那样，需要在方法声明上显式增加 <code>async</code> 关键字。</p>
+<p>只要方法返回 <code>Promise</code> 类型，那么在调用时候就可以通过添加 <code>await</code> 关键字，来获取 <code>Promise</code> 里所包含的数据。</p>
+<p>比如下面的方法：</p>
+<pre><code class="language-typescript">function getData(): Promise&lt;string&gt; {
+    return new Promise((resolve, reject) =&gt; {
+        setTimeout(() =&gt; {
+            resolve(&quot;Data fetched!&quot;);
+        }, 1000);
+    });
+}
+
+function main() {
+    const result = await getData(); // 可以使用 await
+    console.log(result); // 输出: &quot;Data fetched!&quot;
+}
+</code></pre>
+<br>
+<p>这其实是 TS 的语法。当你在 TypeScript 中声明一个函数为 <code>async</code> 时，该函数会自动返回一个 <code>Promise</code> 对象，而不是直接返回结果。即使函数内部没有显式地返回 <code>Promise</code>，<code>async</code> 函数会将其结果封装在一个 <code>Promise</code> 中。比如下面这样：</p>
+<pre><code class="language-typescript">async function myAsyncFunction() {
+    return &quot;Hello, Async!&quot;;
+}
+
+// 调用方式
+myAsyncFunction().then(result =&gt; console.log(result)); // 输出: &quot;Hello, Async!&quot;
+</code></pre>
+<p><code>myAsyncFunction</code> 因为被 <code>async</code> 修饰，所以自动返回了一个 <code>Promise&lt;string&gt;</code> 而不是单纯的 <code>string</code>。</p>
+<p>所以如果方法没有标记 <code>async</code>，但是返回了 <code>Promise</code>，其实和标记了但是省略返回类型是一样的，自然也可以在调时直接使用 <code>await</code> 同步获取内容了。</p>
+<h2 id="harmonyos">HarmonyOS</h2>
+<h3 id="环境变量配置">环境变量配置</h3>
+<p>这里说的环境变量是 “正式环境”、“预上线环境” 以及 “测试环境”。包含接口环境配置以及一些 debug 入口等等。</p>
+<p>在 iOS 开发中我们有预编译宏，但是 HarmonyOS 这块儿没有这个。HarmonyOS 的方法是在各个子模块中建立 target 的 <code>sourceRoots</code> 字段，将不同环境的代码添加到不同的 target 中，然后 entry 再引用不同的 target，以此来达到不同环境加载不同代码的需求。</p>
+<p>本节不详细展开具体的详细内容，详细内容见<a href="https://developer.huawei.com/consumer/cn/doc/harmonyos-guides-V5/ide-customized-multi-targets-and-products-guides-V5#section13344184411593">官方文档</a>。</p>
+<p>在做这一项配置的过程中，有一个概念很容易搞错，或者说官方文档的讲解流程和实际上配置的流程有一定的出入。（当然也有可能是我个人能力不足导致理解错误）。</p>
+<p>我们来看下面几个 <code>build-profile.json5</code> 文件。首先是一个 feature module 的：</p>
+<pre><code class="language-json">// feature/build-profile.json5
+{
+  &quot;apiType&quot;: &quot;stageMode&quot;,
+  &quot;buildOption&quot;: {},
+  &quot;targets&quot;: [ 
+    { 
+      &quot;name&quot;: &quot;default&quot;, 
+      &quot;source&quot;: { 
+        &quot;sourceRoots&quot;: [&quot;./src/default&quot;] // 配置target为default的差异化代码空间
+      } 
+    }, 
+    { 
+      &quot;name&quot;: &quot;custom&quot;, 
+      &quot;source&quot;: { 
+        &quot;sourceRoots&quot;: [&quot;./src/custom&quot;] // 配置target为custom的差异化代码空间
+      } 
+    } 
+  ]
+}
+</code></pre>
+<p>其包含两个 target，使用 <code>sourceRoots</code> 引用了不同的代码。</p>
+<p>然后再看 entry 的：</p>
+<pre><code class="language-json">{
+  &quot;apiType&quot;: &quot;stageMode&quot;,
+  &quot;buildOption&quot;: {},
+  &quot;targets&quot;: [ 
+    { 
+      &quot;name&quot;: &quot;default&quot;, 
+    }, 
+  ]
+}
+</code></pre>
+<p>entry 只包含一个 <code>default</code> target。</p>
+<p>最后看工程的：</p>
+<pre><code class="language-json">{
+  &quot;app&quot;: {
+    &quot;signingConfigs&quot;: [],
+    &quot;products&quot;: [
+      {
+        &quot;name&quot;: &quot;default&quot;,
+        &quot;signingConfig&quot;: &quot;default&quot;,
+        &quot;compatibleSdkVersion&quot;: &quot;5.0.0(12)&quot;,
+        &quot;runtimeOS&quot;: &quot;HarmonyOS&quot;,
+      },
+      {
+        &quot;name&quot;: &quot;custom&quot;,
+        &quot;signingConfig&quot;: &quot;default&quot;,
+        &quot;compatibleSdkVersion&quot;: &quot;5.0.0(12)&quot;,
+        &quot;runtimeOS&quot;: &quot;HarmonyOS&quot;,
+      }
+    ],
+    &quot;buildModeSet&quot;: [
+      {
+        &quot;name&quot;: &quot;debug&quot;,
+      },
+      {
+        &quot;name&quot;: &quot;release&quot;
+      }
+    ]
+  },
+  &quot;modules&quot;: [
+    {
+      &quot;name&quot;: &quot;entry&quot;,
+      &quot;srcPath&quot;: &quot;./entry&quot;,
+      &quot;targets&quot;: [
+        {
+          &quot;name&quot;: &quot;default&quot;,
+          &quot;applyToProducts&quot;: [
+            &quot;default&quot;,
+            &quot;custom&quot;,
+          ]
+        },
+      ]
+    },
+    {
+      &quot;name&quot;: &quot;feature&quot;,
+      &quot;srcPath&quot;: &quot;./feature&quot;,
+      &quot;targets&quot;: [
+        {
+          &quot;name&quot;: &quot;default&quot;,
+          &quot;applyToProducts&quot;: [
+            &quot;default&quot;
+          ]
+        },
+        {
+          &quot;name&quot;: &quot;custom&quot;,
+          &quot;applyToProducts&quot;: [
+            &quot;custom&quot;
+          ]
+        },
+      ]
+    },
+  ]
+}
+</code></pre>
+<p>在阅读官方文档后，我首先的想法就是上面这三个配置文件。定义 <code>default</code> 和 <code>custom</code> 两个 product，然后 <code>entry</code> 作为入口，添加到两个 product 中。<code>feature/default</code> 添加到 <code>default</code>；<code>feature/custom</code> 添加到 <code>custom</code>。这样 <code>default</code> product 包含 <code>entry</code> 和 <code>feature/default</code>，<code>custom</code> product 包含 <code>entry</code> 和 <code>feature/custom</code>。思路看着没问题对吧，然而实际运行起来会发现<strong>配置不生效</strong>：<code>custom</code> product 使用的是 <code>feature/default</code>。</p>
+<p>问题在于思路不对，正确的思路应该是：将 <code>entry</code> 中定义的 target，下放给各个 module 使用。也就是说要先在 <code>entry</code> 中定义各个 target，然后再在各个 module 中使用 <code>entry</code> 定义的 target，自定向下使用。</p>
+<p>比如有5个子 module，各自都有不同的 target 需求，分别是 1-5，那么 <code>entry</code> 中就应该定义这 1-5个 target，然后5个子 module 从中选取自己需要的那一个。</p>
+<p>所以上述例子中的配置文件应该改成下面这样，先看 entry 的 <code>build-profile.json5</code>：</p>
+<pre><code class="language-json">{
+  &quot;apiType&quot;: &quot;stageMode&quot;,
+  &quot;buildOption&quot;: {},
+  &quot;targets&quot;: [ 
+    { 
+      &quot;name&quot;: &quot;default&quot;, 
+    }, 
+    { 
+      &quot;name&quot;: &quot;custom&quot;,  // 增加 custom target
+    }, 
+  ]
+}
+</code></pre>
+<p>然后修改工程级 <code>build-profile.json5</code>：</p>
+<pre><code class="language-json">{
+  &quot;app&quot;: {
+    &quot;signingConfigs&quot;: [],
+    &quot;products&quot;: [
+      {
+        &quot;name&quot;: &quot;default&quot;,
+        &quot;signingConfig&quot;: &quot;default&quot;,
+        &quot;compatibleSdkVersion&quot;: &quot;5.0.0(12)&quot;,
+        &quot;runtimeOS&quot;: &quot;HarmonyOS&quot;,
+      },
+      {
+        &quot;name&quot;: &quot;custom&quot;,
+        &quot;signingConfig&quot;: &quot;default&quot;,
+        &quot;compatibleSdkVersion&quot;: &quot;5.0.0(12)&quot;,
+        &quot;runtimeOS&quot;: &quot;HarmonyOS&quot;,
+      }
+    ],
+    &quot;buildModeSet&quot;: [
+      {
+        &quot;name&quot;: &quot;debug&quot;,
+      },
+      {
+        &quot;name&quot;: &quot;release&quot;
+      }
+    ]
+  },
+  &quot;modules&quot;: [
+    {
+      &quot;name&quot;: &quot;entry&quot;,
+      &quot;srcPath&quot;: &quot;./entry&quot;,
+      &quot;targets&quot;: [
+        {
+          &quot;name&quot;: &quot;default&quot;,
+          &quot;applyToProducts&quot;: [
+            &quot;default&quot;,
+          ]
+        },
+        {
+          &quot;name&quot;: &quot;custom&quot;,
+          &quot;applyToProducts&quot;: [
+            &quot;custom&quot;,
+          ]
+        },
+      ]
+    },
+    {
+      &quot;name&quot;: &quot;feature&quot;,
+      &quot;srcPath&quot;: &quot;./feature&quot;,
+      &quot;targets&quot;: [
+        {
+          &quot;name&quot;: &quot;default&quot;,
+          &quot;applyToProducts&quot;: [
+            &quot;default&quot;
+          ]
+        },
+        {
+          &quot;name&quot;: &quot;custom&quot;,
+          &quot;applyToProducts&quot;: [
+            &quot;custom&quot;
+          ]
+        },
+      ]
+    },
+  ]
+}
+</code></pre>
+<p>这么修改后再运行，<code>custom</code> product 就可以正确地读取到 <code>feature/custom</code> 了。</p>
+<p>最后再来说一说官方中的例子。官方上的示例使用 <code>entry</code> 演示 <code>sourceRoots</code> 的用法，其实暗藏了 “<code>entry</code> 也需要定义对应的 target” 这一点，只不过没有明说，让读者忽略了这一关键内容。</p>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/gitlab-ci-and-shell-session-mode/" class="post-title gt-a-link">
+                    Gitlab-CI 与 Shell 会话模式
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,813 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>JavaScript console.log 打印对象的引用陷阱与 DevTools 延迟展开机制 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    JavaScript console.log 打印对象的引用陷阱与 DevTools 延迟展开机制
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2025-12-15 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/vue/" class="post-tags">
+                            # vue
+                        </a>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/front-end/" class="post-tags">
+                            # front-end
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>最近在小红书上看到一个帖子：<a href="http://xhslink.com/o/62CSwZc5Pj3">后端转前端发现诡异bug</a>，他遇到了这样的诡异现象：</p>
+<!--
+在前端开发中，经常会遇到这样的诡异现象：浏览器 Network 面板显示接口返回的数据字段存在且有值，但通过 `console.log` 打印后展开对象，该字段却显示为 `undefined`。这个问题涉及 JavaScript 对象的引用传递机制、浏览器 DevTools 的延迟展开实现，以及 Vue 3 响应式数据的访问方式。本文将深入剖析这一现象的技术原理，并提供多种实用的解决方案。
+-->
+<!-- more -->
+<h2 id="问题描述">问题描述</h2>
+<ul>
+<li><strong>现象</strong>：浏览器 Network 面板显示接口返回的 JSON 数据中 <code>createdBy</code> 字段存在且有值</li>
+<li><strong>问题</strong>：通过 axios 请求数据后，使用 <code>console.log</code> 打印 <code>response.data</code>，展开对象时该字段显示为 <code>undefined</code></li>
+<li><strong>环境</strong>：浏览器环境（Chrome DevTools），使用 axios 库，从 Vue 3 项目迁移部分代码</li>
+</ul>
+<p>借着这个问题，评论区有一个 momo 大佬顺势提出了一道面试题：</p>
+<blockquote>
+<p>请解释为什么在 JavaScript 中 <code>console.log</code> 有时打印的不是运行当下的值，而是对象的最终值。 特别是在 axios 请求场景中，为什么 <code>console.log(response.data)</code> 显示的内容会和浏览器 Network 面板里的原始响应数据不一致。 请结合对象引用、DevTools 延迟展开机制进行说明，并给出一个最小可复现的代码示例（包含 axios 或模拟异步修改对象的场景）， 同时给出至少两种正确打印“当时快照值”的解决方案，并说明各自的适用场景。</p>
+</blockquote>
+<p>贴主的这个问题的答案同时也是 momo 大佬这道面试题的答案，其本质涉及三个层面：</p>
+<ol>
+<li>JavaScript 对象的引用传递机制</li>
+<li>浏览器 DevTools 的延迟展开实现</li>
+<li>Vue 3 响应式数据的访问方式</li>
+</ol>
+<h2 id="原因分析">原因分析</h2>
+<br>
+<h3 id="浏览器-consolelog-的延迟展开机制">浏览器 <code>console.log</code> 的延迟展开机制</h3>
+<br>
+<h4 id="核心机制">核心机制</h4>
+<p>当在浏览器中执行 <code>console.log(obj)</code> 时，控制台的处理流程如下：</p>
+<ol>
+<li><strong>打印阶段</strong>：存储该对象的<strong>内存引用</strong>（而非值的快照）</li>
+<li><strong>展开阶段</strong>：用户点击控制台中的对象时，DevTools 读取该引用指向的<strong>当前值</strong></li>
+<li><strong>显示结果</strong>：如果对象在打印后被修改，展开时看到的是修改后的值</li>
+</ol>
+<p>这是浏览器为了性能优化而采取的设计：</p>
+<ul>
+<li>避免在打印时深度遍历和序列化大型对象</li>
+<li>节省内存，不需要存储对象的完整副本</li>
+<li>提升控制台响应速度</li>
+</ul>
+<h4 id="延迟展开的副作用">延迟展开的副作用</h4>
+<pre><code class="language-javascript">const data = { value: 1 };
+console.log('打印时刻:', data);
+data.value = 2;
+// 此时在控制台展开 data，看到的是 { value: 2 }
+</code></pre>
+<p>上述代码中，虽然打印发生在修改之前，但由于存储的是引用，展开时读取的是修改后的值。</p>
+<h4 id="浏览器的提示机制">浏览器的提示机制</h4>
+<p>Chrome DevTools 会在某些情况下在控制台显示一个 <strong>ⓘ</strong> 标记，提示用户：&quot;Value below was evaluated just now&quot;（下面的值是刚刚计算的）。这说明展开时的值可能与打印时不同。</p>
+<h3 id="环境差异浏览器-vs-nodejs">环境差异：浏览器 vs Node.js</h3>
+<p>不同 JavaScript 运行环境对 <code>console.log</code> 的实现不同：</p>
+<table>
+<thead>
+<tr>
+<th>环境</th>
+<th>实现方式</th>
+<th>特点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>浏览器</strong></td>
+<td>存储对象引用，延迟展开</td>
+<td>性能好，但可能显示&quot;未来的值&quot;</td>
+</tr>
+<tr>
+<td><strong>Node.js</strong></td>
+<td>立即序列化对象</td>
+<td>显示打印时刻的准确值</td>
+</tr>
+</tbody>
+</table>
+<p>在 Node.js 中执行相同代码：</p>
+<pre><code class="language-javascript">const data = { value: 1 };
+console.log('打印时刻:', data);  // 输出: 打印时刻: { value: 1 }
+data.value = 2;
+// Node.js 中输出的始终是 { value: 1 }
+</code></pre>
+<h3 id="案例中的第二层原因vue-3-ref-访问问题">案例中的第二层原因：Vue 3 <code>ref</code> 访问问题</h3>
+<p>原始问题的完整原因是双重的：</p>
+<ol>
+<li><strong>console 延迟展开</strong>：导致看到的是对象的最终状态</li>
+<li><strong>Vue <code>ref</code> 访问错误</strong>：从 Vue 代码迁移时忘记添加 <code>.value</code></li>
+</ol>
+<p>Vue 3 的响应式数据访问：</p>
+<pre><code class="language-javascript">import { ref } from 'vue';
+
+const userIdRef = ref('user123');
+
+// 错误：直接访问 ref 对象
+const createdBy = userIdRef;  // 返回 RefImpl 对象
+console.log(createdBy);       // 可能显示为 undefined 或 RefImpl
+
+// 正确：通过 .value 访问实际值
+const createdBy = userIdRef.value;  // 返回 'user123'
+</code></pre>
+<p>在 Vue 组件中，模板会自动解包 <code>ref</code>，但在纯 JavaScript 代码中必须手动添加 <code>.value</code>。</p>
+<h2 id="技术原理">技术原理</h2>
+<br>
+<h3 id="javascript-引用类型">JavaScript 引用类型</h3>
+<p>JavaScript 的数据类型分为两类：</p>
+<h4 id="基本类型值传递">基本类型（值传递）</h4>
+<ul>
+<li>Number</li>
+<li>String</li>
+<li>Boolean</li>
+<li>null</li>
+<li>undefined</li>
+<li>Symbol</li>
+<li>BigInt</li>
+</ul>
+<p>基本类型直接存储值，赋值时复制值：</p>
+<pre><code class="language-javascript">let a = 1;
+let b = a;
+b = 2;
+console.log(a);  // 1（不受 b 的修改影响）
+</code></pre>
+<h4 id="引用类型引用传递">引用类型（引用传递）</h4>
+<ul>
+<li>Object</li>
+<li>Array</li>
+<li>Function</li>
+<li>Date</li>
+<li>RegExp</li>
+<li>Map</li>
+<li>Set</li>
+</ul>
+<p>引用类型存储内存地址，赋值时复制引用：</p>
+<pre><code class="language-javascript">let obj1 = { value: 1 };
+let obj2 = obj1;
+obj2.value = 2;
+console.log(obj1.value);  // 2（obj1 和 obj2 指向同一个对象）
+</code></pre>
+<h3 id="devtools-延迟展开的实现细节">DevTools 延迟展开的实现细节</h3>
+<p>浏览器控制台对对象的处理流程：</p>
+<pre><code>打印阶段：
+console.log(obj)
+    ↓
+存储对象引用 + 堆栈信息
+    ↓
+显示对象的简要表示（如：{...}）
+
+展开阶段：
+用户点击展开
+    ↓
+通过引用读取对象当前属性
+    ↓
+遍历并显示属性值
+</code></pre>
+<h4 id="为什么不立即序列化">为什么不立即序列化？</h4>
+<p>假设有一个深层嵌套的大对象：</p>
+<pre><code class="language-javascript">const largeObject = {
+  level1: {
+    level2: {
+      level3: {
+        // ... 数百个属性
+        data: new Array(10000).fill({ /* 复杂对象 */ })
+      }
+    }
+  }
+};
+
+console.log(largeObject);
+</code></pre>
+<p>如果立即序列化：</p>
+<ul>
+<li>需要深度遍历整个对象树</li>
+<li>消耗大量 CPU 和内存</li>
+<li>阻塞主线程，影响页面响应</li>
+</ul>
+<p>延迟展开则只在用户需要时才读取，性能更优。</p>
+<h2 id="解决方案">解决方案</h2>
+<br>
+<h3 id="方案-1json-序列化深拷贝">方案 1：JSON 序列化深拷贝</h3>
+<pre><code class="language-javascript">console.log('快照:', JSON.parse(JSON.stringify(obj)));
+</code></pre>
+<p><strong>原理</strong>：</p>
+<ol>
+<li><code>JSON.stringify(obj)</code> 将对象序列化为 JSON 字符串</li>
+<li><code>JSON.parse(...)</code> 将字符串反序列化为新对象</li>
+<li>新对象与原对象完全独立，不共享引用</li>
+</ol>
+<p><strong>优点</strong>：</p>
+<ul>
+<li>完全隔离，打印的是真实的快照</li>
+<li>语法简单，容易理解</li>
+</ul>
+<p><strong>缺点</strong>：</p>
+<ul>
+<li>无法序列化函数、Symbol、undefined</li>
+<li>循环引用会抛出错误</li>
+<li>无法处理特殊对象（Date、RegExp、Map、Set 等会被转换或丢失）</li>
+</ul>
+<p><strong>示例</strong>：</p>
+<pre><code class="language-javascript">const obj = {
+  name: 'test',
+  fn: () =&gt; {},      // 会被忽略
+  undef: undefined,  // 会被忽略
+  date: new Date(),  // 转换为字符串
+  map: new Map()     // 转换为 {}
+};
+
+console.log('原对象:', obj);
+console.log('JSON 快照:', JSON.parse(JSON.stringify(obj)));
+// 输出: { name: 'test', date: '2024-01-01T00:00:00.000Z', map: {} }
+</code></pre>
+<p><strong>适用场景</strong>：调试纯数据对象（POJO）</p>
+<h3 id="方案-2structuredclone">方案 2：<code>structuredClone()</code></h3>
+<pre><code class="language-javascript">console.log('快照:', structuredClone(obj));
+</code></pre>
+<p><strong>原理</strong>：使用结构化克隆算法，这是 HTML 标准定义的深拷贝算法。</p>
+<p><strong>优点</strong>：</p>
+<ul>
+<li>支持更多数据类型：Map、Set、Date、RegExp、ArrayBuffer、TypedArray 等</li>
+<li>处理循环引用</li>
+<li>性能较好</li>
+</ul>
+<p><strong>缺点</strong>：</p>
+<ul>
+<li>仍不支持函数、DOM 节点、Error 对象</li>
+<li>需要较新的浏览器版本</li>
+</ul>
+<p><strong>浏览器兼容性</strong>：</p>
+<ul>
+<li>Chrome 98+ (2022 年 2 月)</li>
+<li>Firefox 94+ (2021 年 11 月)</li>
+<li>Safari 15.4+ (2022 年 3 月)</li>
+</ul>
+<p><strong>示例</strong>：</p>
+<pre><code class="language-javascript">const obj = {
+  name: 'test',
+  date: new Date(),
+  map: new Map([['key', 'value']]),
+  set: new Set([1, 2, 3])
+};
+
+console.log('structuredClone:', structuredClone(obj));
+// 完整保留 Date、Map、Set 的类型和值
+</code></pre>
+<p><strong>适用场景</strong>：包含复杂数据结构（Map、Set、Date 等）的对象</p>
+<h3 id="方案-3展开运算符浅拷贝">方案 3：展开运算符（浅拷贝）</h3>
+<pre><code class="language-javascript">console.log('对象快照:', { ...obj });
+console.log('数组快照:', [...arr]);
+</code></pre>
+<p><strong>原理</strong>：创建新对象，复制第一层属性。</p>
+<p><strong>优点</strong>：</p>
+<ul>
+<li>语法简洁</li>
+<li>性能最好</li>
+<li>支持所有类型</li>
+</ul>
+<p><strong>缺点</strong>：</p>
+<ul>
+<li>仅浅拷贝，嵌套对象仍是引用</li>
+</ul>
+<p><strong>示例</strong>：</p>
+<pre><code class="language-javascript">const obj = {
+  name: 'test',
+  nested: { value: 1 }
+};
+
+const shallow = { ...obj };
+obj.nested.value = 2;
+
+console.log(shallow.nested.value);  // 2（nested 仍是引用）
+</code></pre>
+<p><strong>适用场景</strong>：扁平结构的对象</p>
+<h3 id="方案-4直接打印值或字符串化">方案 4：直接打印值或字符串化</h3>
+<pre><code class="language-javascript">// 方式 1：打印特定字段
+console.log('createdBy:', obj.createdBy);
+
+// 方式 2：JSON 字符串（格式化）
+console.log('JSON 字符串:', JSON.stringify(obj, null, 2));
+
+// 方式 3：模板字符串
+console.log(`createdBy=${obj.createdBy}, status=${obj.status}`);
+</code></pre>
+<p><strong>优点</strong>：</p>
+<ul>
+<li>最直接，无额外开销</li>
+<li>基本类型不受引用影响</li>
+<li>JSON 字符串易于复制和分享</li>
+</ul>
+<p><strong>适用场景</strong>：</p>
+<ul>
+<li>只关注特定字段</li>
+<li>需要查看整体 JSON 结构</li>
+<li>需要复制数据用于测试</li>
+</ul>
+<h3 id="方案-5consoletable">方案 5：<code>console.table()</code></h3>
+<pre><code class="language-javascript">console.table(obj);
+console.table([obj1, obj2, obj3]);
+</code></pre>
+<p><strong>原理</strong>：以表格形式展示数据，内部会自动序列化当前值。</p>
+<p><strong>优点</strong>：</p>
+<ul>
+<li>可视化效果好</li>
+<li>自动序列化，不受引用影响</li>
+<li>适合对比多个对象</li>
+</ul>
+<p><strong>示例</strong>：</p>
+<pre><code class="language-javascript">const users = [
+  { id: 1, name: 'Alice', age: 25 },
+  { id: 2, name: 'Bob', age: 30 },
+  { id: 3, name: 'Charlie', age: 35 }
+];
+
+console.table(users);
+// 输出一个表格，列为 id、name、age
+</code></pre>
+<p><strong>适用场景</strong>：数组或对象列表的调试</p>
+<h3 id="方案-6调试器断点">方案 6：调试器断点</h3>
+<pre><code class="language-javascript">debugger;
+console.log(obj);
+</code></pre>
+<p>或在 Chrome DevTools 中设置断点。</p>
+<p><strong>优点</strong>：</p>
+<ul>
+<li>在断点处查看变量的准确状态</li>
+<li>可以逐步执行，观察变量变化</li>
+<li>可以使用 DevTools 的所有功能</li>
+</ul>
+<p><strong>适用场景</strong>：复杂的调试场景，需要逐步跟踪</p>
+<h2 id="方案对比">方案对比</h2>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>深度拷贝</th>
+<th>性能</th>
+<th>类型支持</th>
+<th>代码复杂度</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JSON 序列化</td>
+<td>是</td>
+<td>中等</td>
+<td>纯数据（不支持函数、undefined、Symbol）</td>
+<td>低</td>
+<td>常规数据对象</td>
+</tr>
+<tr>
+<td>structuredClone</td>
+<td>是</td>
+<td>中等</td>
+<td>较广泛（支持 Map、Set、Date，不支持函数）</td>
+<td>低</td>
+<td>复杂数据结构</td>
+</tr>
+<tr>
+<td>展开运算符</td>
+<td>否（浅拷贝）</td>
+<td>快</td>
+<td>所有类型</td>
+<td>低</td>
+<td>扁平对象</td>
+</tr>
+<tr>
+<td>直接打印值</td>
+<td>-</td>
+<td>最快</td>
+<td>基本类型和字符串</td>
+<td>低</td>
+<td>查看特定字段</td>
+</tr>
+<tr>
+<td>console.table</td>
+<td>是（自动）</td>
+<td>快</td>
+<td>可序列化类型</td>
+<td>低</td>
+<td>列表/表格数据</td>
+</tr>
+<tr>
+<td>断点调试</td>
+<td>-</td>
+<td>-</td>
+<td>所有类型</td>
+<td>中等</td>
+<td>复杂调试流程</td>
+</tr>
+</tbody>
+</table>
+<p><strong>推荐策略</strong>：</p>
+<ol>
+<li><strong>默认选择</strong>：<code>JSON.parse(JSON.stringify(obj))</code> - 适用于 90% 的场景</li>
+<li><strong>复杂对象</strong>：<code>structuredClone(obj)</code> - 包含 Map、Set、Date 等类型</li>
+<li><strong>简单查看</strong>：直接打印字段或使用 <code>JSON.stringify(obj, null, 2)</code></li>
+<li><strong>列表数据</strong>：<code>console.table(arr)</code></li>
+<li><strong>复杂调试</strong>：使用断点调试器</li>
+</ol>
+<h2 id="相关知识点">相关知识点</h2>
+<br>
+<h3 id="vue-响应式数据访问">Vue 响应式数据访问</h3>
+<br>
+<h4 id="vue-3-的-ref">Vue 3 的 ref</h4>
+<pre><code class="language-javascript">import { ref } from 'vue';
+
+const count = ref(0);
+
+// 错误：直接访问 ref
+console.log(count);  // RefImpl { _value: 0, ... }
+
+// 正确：通过 .value 访问
+console.log(count.value);  // 0
+
+// 修改值
+count.value++;
+</code></pre>
+<h4 id="vue-3-的-reactive">Vue 3 的 reactive</h4>
+<pre><code class="language-javascript">import { reactive } from 'vue';
+
+const state = reactive({ count: 0 });
+
+// 正确：直接访问属性
+console.log(state.count);  // 0
+
+// 修改值
+state.count++;
+</code></pre>
+<h4 id="获取原始值">获取原始值</h4>
+<pre><code class="language-javascript">import { toRaw, reactive } from 'vue';
+
+const state = reactive({ count: 0 });
+const raw = toRaw(state);
+
+// raw 是非响应式的原始对象
+console.log(raw);
+</code></pre>
+<h4 id="从-vue-组件迁移代码的注意事项">从 Vue 组件迁移代码的注意事项</h4>
+<p>在 Vue 模板中，<code>ref</code> 会自动解包：</p>
+<pre><code class="language-vue">&lt;template&gt;
+  &lt;!-- 自动解包，无需 .value --&gt;
+  &lt;div&gt;{{ count }}&lt;/div&gt;
+&lt;/template&gt;
+
+&lt;script setup&gt;
+import { ref } from 'vue';
+
+const count = ref(0);
+
+// 在 JS 中必须使用 .value
+function increment() {
+  count.value++;  // 正确
+  // count++;     // 错误
+}
+&lt;/script&gt;
+</code></pre>
+<p>迁移到纯 JavaScript 时必须手动添加 <code>.value</code>。</p>
+<h3 id="浏览器与-nodejs-的-console-实现差异">浏览器与 Node.js 的 console 实现差异</h3>
+<h4 id="浏览器chrome">浏览器（Chrome）</h4>
+<pre><code class="language-javascript">const obj = { value: 1 };
+console.log(obj);
+obj.value = 2;
+// 展开时显示 { value: 2 }
+</code></pre>
+<p>实现原理：</p>
+<ul>
+<li>存储对象引用</li>
+<li>延迟读取属性</li>
+<li>优化性能和内存</li>
+</ul>
+<h4 id="nodejs">Node.js</h4>
+<pre><code class="language-javascript">const obj = { value: 1 };
+console.log(obj);
+obj.value = 2;
+// 输出 { value: 1 }
+</code></pre>
+<p>实现原理：</p>
+<ul>
+<li>立即调用 <code>util.inspect()</code></li>
+<li>序列化对象为字符串</li>
+<li>显示打印时刻的准确值</li>
+</ul>
+<h4 id="选择建议">选择建议</h4>
+<ul>
+<li><strong>开发调试</strong>：使用浏览器 DevTools，功能更强大</li>
+<li><strong>服务器日志</strong>：Node.js 环境，输出准确</li>
+<li><strong>CI/CD 测试</strong>：Node.js 环境，可靠性高</li>
+</ul>
+<h3 id="其他有用的-console-方法">其他有用的 console 方法</h3>
+<h4 id="consoledir"><code>console.dir()</code></h4>
+<p>显示对象的所有属性（包括不可枚举属性）：</p>
+<pre><code class="language-javascript">const obj = { a: 1 };
+Object.defineProperty(obj, 'hidden', {
+  value: 'secret',
+  enumerable: false
+});
+
+console.log(obj);   // { a: 1 }
+console.dir(obj);   // { a: 1, hidden: 'secret' }
+</code></pre>
+<h4 id="consoleassert"><code>console.assert()</code></h4>
+<p>断言调试，条件为 false 时打印错误：</p>
+<pre><code class="language-javascript">const value = 5;
+console.assert(value === 10, 'value 应该等于 10，但实际是', value);
+// Assertion failed: value 应该等于 10，但实际是 5
+</code></pre>
+<h4 id="consoletrace"><code>console.trace()</code></h4>
+<p>打印当前的调用堆栈：</p>
+<pre><code class="language-javascript">function foo() {
+  function bar() {
+    console.trace('调用堆栈');
+  }
+  bar();
+}
+
+foo();
+// 输出完整的调用链：bar -&gt; foo -&gt; &lt;anonymous&gt;
+</code></pre>
+<h4 id="consoletime-consoletimeend"><code>console.time()</code> / <code>console.timeEnd()</code></h4>
+<p>测量代码执行时间：</p>
+<pre><code class="language-javascript">console.time('数组处理');
+const arr = new Array(1000000).fill(0).map((_, i) =&gt; i * 2);
+console.timeEnd('数组处理');
+// 数组处理: 23.456ms
+</code></pre>
+<h4 id="consolegroup-consolegroupend"><code>console.group()</code> / <code>console.groupEnd()</code></h4>
+<p>分组显示日志：</p>
+<pre><code class="language-javascript">console.group('用户信息');
+console.log('姓名:', 'Alice');
+console.log('年龄:', 25);
+console.groupEnd();
+</code></pre>
+<h2 id="总结">总结</h2>
+<br>
+<h3 id="核心要点">核心要点</h3>
+<ol>
+<li><strong>引用陷阱</strong>：<code>console.log(obj)</code> 在浏览器中存储的是对象引用，展开时读取的是当前值</li>
+<li><strong>环境差异</strong>：浏览器延迟展开（性能优化），Node.js 立即序列化（准确性优先）</li>
+<li><strong>解决方案</strong>：使用深拷贝（JSON 或 structuredClone）打印快照，或直接打印字段值</li>
+<li><strong>Vue 特殊性</strong>：从 Vue 迁移代码时注意 <code>ref</code> 需要 <code>.value</code> 访问</li>
+</ol>
+<h3 id="调试最佳实践">调试最佳实践</h3>
+<ol>
+<li>
+<p><strong>默认方案</strong>：</p>
+<pre><code class="language-javascript">console.log('快照:', JSON.parse(JSON.stringify(obj)));
+</code></pre>
+</li>
+<li>
+<p><strong>复杂对象</strong>：</p>
+<pre><code class="language-javascript">console.log('快照:', structuredClone(obj));
+</code></pre>
+</li>
+<li>
+<p><strong>查看字段</strong>：</p>
+<pre><code class="language-javascript">console.log('字段:', obj.field);
+</code></pre>
+</li>
+<li>
+<p><strong>列表数据</strong>：</p>
+<pre><code class="language-javascript">console.table(arrayOfObjects);
+</code></pre>
+</li>
+<li>
+<p><strong>复杂场景</strong>：使用 DevTools 断点调试器</p>
+</li>
+</ol>
+<h3 id="参考资料">参考资料</h3>
+<ul>
+<li><a href="https://developer.mozilla.org/zh-CN/docs/Web/API/console">MDN - console</a></li>
+<li><a href="https://developer.chrome.com/docs/devtools/console/api/">Chrome DevTools Console API Reference</a></li>
+<li><a href="https://developer.mozilla.org/en-US/docs/Web/API/structuredClone">structuredClone() - Web APIs</a></li>
+<li><a href="https://vuejs.org/api/reactivity-core.html">Vue 3 Reactivity API</a></li>
+</ul>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/install-java8-on-arm-mac/" class="post-title gt-a-link">
+                    ARM Mac 安装 Java 8 备忘
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,360 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>GitLab-CI（一）：搭建 iOS CI 环境 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    GitLab-CI（一）：搭建 iOS CI 环境
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2022-04-13 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/cicd/" class="post-tags">
+                            # CI/CD
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <blockquote>
+<p>本文档用于介绍如何搭建适用于构建 iOS 项目的 GitLab-CI 环境。</p>
+</blockquote>
+<!-- more -->
+<p>GitLab-CI 系列文章目前有三篇，主要讲解 GitLab-CI 的环境搭建与配置。本文为该系列的第一篇。</p>
+<p>目录：</p>
+<ul>
+<li><a href="/gitlab-ci-build-ios-environment">GitLab-CI（一）：搭建 iOS CI 环境</a></li>
+<li><a href="/gitlab-ci-register-runner">GitLab-CI（二）：注册 GitLab-Runner</a></li>
+<li><a href="/gitlab-ci-config-runner">GitLab-CI（三）：配置 GitLab-Runner</a></li>
+</ul>
+<h1 id="macos">macOS</h1>
+<p>构建 iOS 项目必须要基于 macOS 操作系统。<br>
+无法上云（因为公有云不支持 CPU 虚拟化），且目前没有提供的 macOS 服务器，故需要一台本地硬件来提供 CI/CD 服务。</p>
+<h1 id="最低要求">最低要求</h1>
+<p>macOS 的系统版本要求符合开发所使用的 Xcode 所要求的最低系统版本。<br>
+因为一般来说，一个开发组内的系统版本保持一致，故 CI 机器的系统版本应当尽量保持一致。<br>
+可查阅 Apple 官方的 <a href="https://developer.apple.com/cn/support/xcode/">Xcode - 支持</a> 文档，查看系统最低要求。</p>
+<p>如果使用 Xcode 14.2 &amp; macOS 13 版本的系统进行开发，则 CI 机器最低应使用 macOS 12.5 版本。</p>
+<h1 id="翻墙-vpn">翻墙 VPN</h1>
+<p>因为后续诸多步骤需要翻墙才能提高访问速度，甚至需要翻墙才能安装成功，所以建议先把翻墙VPN配置好。</p>
+<h1 id="开发环境">开发环境</h1>
+<h2 id="xcode">Xcode</h2>
+<p>在 macOS 上，Xcode 是大部分编程环境的基础；Xcode 包含例如 git 在内的一系列开发工具，所以第一步我们应当先下载 Xcode，之后再执行其他操作。</p>
+<p>通过 Mac App Store 下载最新版本的 Xcode，或去官网下载对应版本的 Xcode。</p>
+<blockquote>
+<p>如上所述，CI 机器上的 Xcode 版本应当与开发所使用的版本保持一致。</p>
+</blockquote>
+<p>下载安装好 Xcode 之后，应当先打开一次 Xcode，完成后续流程，直至看到欢迎页面。</p>
+<h2 id="命令行工具">命令行工具</h2>
+<p>打开终端，输入以下命令，安装 Xcode 命令行工具：</p>
+<pre><code class="language-bash">xcode-select --install
+</code></pre>
+<p>在弹出的弹窗内，选择安装，并根据提示完成后续安装即可。</p>
+<h2 id="git-配置">Git 配置</h2>
+<p>安装 Xcode 的过程中，将自动安装 git 服务。此时您需要在命令行中进行一些额外的配置：</p>
+<pre><code class="language-bash">git config --global user.name &quot;git账户名&quot;
+git config --global user.email &quot;注册git所用邮箱&quot;
+</code></pre>
+<h2 id="ssh">SSH</h2>
+<p>您需要配置 SSH，将本机的 SSH 添加到 GitLab 系统中。</p>
+<p>首先进入 <code>.ssh</code> 目录：</p>
+<pre><code class="language-bash">cd ~/.ssh # 如果该目录不存在，则需要您手动使用 mkdir ~/.ssh 进行创建
+</code></pre>
+<p>接着创建 ssh 文件：</p>
+<pre><code class="language-bash">ssh-keygen -t rsa -C &quot;注册git所用邮箱&quot;
+</code></pre>
+<p>输入命令之后，连续敲击3个回车完成创建（请勿设置密码，否则可能导致一些问题）</p>
+<p>最后，使用下列命令查看生成的公钥，并复制到 GitLab 中即可：</p>
+<pre><code class="language-bash">cat id_rsa.pub
+</code></pre>
+<h2 id="环境初始化">环境初始化</h2>
+<p>博主自己写了一个用于初始化环境的脚本：</p>
+<pre><code class="language-bash">/bin/zsh -c &quot;$(curl -fsSL 以后的脚本路径)&quot; ci
+</code></pre>
+<p>在终端中，输入上述命令后，将安装如下服务：</p>
+<ul>
+<li>Homebrew（安装过程中需要用户手动选择国内镜像源）</li>
+<li>RVM，并确保 ruby 版本为 2.7.4 版本</li>
+<li>Bundle</li>
+<li>Mint</li>
+<li>在 <code>~</code> 目录下添加开机解锁密码（默认为 <code>qazxsw2</code>）</li>
+</ul>
+<p>您可以 fork 该脚本后修改脚本内容，以安装适用于您自己的开发环境。</p>
+<h3 id="针对-homebrew-的额外配置">针对 Homebrew 的额外配置</h3>
+<p>执行初始化脚本时，可能出现如下报错：</p>
+<pre><code>No remote 'origin' in ...
+fatal: not in a git directory Error
+</code></pre>
+<p>此时初始化脚本会被中断。我们可以执行 brew -v 命令查看提示，并按照提示执行如下命令：</p>
+<pre><code class="language-bash">git config --global --add safe.directory homebrew-core路径
+git config --global --add safe.directory homebrew-cask路径
+git config --global --add safe.directory homebrew-services路径
+</code></pre>
+<p>将 <code>homebrew-core</code>、<code>homebrew-cask</code> 和 <code>homebrew-services</code> 的路径添加到 <code>git config</code> 中即可。<br>
+之后再重新执行初始化脚本即可。</p>
+<h1 id="内网-vpn">内网 VPN</h1>
+<p>一般来说 GitLab 服务都安装在公司内网，需要连接内网才能进行访问。<br>
+您需要在这一步中根据您自身的情况，确保 CI 电脑可以顺利访问公司内网服务。</p>
+<h1 id="gitlab-runner">GitLab-Runner</h1>
+<blockquote>
+<p>整体安装、配置流程可参考 <a href="https://docs.gitlab.com/runner/install/osx.html">官方文档</a>，本节内容仅作为补充说明使用。其内容与官方文档基本一致。</p>
+</blockquote>
+<h2 id="下载安装">下载安装</h2>
+<blockquote>
+<p>因为官方使用的是亚马逊的 s3 服务器，在墙内下载会比较慢，建议开启翻墙 VPN 或在早上或者网络条件比较好的时候下载。</p>
+</blockquote>
+<p>GitLab-Runner 作为 GitLab-CI 的基础，其版本应该和 GitLab 的版本有所对应，否则容易出现不匹配的情况。<br>
+<code>14.8.1-jh</code> 版本的 GitLab 可以使用 <code>15.1.0</code> 版本的 Runner。</p>
+<p>在终端输入下面的链接下载安装包：</p>
+<blockquote>
+<p>该安装包适用于 Intel 芯片的 Mac，如果是 M 系列芯片的 Mac，则需要将最后的 amd64 修改为 arm64。</p>
+</blockquote>
+<pre><code class="language-bash">sudo curl --output /usr/local/bin/gitlab-runner https://gitlab-runner-downloads.s3.amazonaws.com/v15.1.0/binaries/gitlab-runner-darwin-amd64
+</code></pre>
+<h2 id="赋予权限">赋予权限</h2>
+<pre><code class="language-bash">sudo chmod +x /usr/local/bin/gitlab-runner
+</code></pre>
+<p>在终端输入上述命令后，即可在终端内使用 <code>gitlab-runner</code> 命令。</p>
+<h2 id="注册-runner">注册 Runner</h2>
+<p>详细注册流程请参考 <a href="/gitlab-ci-register-runner">注册 GitLab-Runner</a></p>
+<h2 id="启动-runner">启动 Runner</h2>
+<p>首先打开终端，切换到当前登陆用户：</p>
+<pre><code class="language-bash">su - &lt;username&gt;
+</code></pre>
+<p>接着安装 Runner 服务并启动：</p>
+<pre><code class="language-bash">cd ~
+gitlab-runner install
+gitlab-runner start
+</code></pre>
+<p>最后重启电脑即可完成 Runner 的安装。</p>
+<blockquote>
+<p>可以在终端内输入 <code>gitlab-runner list</code> 命令，查看输出，并检查 <code>config.toml</code> 文件路径。</p>
+</blockquote>
+<h2 id="配置-runner">配置 Runner</h2>
+<p>请参考 <a href="/gitlab-ci-config-runner">配置 GitLab-Runner</a> 文档中 <strong>concurrent</strong> 一节进行配置。</p>
+<hr>
+<p>至此，这台电脑完成了 CI/CD 的相关配置。</p>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/objc-delegate-optimization/" class="post-title gt-a-link">
+                    Objective-C delegate 性能小优化
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

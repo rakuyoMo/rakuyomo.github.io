@@ -1,0 +1,762 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>计算机网络之六 - 可靠的 TCP 与高效的 UDP | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    计算机网络之六 - 可靠的 TCP 与高效的 UDP
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2025-08-21 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/ji-suan-ji-wang-luo/" class="post-tags">
+                            # 计算机网络
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>TCP 与 UDP 是网络传输层的两大核心协议，它们以截然不同的方式定义了数据在应用程序间的传输。TCP 如同一次通话，追求可靠与完整；UDP 则像一张明信片，主张高效与迅捷。正是这两种设计哲学的差异，决定了它们在网页浏览、文件传输、视频会议、在线游戏等不同场景下的应用。本文将深入解析二者的核心机制与关键差异。</p>
+<!-- more -->
+<p>本系列其余几篇的目录：</p>
+<ul>
+<li><a href="/computer-network-ip-and-port/">计算机网络之一 - IP 与端口</a></li>
+<li><a href="/computer-network-url-and-dns/">计算机网络之二 - URL 与 DNS</a></li>
+<li><a href="/computer-network-dhcp-and-intranet-penetration/">计算机网络之三 - DHCP 与内网穿透</a></li>
+<li><a href="/computer-network-virtual-nic-and-wireguard">计算机网络之四 - 虚拟网卡与 WireGuard</a></li>
+<li><a href="/computer-network-http-and-https">计算机网络之五 - HTTP 与 HTTPS</a></li>
+<li><a href="/computer-network-osi-and-tcpip-models">计算机网络之七 - OSI 与 TCP/IP 分层模型</a></li>
+</ul>
+<hr>
+<h2 id="tcp可靠的电话通话">TCP：可靠的“电话通话”</h2>
+<p>如果说 UDP 像一张随手寄出的明信片，那么 TCP (Transmission Control Protocol, 传输控制协议) 就是一通严谨的国际长途电话。在通话开始前，你必须先拨号、等待对方接听、双方确认身份并都说“喂，听得到吗？”之后，才会开始真正的交谈。通话结束后，还要礼貌地道别，确保双方都知晓通话结束。</p>
+<p>这个过程虽然繁琐，但它确保了整个对话的<strong>完整性</strong>和<strong>有序性</strong>，这正是 TCP 的核心设计哲学。</p>
+<h3 id="核心特性面向连接与可靠">核心特性：面向连接与可靠</h3>
+<ul>
+<li><strong>面向连接 (Connection-Oriented)</strong>：在发送任何应用数据之前，通信双方（客户端和服务器）必须先通过一个标准化的过程建立一个虚拟的连接。所有后续的数据交换都在这个已建立的连接上进行。</li>
+<li><strong>可靠传输 (Reliable)</strong>：TCP 提供了一系列复杂的机制来保证数据能够准确、有序地从发送方传输到接收方。它承诺“<strong>不丢包、不失序、无差错、无重复</strong>”。</li>
+</ul>
+<p>这一切的可靠性，都始于那个著名的“<strong>三次握手</strong>”过程。但在深入流程之前，我们必须先了解构成这次“握手”的几个关键“零件”。</p>
+<h3 id="tcp-报文一次通话的信封">TCP 报文：一次通话的“信封”</h3>
+<p>TCP 通信的数据单元被称为<strong>报文段 (Segment)</strong>。你可以把它想象成一个高度结构化的信封，其“信封皮”，也就是 <strong>TCP 头部 (Header)</strong>，包含了所有用于控制通信的元信息。下表是其主要字段的概览：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">字段</th>
+<th style="text-align:left">英文名称</th>
+<th style="text-align:left">简称</th>
+<th style="text-align:left">大小</th>
+<th style="text-align:left">描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">源端口</td>
+<td style="text-align:left">Source Port</td>
+<td style="text-align:left"><code>sport</code></td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">标识发送方应用程序的端口号</td>
+</tr>
+<tr>
+<td style="text-align:left">目标端口</td>
+<td style="text-align:left">Destination Port</td>
+<td style="text-align:left"><code>dport</code></td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">标识接收方应用程序的端口号</td>
+</tr>
+<tr>
+<td style="text-align:left">序列号</td>
+<td style="text-align:left">Sequence Number</td>
+<td style="text-align:left"><code>seq</code></td>
+<td style="text-align:left">32 bits</td>
+<td style="text-align:left">标记本报文段数据第一个字节在数据流中的位置</td>
+</tr>
+<tr>
+<td style="text-align:left">确认号</td>
+<td style="text-align:left">Acknowledgment Number</td>
+<td style="text-align:left"><code>ack</code></td>
+<td style="text-align:left">32 bits</td>
+<td style="text-align:left">期望收到的对方下一个报文段的序列号</td>
+</tr>
+<tr>
+<td style="text-align:left">数据偏移</td>
+<td style="text-align:left">Data Offset</td>
+<td style="text-align:left">-</td>
+<td style="text-align:left">4 bits</td>
+<td style="text-align:left">TCP 头部自身的长度，单位为4字节（32位）</td>
+</tr>
+<tr>
+<td style="text-align:left">保留</td>
+<td style="text-align:left">Reserved</td>
+<td style="text-align:left">-</td>
+<td style="text-align:left">6 bits</td>
+<td style="text-align:left">未使用的保留位，必须为 0</td>
+</tr>
+<tr>
+<td style="text-align:left">标志位</td>
+<td style="text-align:left">Flags</td>
+<td style="text-align:left">-</td>
+<td style="text-align:left">6 bits</td>
+<td style="text-align:left">用于控制连接状态，如 <code>SYN</code>, <code>ACK</code>, <code>FIN</code></td>
+</tr>
+<tr>
+<td style="text-align:left">窗口大小</td>
+<td style="text-align:left">Window Size</td>
+<td style="text-align:left"><code>win</code></td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">用于流量控制，表示接收方还能接收多少数据</td>
+</tr>
+<tr>
+<td style="text-align:left">校验和</td>
+<td style="text-align:left">Checksum</td>
+<td style="text-align:left"><code>csum</code></td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">用于检查头部和数据的传输错误</td>
+</tr>
+<tr>
+<td style="text-align:left">紧急指针</td>
+<td style="text-align:left">Urgent Pointer</td>
+<td style="text-align:left">-</td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">当<code>URG</code>标志位为1时有效</td>
+</tr>
+<tr>
+<td style="text-align:left">选项</td>
+<td style="text-align:left">Options</td>
+<td style="text-align:left">-</td>
+<td style="text-align:left">可变</td>
+<td style="text-align:left">用于携带额外的控制信息</td>
+</tr>
+</tbody>
+</table>
+<p>在理解后续的握手流程时，我们无需关注所有细节，只需将注意力集中在最重要的四个“角色”上：<strong><code>SYN</code></strong> 和 <strong><code>ACK</code></strong> 这两个<strong>标志位</strong>，以及 <strong><code>seq</code></strong> 和 <strong><code>ack</code></strong> 这两个<strong>核心编号</strong>。</p>
+<p><code>SYN</code> 和 <code>ACK</code> 是 TCP 报文头中的两个非常重要的标志位 (Flags)，它们就像是通信双方用来表达意图的“信号旗”。</p>
+<ul>
+<li>
+<p><strong>SYN (Synchronize Sequence Numbers - 同步序列号)</strong></p>
+<ul>
+<li><strong>含义</strong>：这个标志位用于<strong>发起和建立连接</strong>。当一方想要与另一方建立连接时，它会发送一个 <code>SYN</code> 标志位置为 1 的报文。这可以理解为在说：“你好，我想和你建立通信，我们来同步一下初始的序列号吧！”</li>
+</ul>
+</li>
+<li>
+<p><strong>ACK (Acknowledgment - 确认)</strong></p>
+<ul>
+<li><strong>含义</strong>：这个标志位用于<strong>确认收到数据</strong>。当 <code>ACK</code> 标志位置为 1 时，意味着报文中的“确认号”字段有效。它告诉对方：“你之前发送的数据我已经收到了。” 在连接建立之后，几乎所有的 TCP 报文都会将 <code>ACK</code> 位置为 1。</li>
+</ul>
+</li>
+</ul>
+<p>而 <code>seq</code> 和 <code>ack</code> 是 TCP 实现可靠传输的基石，它们共同解决了一个核心问题：在不可靠的网络上，如何保证数据<strong>不丢、不乱、不重</strong>。</p>
+<ul>
+<li>
+<p><strong>seq (Sequence Number - 序列号)</strong></p>
+<ul>
+<li><strong>作用</strong>：它的核心作用是<strong>给数据包进行编号</strong>。TCP 把要传输的数据看作一个连续的字节流，<code>seq</code> 就是这个流中<strong>每一个数据包里第一个字节的编号</strong>。</li>
+<li><strong>设计原因</strong>：
+<ol>
+<li><strong>保证顺序</strong>：网络传输中，数据包可能会因为路由不同而失序到达。接收方可以根据 <code>seq</code> 号对数据包进行重新排序，从而恢复出原始的、有序的数据。</li>
+<li><strong>丢包检测</strong>：接收方如果发现收到的 <code>seq</code> 号不连续（比如收到了 100 和 300，但没收到 200），就知道中间有数据包丢失了，可以请求发送方重传。</li>
+</ol>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>ack (Acknowledgment Number - 确认号)</strong></p>
+<ul>
+<li><strong>作用</strong>：它的作用是<strong>告诉发送方我期望接收的下一个字节的序列号是多少</strong>。这个设计非常巧妙，因为它<strong>隐含地确认了在这个编号之前的所有数据都已成功收到</strong>。</li>
+<li><strong>设计原因</strong>：
+<ol>
+<li><strong>高效确认</strong>：如果发送方发送了 100、200、300 三个包，接收方只需回复一个 <code>ack=400</code>，就代表“100、200、300 我都收到了，请从 400 开始发”。这比为每个包都单独回复一次确认要高效得多。</li>
+<li><strong>建立可靠连接</strong>：它是发送方判断对方是否成功收到数据的唯一依据。</li>
+</ol>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="三次握手同步序列号与交换能力">三次握手：同步序列号与交换能力</h3>
+<p>理解了上述几个核心“词汇”后，我们再来审视三次握手的过程，它的每一步都变得有据可循。其本质，是通过三次通信，完成两个核心任务：</p>
+<ol>
+<li><strong>交换并确认双方的初始序列号 (ISN)</strong>，为后续数据的有序传输打下基础。</li>
+<li><strong>确认双方都具备可靠的发送和接收能力</strong>。</li>
+</ol>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyo.dev/post-images/1755777540140.svg" alt="" loading="lazy"></figure>
+<!--
+sequenceDiagram
+    participant 客户端
+    participant 服务器
+
+    客户端->>服务器: SYN=1, seq=x
+    Note right of 客户端: 请求建立连接
+
+    服务器-&#45;->>客户端: SYN=1, ACK=1, seq=y, ack=x+1
+    Note left of 服务器: 同意连接，并确认收到
+
+    客户端->>服务器: ACK=1, seq=x+1, ack=y+1
+    Note right of 客户端: 确认收到，连接建立
+-->
+<ol>
+<li>
+<p><strong>第一次握手 (Client -&gt; Server)</strong>:</p>
+<ul>
+<li><strong>内容</strong>: 客户端发送一个 TCP 报文，其中 <code>SYN</code> 标志位置为 1，并选择一个随机的初始序列号 <code>seq=x</code>。</li>
+<li><strong>目的</strong>: 客户端向服务器表明“我想要建立连接”，并告知自己的起始序列号。</li>
+<li><strong>状态</strong>: 客户端进入 <code>SYN_SENT</code> 状态。</li>
+</ul>
+</li>
+<li>
+<p><strong>第二次握手 (Server -&gt; Client)</strong>:</p>
+<ul>
+<li><strong>内容</strong>: 服务器收到客户端的 <code>SYN</code> 包后，回复一个报文。该报文中 <code>SYN</code> 和 <code>ACK</code> 标志位都置为 1。服务器也选择一个自己的随机初始序列号 <code>seq=y</code>，同时将确认号 <code>ack</code> 设置为 <code>x+1</code>。</li>
+<li><strong>目的</strong>: 服务器通过 <code>ACK=1</code> 和 <code>ack=x+1</code> 告诉客户端：“你的请求我收到了”。通过 <code>SYN=1</code> 和 <code>seq=y</code> 表明：“我也同意建立连接，这是我的起始序列号”。</li>
+<li><strong>状态</strong>: 服务器进入 <code>SYN_RCVD</code> 状态。此时，服务器已确认客户端的发送能力正常。</li>
+</ul>
+</li>
+<li>
+<p><strong>第三次握手 (Client -&gt; Server)</strong>:</p>
+<ul>
+<li><strong>内容</strong>: 客户端收到服务器的 <code>SYN-ACK</code> 包后，发送最后一个确认报文。该报文 <code>ACK</code> 标志位置为 1，<code>seq</code> 设置为 <code>x+1</code>，并将确认号 <code>ack</code> 设置为 <code>y+1</code>。</li>
+<li><strong>目的</strong>: 客户端通过 <code>ACK=1</code> 和 <code>ack=y+1</code> 告诉服务器：“你的回应我已收到，现在我们可以开始通信了”。</li>
+<li><strong>状态</strong>: 此报文发送后，客户端进入 <code>ESTABLISHED</code> 状态。服务器收到后，也进入 <code>ESTABLISHED</code> 状态。连接正式建立。此时，双方都确认了对方的收发能力正常。</li>
+</ul>
+</li>
+</ol>
+<p>说到这里，我有一个问题：“为什么要交换 <code>seq</code> 和 <code>ack</code> 呢？”</p>
+<blockquote>
+<p><strong>本质是双向确认</strong>：TCP 是一个<strong>全双工</strong>的协议，意味着通信双方都可以同时发送和接收数据。因此，<strong>每一方都必须有自己的 <code>seq</code> 号来标记自己发送的数据，也必须有自己的 <code>ack</code> 号来确认收到的对方数据</strong>。<br>
+<strong>三次握手就是交换和确认彼此的初始序列号（ISN）的过程</strong>：</p>
+<ol>
+<li><strong>第一次握手</strong>：客户端发送 <code>SYN</code> 和自己的 <code>seq=x</code>。它在说：“我的初始序列号是 x，你收到了吗？”</li>
+<li><strong>第二次握手</strong>：服务器回复 <code>SYN</code>、自己的 <code>seq=y</code> 和 <code>ack=x+1</code>。它在说：“我收到了你的 x，所以我确认你的下一个应该是 x+1。同时，我的初始序列号是 y，你收到了吗？”</li>
+<li><strong>第三次握手</strong>：客户端回复 <code>ACK</code> 和 <code>ack=y+1</code>。它在说：“我收到了你的 y，所以我确认你的下一个应该是 y+1。”</li>
+</ol>
+</blockquote>
+<p><strong>为什么必须是三次握手，而不是两次？</strong></p>
+<p>最核心的原因，是为了<strong>防止早已失效的、旧的连接请求突然又送达服务器，从而引发错误</strong>。</p>
+<p>想象一个网络有些延迟的场景：</p>
+<ol>
+<li>客户端发送了第一个连接请求 <code>SYN</code>（我们称之为 <code>请求A</code>），但它在网络中被卡住了，迟迟没有到达服务器。</li>
+<li>客户端等了一会儿没收到回应，以为丢包了，于是又发送了一个新的连接请求 <code>SYN</code>（<code>请求B</code>）。</li>
+<li><code>请求B</code> 顺利到达，服务器正常回应，双方通过三次握手建立了连接，传输数据，然后正常关闭了连接。</li>
+<li>就在这时，那个被卡了很久的 <code>请求A</code> 终于抵达了服务器。</li>
+</ol>
+<p>如果只有两次握手，服务器收到 <code>请求A</code> 后，会误以为是客户端又发起了一个新的连接请求。它会立即分配资源，建立连接，然后傻傻地等待客户端发来数据。但此时的客户端对此一无所知，它根本不会理会服务器的确认，更不会发送任何数据。</p>
+<p>结果就是，服务器单方面开启了一个“空连接”，白白浪费了系统资源，直到超时后才关闭。而三次握手，通过增加第三次客户端的最终确认，完美地解决了这个问题。服务器只有在收到客户端对自己的 <code>SYN</code> 的最终 <code>ACK</code> 之后，才会确信这是一个有效的、全新的连接请求。</p>
+<p>这个过程可以用下面的时序图来表示：<br>
+<img src="https://blog.rakuyo.dev/post-images/1755777759557.svg" alt="" loading="lazy"></p>
+<!--
+```mermaid
+sequenceDiagram
+    participant 客户端
+    participant 服务器
+
+    客户端->>服务器: SYN (请求A, 网络延迟)
+    Note right of 客户端: 发起第一次连接尝试
+
+    客户端--x服务器: (请求A 在网络中滞留)
+
+    Note over 客户端: 等待超时...
+
+    客户端->>服务器: SYN (请求B)
+    Note right of 客户端: 没收到回应，再试一次
+
+    服务器-&#45;->>客户端: SYN-ACK (回应请求B)
+    客户端->>服务器: ACK (确认请求B)
+    Note over 客户端,服务器: 双方建立连接，正常通信...
+
+    Note over 客户端,服务器: 通信结束，连接关闭。
+
+    critical [延迟的] 请求A 最终抵达服务器
+        服务器-&#45;->>客户端: SYN-ACK (回应请求A)
+        Note left of 服务器: 以为是新请求，分配资源并等待...
+        Note right of 客户端: 客户端早已关闭或无意连接，<br>直接丢弃或拒绝此SYN-ACK。
+    end
+    Note over 服务器: 服务器的资源被白白浪费。
+```
+-->
+<h3 id="tcp-可靠性的基石">TCP 可靠性的基石</h3>
+<p>TCP 的可靠性并非单一功能，而是一个由多种机制协同工作的复杂系统。这些机制相互配合，共同确保了数据传输的完整性、有序性、无差错和高效性。</p>
+<ul>
+<li>
+<p><strong>序列号 (Sequence Numbers) 与确认应答 (Acknowledgements, ACK)</strong>：TCP 将发送的数据分割成一个个小的数据段（Segment），并为每个字节都分配一个唯一的序列号。接收方收到数据后，会发送一个 <code>ACK</code> 报文作为回应，其中包含一个确认号，告诉发送方“我已经收到了你到哪个序列号为止的所有数据，请从下一个序列号开始发”。这种“有问有答”的机制是保证数据不丢失的基础。</p>
+</li>
+<li>
+<p><strong>超时重传 (Timeout Retransmission)</strong>：如果在发送数据后的一段时间内（这个时间是动态计算的）没有收到对方的 <code>ACK</code>，发送方就会认为数据包可能在路上丢失了，于是会重新发送这个数据包。</p>
+</li>
+<li>
+<p><strong>流量控制 (Flow Control)</strong>：接收方会通过 TCP 头部中的“窗口大小 (Window Size)”字段，告诉发送方自己当前还能接收多少数据。发送方则根据这个窗口大小来调整自己的发送速率，确保不会因为发送过快而导致接收方处理不过来，造成数据溢出。</p>
+</li>
+<li>
+<p><strong>拥塞控制 (Congestion Control)</strong>：流量控制关心的是“点对点”的速率匹配，而拥塞控制则着眼于整个网络的健康状况。TCP 通过一系列算法（如慢启动、拥塞避免等）来探测网络的拥堵程度，并主动调整发送速率，避免因自身流量过大而加剧网络拥堵，最终导致大规模丢包。</p>
+</li>
+</ul>
+<h3 id="四次挥手礼貌地挂断电话">四次挥手：礼貌地“挂断电话”</h3>
+<p>与建立连接同样重要的是，如何安全、完整地断开连接。这个过程被称为“<strong>四次挥手</strong>”，因为它需要四次信息交换来确保双方的数据都已传输完毕。</p>
+<figure data-type="image" tabindex="2"><img src="https://blog.rakuyo.dev/post-images/1755787655071.svg" alt="" loading="lazy"></figure>
+<!--
+sequenceDiagram
+    participant 客户端
+    participant 服务器
+
+    客户端->>服务器: FIN (seq=u)
+    Note right of 客户端: 我这边的数据都发完了，准备关闭连接了
+
+    服务器-&#45;->>客户端: ACK (ack=u+1)
+    Note left of 服务器: 好的，收到了。但我这边可能还有数据要发，<br/>请稍等
+
+    Note left of 服务器: (服务器继续发送剩余数据...)
+
+    服务器-&#45;->>客户端: FIN (seq=v)
+    Note left of 服务器: 我这边的数据也发完了，可以关闭连接了
+
+    客户端->>服务器: ACK (ack=v+1)
+    Note right of 客户端: 好的，收到了。连接正式关闭
+-->
+<ol>
+<li>
+<p><strong>第一次挥手 (FIN)</strong>：客户端决定关闭连接，向服务器发送一个 <code>FIN</code> 报文，表示“我的数据已经全部发送完毕了”。此时客户端进入 <code>FIN_WAIT_1</code> 状态。</p>
+</li>
+<li>
+<p><strong>第二次挥手 (ACK)</strong>：服务器收到 <code>FIN</code> 报文后，回复一个 <code>ACK</code> 报文，表示“收到了你的关闭请求”。但此时服务器可能还有未发送完的数据，所以它还不能立即关闭连接。此时，服务器进入 <code>CLOSE_WAIT</code> 状态，客户端收到 <code>ACK</code> 后进入 <code>FIN_WAIT_2</code> 状态。</p>
+</li>
+<li>
+<p><strong>第三次挥手 (FIN)</strong>：服务器将所有剩余数据发送完毕后，会向客户端发送一个 <code>FIN</code> 报文，表示“我这边的数据也发完了，可以关闭了”。服务器随之进入 <code>LAST_ACK</code> 状态。</p>
+</li>
+<li>
+<p><strong>第四次挥手 (ACK)</strong>：客户端收到服务器的 <code>FIN</code> 报文后，回复最后一个 <code>ACK</code> 报文进行确认。发送完毕后，客户端会进入 <code>TIME_WAIT</code> 状态，等待一段时间（通常是 2MSL，两倍的最大报文段生存时间）以确保服务器收到了这个 <code>ACK</code>，防止网络中可能存在的延迟报文造成问题。服务器收到 <code>ACK</code> 后则直接进入 <code>CLOSED</code> 状态。至此，连接被完全断开。</p>
+</li>
+</ol>
+<p><strong>一定是挥四次手吗 👋？</strong></p>
+<p>我们可以分别从<strong>逻辑上</strong>以及<strong>行为上</strong>来看待“四次挥手”这件事：</p>
+<ul>
+<li><strong>从逻辑上看</strong>：TCP 协议一定会按照逻辑进行完整的四个过程，所以从这个角度上来看，一定是“四次挥手”。四个过程分别是：
+<ol>
+<li>客户端关闭发送通道。</li>
+<li>服务器确认客户端关闭发送通道。</li>
+<li>服务器关闭发送通道。</li>
+<li>客户端确认服务器关闭发送通道。</li>
+</ol>
+</li>
+<li><strong>从行为上看</strong>：但是如果抓包的话，你可能会发现只有三个报文段的情况，并且这种情况还不少见。这是因为当第二次挥手时，如果服务器没有剩余要发送给客户端的数据，那么 TCP 就会将第二、三次挥手进行合并，所以最终只有三个报文段。相关逻辑如下图所示：<br>
+<img src="https://blog.rakuyo.dev/post-images/1755789374627.svg" alt="" loading="lazy"></li>
+</ul>
+<!--
+sequenceDiagram
+    participant 客户端
+    participant 服务器
+
+    客户端->>服务器: FIN (seq=u)
+    Note right of 客户端: 我这边的数据都发完了，准备关闭发送通道
+
+    服务器-&#45;->>客户端: ACK (ack=u+1), FIN (seq=v)
+    Note left of 服务器: 好的，收到了你的关闭请求。<br>同时，我这边也没有数据要发了，<br>也准备关闭发送通道
+
+    客户端->>服务器: ACK (ack=v+1)
+    Note right of 客户端: 好的，收到了。连接正式关闭
+-->
+<h3 id="tcp-状态机连接的生命周期">TCP 状态机：连接的生命周期</h3>
+<p>三次握手和四次挥手描述了 TCP 连接建立和断开的关键时刻。但一个完整的 TCP 连接生命周期，远不止这几个瞬间。它由一系列精确定义的状态组成，这些状态之间的转换共同构成了一个“<strong>状态机 (State Machine)</strong>”。这个模型清晰地展示了从连接的萌芽到最终消亡的全过程。</p>
+<p>下面的流程图描绘了 TCP 中所有状态以及它们之间可能的转换：<br>
+<img src="https://blog.rakuyo.dev/post-images/1755791473918.svg" alt="" loading="lazy"></p>
+<!--
+graph TD
+    subgraph "连接过程"
+        CLOSED_C[CLOSED] -- 主动打开 / 发送SYN -&#45;-> SYN_SENT[SYN_SENT]
+        CLOSED_S[CLOSED] -- 被动打开 -&#45;-> LISTEN[LISTEN]
+        LISTEN -- 收到SYN / 发送SYN,ACK -&#45;-> SYN_RCVD[SYN_RCVD]
+        SYN_SENT -- 收到SYN,ACK / 发送ACK -&#45;-> ESTABLISHED[ESTABLISHED]
+        SYN_RCVD -- 收到ACK -&#45;-> ESTABLISHED
+    end
+
+    subgraph "数据传输"
+        ESTABLISHED
+    end
+
+    subgraph "关闭过程"
+        ESTABLISHED -- 主动关闭 / 发送FIN -&#45;-> FIN_WAIT_1[FIN_WAIT_1]
+        ESTABLISHED -- 收到FIN / 发送ACK -&#45;-> CLOSE_WAIT[CLOSE_WAIT]
+        FIN_WAIT_1 -- 收到ACK -&#45;-> FIN_WAIT_2[FIN_WAIT_2]
+        FIN_WAIT_2 -- 收到FIN / 发送ACK -&#45;-> TIME_WAIT[TIME_WAIT]
+        CLOSE_WAIT -- 主动关闭 / 发送FIN -&#45;-> LAST_ACK[LAST_ACK]
+        LAST_ACK -- 收到ACK -&#45;-> CLOSED_END[CLOSED]
+        TIME_WAIT -- 等待2MSL -&#45;-> CLOSED_END
+    end
+
+    style ESTABLISHED fill:#9f9,stroke:#333,stroke-width:2px
+-->
+<p>这张图看起来复杂，但它其实是将我们之前讨论的握手和挥手过程，以及一些中间状态，串联成了一幅完整的地图。我们可以将这些状态归为几类来理解：</p>
+<ul>
+<li>
+<p><strong>连接建立</strong>:</p>
+<ul>
+<li><code>LISTEN</code>: 仅存在于服务端。当服务器应用程序调用 <code>listen()</code> 函数后，进入此状态，表示已准备好接收来自客户端的连接请求。一旦收到客户端的 <code>SYN</code> 报文，将发送 <code>SYN+ACK</code> 并进入 <code>SYN_RCVD</code> 状态。</li>
+<li><code>SYN_SENT</code>: 客户端在调用 <code>connect()</code> 函数后，发送 <code>SYN</code> 报文请求建立连接，随即进入此状态。在此状态下，客户端等待接收服务器的 <code>SYN+ACK</code> 报文。如果收到，则发送 <code>ACK</code> 并进入 <code>ESTABLISHED</code> 状态；如果超时未收到，则会重传 <code>SYN</code> 报文。</li>
+<li><code>SYN_RCVD</code>: 服务端在 <code>LISTEN</code> 状态下收到客户端的 <code>SYN</code> 报文后，会发送 <code>SYN+ACK</code> 报文并进入此状态。在此状态下，服务端等待接收客户端的最终 <code>ACK</code> 报文。一旦收到 <code>ACK</code>，连接即建立，进入 <code>ESTABLISHED</code> 状态。</li>
+</ul>
+</li>
+<li>
+<p><strong>数据传输</strong>:</p>
+<ul>
+<li><code>ESTABLISHED</code>: 连接已成功建立，双方可以自由地进行双向数据传输。这是 TCP 连接最主要、最活跃的状态，在三次握手完成后进入此状态。</li>
+</ul>
+</li>
+<li>
+<p><strong>连接断开</strong>:</p>
+<ul>
+<li><code>FIN_WAIT_1</code>: 主动关闭方（即发起关闭连接的一方，可能是客户端也可能是服务端）发送 <code>FIN</code> 报文后进入此状态。在此状态下，主动关闭方等待接收对方对 <code>FIN</code> 报文的 <code>ACK</code>。一旦收到 <code>ACK</code>，则进入 <code>FIN_WAIT_2</code> 状态。</li>
+<li><code>CLOSE_WAIT</code>: 被动关闭方（即收到对方 <code>FIN</code> 报文的一方）在收到 <code>FIN</code> 报文后进入此状态。此时，TCP 层已经接收到对方关闭发送通道的请求，并向应用层报告连接已中断。在此状态下，被动关闭方会等待本地应用层处理完所有剩余数据并调用 <code>close()</code> 函数，然后发送自己的 <code>FIN</code> 报文，进入 <code>LAST_ACK</code> 状态。</li>
+<li><code>FIN_WAIT_2</code>: 主动关闭方在收到对方对其 <code>FIN</code> 报文的 <code>ACK</code> 后进入此状态。此时，主动关闭方已经完成了数据发送，并且也收到了对方对其关闭请求的确认。在此状态下，它将等待接收被动关闭方发送的 <code>FIN</code> 报文。一旦收到对方的 <code>FIN</code> 报文，主动关闭方将发送最终的 <code>ACK</code> 并进入 <code>TIME_WAIT</code> 状态。</li>
+<li><code>LAST_ACK</code>: 被动关闭方在发送完所有剩余数据并发送自己的 <code>FIN</code> 报文后进入此状态。在此状态下，被动关闭方等待接收主动关闭方对其 <code>FIN</code> 报文的最终 <code>ACK</code>。一旦收到此 <code>ACK</code>，连接即完全关闭，进入 <code>CLOSED</code> 状态。</li>
+<li><code>TIME_WAIT</code>: 主动关闭方在收到对方的 <code>FIN</code> 并发送了最后一个 <code>ACK</code> 后进入此状态。这是状态机中一个至关重要的状态。</li>
+</ul>
+</li>
+</ul>
+<h4 id="time_wait-状态的深意"><code>TIME_WAIT</code> 状态的深意</h4>
+<p><code>TIME_WAIT</code> 状态，也常被称为 <code>2MSL</code> 等待状态，是 TCP 可靠性的最后一道屏障。主动关闭连接的一方，在发送最后一个 <code>ACK</code> 后，必须在这个状态停留两倍的 <strong>MSL (Maximum Segment Lifetime, 最大报文段生存时间)</strong>。MSL 是网络中任何 IP 数据包能够存活的最长时间。</p>
+<p>这个等待机制有两个核心目的：</p>
+<ol>
+<li><strong>确保最后一个 <code>ACK</code> 报文能够到达对方</strong>：如果这个 <code>ACK</code> 在网络中丢失了，对方（处于 <code>LAST_ACK</code> 状态）会因为收不到确认而超时重传 <code>FIN</code> 报文。如果主动关闭方此时已经彻底关闭（进入 <code>CLOSED</code>），它将无法响应这个重传的 <code>FIN</code>，导致对方无法正常关闭。<code>TIME_WAIT</code> 状态的存在，确保了它有足够的时间来处理这种情况，重新发送 <code>ACK</code>，帮助对方顺利关闭。</li>
+<li><strong>防止“旧连接”的延迟报文干扰新连接</strong>：假设没有 <code>TIME_WAIT</code>，一个连接（例如，源端口 10000 -&gt; 目标端口 80）刚关闭，马上又用完全相同的四元组（源IP、源端口、目标IP、目标端口）建立了一个新连接。此时，如果前一个连接中迷路的、延迟的数据包突然到达，它可能会被新连接错误地接收，造成数据混乱。等待 <code>2MSL</code> 的时间，足以让本次连接中所有在网络中“游荡”的报文段都自行消亡，从而保证新连接的环境是“干净”的。</li>
+</ol>
+<h2 id="udp轻快的明信片">UDP：轻快的“明信片”</h2>
+<p>与 TCP 严谨的通话模式截然相反，UDP (User Datagram Protocol, 用户数据报协议) 奉行的是极简主义。你可以把它想象成一张明信片：写好地址、贴上邮票，然后直接投进邮筒。你不会先打电话确认收件人是否在家，也不会收到对方的回信确认。</p>
+<p>这种“发完即走”的模式，正是 UDP 的核心。</p>
+<h3 id="核心特性无连接与尽力而为">核心特性：无连接与尽力而为</h3>
+<ul>
+<li><strong>无连接 (Connectionless)</strong>：UDP 在发送数据之前，不需要进行三次握手来建立连接。它直接将数据打包成“数据报 (Datagram)”就发送出去。</li>
+<li><strong>尽力而为 (Best-Effort)</strong>：UDP 不提供任何可靠性保证。它不保证数据包一定能到达目的地，不保证数据包的顺序，也不会进行流量控制或拥塞控制。如果网络拥堵导致丢包，UDP 不会进行重传。这种看似“不负责任”的特性，正是其速度和效率的来源。</li>
+</ul>
+<h3 id="udp-报文结构">UDP 报文结构</h3>
+<p>UDP 的极简主义也体现在其报文头部上。它的头部固定只有 8 个字节，开销极小，所有字段一目了然：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">字段</th>
+<th style="text-align:left">英文名称</th>
+<th style="text-align:left">简称</th>
+<th style="text-align:left">大小</th>
+<th style="text-align:left">描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">源端口</td>
+<td style="text-align:left">Source Port</td>
+<td style="text-align:left"><code>sport</code></td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">标识发送方应用程序的端口号（此字段可选）</td>
+</tr>
+<tr>
+<td style="text-align:left">目标端口</td>
+<td style="text-align:left">Destination Port</td>
+<td style="text-align:left"><code>dport</code></td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">标识接收方应用程序的端口号</td>
+</tr>
+<tr>
+<td style="text-align:left">长度</td>
+<td style="text-align:left">Length</td>
+<td style="text-align:left"><code>len</code></td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">UDP 头部和数据的总长度（以字节为单位）</td>
+</tr>
+<tr>
+<td style="text-align:left">校验和</td>
+<td style="text-align:left">Checksum</td>
+<td style="text-align:left"><code>csum</code></td>
+<td style="text-align:left">16 bits</td>
+<td style="text-align:left">用于简单的错误检测（此字段可选）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="适用场景">适用场景</h3>
+<p>UDP 的高效和低延迟特性，使其在以下场景中备受青睐：</p>
+<ul>
+<li><strong>实时通信</strong>：在线游戏、视频会议、语音通话（VoIP）、直播等。在这些应用中，最新的数据远比旧数据重要。我们更能容忍画面偶尔的花屏（丢包），也无法接受为了等一个丢失的数据包而导致整个画面卡住。</li>
+<li><strong>查询类协议</strong>：如 DNS（域名系统）查询。客户端向服务器发送一个简短的查询请求，服务器返回一个简短的响应。这种“一问一答”的模式使用 UDP 效率极高。</li>
+<li><strong>广播与多播</strong>：当需要向网络中的多个节点发送相同的信息时，UDP 的无连接特性使其非常适合用于广播和多播。</li>
+</ul>
+<h2 id="对比与选择tcp-vs-udp">对比与选择：TCP vs. UDP</h2>
+<p>现在，我们可以通过一个清晰的表格来总结 TCP 和 UDP 的核心差异，这将帮助我们理解在不同场景下该如何做出选择。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">特性</th>
+<th style="text-align:left">TCP (传输控制协议)</th>
+<th style="text-align:left">UDP (用户数据报协议)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><strong>连接性</strong></td>
+<td style="text-align:left">面向连接</td>
+<td style="text-align:left">无连接</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>可靠性</strong></td>
+<td style="text-align:left">可靠</td>
+<td style="text-align:left">不可靠（尽力而为）</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>传输效率</strong></td>
+<td style="text-align:left">慢，开销大</td>
+<td style="text-align:left">快，开销小</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>头部大小</strong></td>
+<td style="text-align:left">至少 20 字节</td>
+<td style="text-align:left">固定 8 字节</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>控制机制</strong></td>
+<td style="text-align:left">流量控制、拥塞控制</td>
+<td style="text-align:left">无</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>应用场景</strong></td>
+<td style="text-align:left">网页(HTTP/S)、文件传输(FTP)、邮件(SMTP)</td>
+<td style="text-align:left">视频会议、在线游戏、DNS、直播</td>
+</tr>
+</tbody>
+</table>
+<p><strong>选择的艺术</strong>：从上表可以看出，TCP 和 UDP 之间没有绝对的优劣之分。它们是为解决不同问题而设计的两种工具。选择哪种协议，完全取决于应用场景对可靠性和实时性的权衡。如果你的应用（如银行转账）绝不能容忍任何数据差错，那么 TCP 是不二之选；如果你的应用（如在线游戏）更看重实时反馈，可以容忍偶尔的数据丢失，那么 UDP 将是更明智的选择。</p>
+<h2 id="新的挑战与未来quic">新的挑战与未来：QUIC</h2>
+<p>既然 TCP 如此可靠，为什么像 HTTP/3 这样的现代协议反而开始转向基于 UDP 构建？这引出了 TCP 一个长期存在的痛点。</p>
+<p>在系列第五篇<a href="/computer-network-http-and-https">《计算机网络之五 - HTTP 与 HTTPS》</a>中我们提到，HTTP/2 虽然通过多路复用技术，解决了应用层的队头阻塞，但它无法解决其底层 TCP 协议自身的<strong>队头阻塞 (Head-of-Line Blocking)</strong> 问题。在一条 TCP 连接中，如果一个数据包丢失了，那么后续所有的数据包（即使已经到达）都必须排队等待，直到那个丢失的包被成功重传。对于高并发的现代 Web 应用来说，这是一个巨大的性能瓶颈。</p>
+<p>为了从根本上解决这个问题，<strong>QUIC (Quick UDP Internet Connections)</strong> 协议应运而生。它是一个构建在 UDP 之上的、全新的传输层协议。</p>
+<p>QUIC 的设计非常巧妙，它相当于在 UDP 的“快车道”上，重新实现了一套现代化的可靠传输机制：</p>
+<ul>
+<li><strong>内置多路复用</strong>：QUIC 的流是独立的，一个流的丢包完全不会影响其他流的传输，从根本上解决了队头阻塞。</li>
+<li><strong>更快的连接建立</strong>：它将 TCP 的三次握手和 TLS 的加密握手过程合并，大大减少了建立安全连接所需的往返时间。</li>
+<li><strong>更好的拥塞控制</strong>：拥有比传统 TCP 更先进的拥塞控制算法。</li>
+</ul>
+<p>QUIC 代表了传输层协议的未来演进方向，它试图将 TCP 的可靠性与 UDP 的低延迟优势集于一身，为下一代互联网应用提供更坚实的基础。</p>
+<h2 id="总结">总结</h2>
+<p>TCP 和 UDP 是互联网传输层最核心的两个协议，它们各自代表了一种截然不同的设计哲学。</p>
+<ul>
+<li><strong>TCP</strong> 如同一位严谨的工程师，通过三次握手、序列号、确认应答、超时重传等一系列复杂机制，构建了一个几乎万无一失的可靠数据通道。它的座右铭是：“<strong>宁可慢，不出错</strong>”。</li>
+<li><strong>UDP</strong> 则像一位追求极致速度的信使，它卸下了所有保证可靠性的“包袱”，以最轻量、最直接的方式投递数据。它的信条是：“<strong>天下武功，唯快不破</strong>”。</li>
+</ul>
+<p>正是这两种协议的差异化设计与共存，才共同支撑起了我们今天这个既需要高度可靠（如在线交易）又需要极致实时（如视频直播）的、丰富多彩的互联网世界。</p>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/computer-network-http-and-https/" class="post-title gt-a-link">
+                    计算机网络之五 - HTTP 与 HTTPS
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

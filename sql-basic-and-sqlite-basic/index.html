@@ -1,0 +1,471 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>SQL 基础语句与 SQLite 基础操作 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    SQL 基础语句与 SQLite 基础操作
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2018-02-23 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/sql/" class="post-tags">
+                            # SQL
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>这篇文章主要是围绕 SQLite，记录总结 SQL 的一些用法。<br>
+至于 iOS 中其余的几种存储方式例如 <code>.plist</code> 等，以及数据库的概念，SQL 的概念等，先不做介绍。</p>
+<!--more-->
+<hr>
+<h1 id="sql-的特点">SQL 的特点</h1>
+<ol>
+<li>不区分大小写。</li>
+<li>每条语句必须以分号 <code>;</code> 结尾。</li>
+<li>不可以使用关键字来命名表、字段。（关键字见下一小节）</li>
+</ol>
+<h1 id="sql-中的关键字">SQL 中的关键字</h1>
+<p><code>select</code> 、 <code>insert</code> 、 <code>update</code> 、 <code>delete</code> 、 <code>from</code> 、 <code>create</code> 、 <code>where</code> 、 <code>desc</code> 、 <code>order</code> 、 <code>by</code> 、 <code>group</code> 、 <code>table</code> 、 <code>alter</code> 、 <code>view</code> 、 <code>index</code> etc.</p>
+<ul>
+<li>注意，为了<strong>保持良好的数据库编程习惯</strong>，我们在编写 <code>SQL</code> 语句的时候，应当采用<strong>关键字大写</strong>的形式。</li>
+</ul>
+<h1 id="sql-语句的种类">SQL 语句的种类</h1>
+<h2 id="ddl-数据定义语句">DDL 数据定义语句</h2>
+<p>数据定义语句 <code>DDL</code> 的全称是 <code>Data Definition Language</code>。</p>
+<p>其包含 <code>create</code> 、 <code>drop</code> 等操作。<code>create</code> 即 <strong>创建表</strong> (<code>create table</code>) 。<code>drop</code> 则是 <strong>删除表</strong> （<code>drop table</code>）。</p>
+<h2 id="dml-数据操作语句">DML 数据操作语句</h2>
+<p>数据操作语句 <code>DML</code> 的全称是 <code>Data Manipulation Language</code>。</p>
+<p>包括 <code>insert</code> 、 <code>update</code> 、 <code>delete</code> 等操作。</p>
+<p>第一次接触的时候，只看这些关键词的话可以会误解 <code>delete</code> 为删除表的操作。实则不然，<code>DML</code> 全部都是对 <strong>数据</strong> 的操作，<code>DDL</code> 才是对于表的操作。</p>
+<p>所以这里 <code>insert</code> 为在表中 <strong>添加</strong> （插入）数据，<code>update</code> 为 <strong>修改</strong> 表中的数据，<code>delete</code> 为 <strong>删除</strong> 表中的数据。</p>
+<h2 id="dql-数据查询语句">DQL 数据查询语句</h2>
+<p>数据查询语句 <code>DQL</code> 的全称是 <code>Data Query Language</code>。用于查询并获得表中的数据。</p>
+<p>关键字 <code>select</code> 是 <code>DQL</code> （也是所有 <code>SQL</code> ）用的最多的操作。</p>
+<p>其他的 <code>DQL</code> 常用的关键字有 <code>where</code> 、<code>order by</code> 、 <code>group by</code> 、 <code>having</code> 等。</p>
+<hr>
+<h1 id="sql基础操作">SQL基础操作</h1>
+<p>以下内容就是重点要记录的部分了。为了更加清晰的划分各个模块，以下内容将使用分割线来对各个模块进行划分。</p>
+<h2 id="创表">创表</h2>
+<pre><code class="language-SQL">CREATE TABLE 表名 (字段名1 字段类型1, 字段名2 字段类型2, ...);
+</code></pre>
+<p>上面个这条语句是最基本的创表语句，<code>create</code> 关键字 和 <code>table</code> 关键字连用，用于创建一张表，用 <code>()</code> 英文括号将多个 <strong>字段名</strong> 和 <strong>字段类型</strong> 括起来。</p>
+<p>一般的，我们不使用上面那条语句，为了更加的安全，我们使用 <strong>下面这种写法进行表的创建</strong> ：</p>
+<pre><code class="language-SQL">CREATE TABLE IF NOT EXISTS 表名 (字段名1 字段类型1, 字段名2 字段类型2, ...);
+</code></pre>
+<p><code>IF NOT EXISTS</code> 用于判断所要创建的 <strong>表是否存在</strong>，如果不存在的话才会创建。</p>
+<p>举个例子的话创建一张表的实际语句是这样的：</p>
+<pre><code class="language-SQL">CREATE TABLE IF NOT EXISTS t_student (id integer, name text, age inetger, score real);
+</code></pre>
+<ul>
+<li><strong>tip:</strong> 又一则良好的 <code>SQL</code> 编码习惯——在创建表时，表名前加上 <code>t_</code> 来表明这是一张表，同理，创建视图时使用 <code>v_</code> 来表明视图。</li>
+</ul>
+<p>然而，当我们使用例如 <code>Navicat Premium</code> 等软件，在 <code>GUI</code> 中创建表，然后使用 <code>DDL</code> 查看该表的创表语法时，我们会看到如下的语句：</p>
+<pre><code class="language-SQL">CREATE TABLE &quot;t_shop&quot; (
+  &quot;name&quot; text,
+  &quot;price&quot; real,
+  &quot;left_count&quot; integer
+);
+</code></pre>
+<p><strong>表名和字段名都加了引号</strong>。我稍微查了一下，好像 <code>oracle</code> 是需要加引号的，好像和大小写有关。不过在 <code>SQLite</code> 中不加引号即可。毕竟 <code>Navicat Premium</code> 中集成了多种数据库，不是仅有 <code>SQLite</code>。</p>
+<h3 id="字段类型">字段类型</h3>
+<p><code>SQLite</code> 将数据划分为以下几种存储类型：</p>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>integer</code></td>
+<td>整型值</td>
+</tr>
+<tr>
+<td><code>real</code></td>
+<td>浮点值</td>
+</tr>
+<tr>
+<td><code>text</code></td>
+<td>文本字符串</td>
+</tr>
+<tr>
+<td><code>blob</code></td>
+<td>二进制数据（比如文件）</td>
+</tr>
+</tbody>
+</table>
+<p>然而呢，实际上 <code>SQLite</code> 是 <strong>无类型</strong> 的。就算我们将一个字段声明为 <code>integer</code>，还能可以存储类如 字符串之类的数据（注意，这里 <strong>主键除外</strong>）。</p>
+<p>这也就意味着我们在建表的时候实际上是可以不声明类型的，只声明名称即可。但是<strong>为了保持良好的编程习惯，可可读性等等，我们还是应该声明类型的</strong>。</p>
+<hr>
+<h2 id="删表">删表</h2>
+<p>删表的时候使用关键字 <code>drop</code>，和创表时一样，分为普通的写法和我们平时会用到的写法。这里就直接给出后者了：</p>
+<pre><code class="language-SQL">DROP TABLE IF EXISTS 表名;
+</code></pre>
+<p>举个例子：</p>
+<pre><code class="language-SQL">DROP TABLE IF EXISTS t_student;
+</code></pre>
+<hr>
+<h2 id="插入数据">插入数据</h2>
+<pre><code class="language-SQL">INSERT INTO 表名 (字段1, 字段2, ...) values (字段1的值, 字段2的值, ...);
+</code></pre>
+<p>提炼一下上述语法，即 <code>insert into ... values ...</code>。感觉还是很好理解的：插入到... 它的值是 ...</p>
+<p>举例来说：</p>
+<pre><code class="language-SQL">INSERT INTO t_student (name, age) VALUE ('mj', 10);
+</code></pre>
+<ul>
+<li>注意：
+<ol>
+<li>在存储 <strong>字符串</strong> 时，我们应当使用 <strong>单引号</strong> 将其括起来。</li>
+<li>在插入数据时，并不一定要每个字段都有值，即表名后面的那个括号，不必包含表中的所有字段。</li>
+</ol>
+</li>
+</ul>
+<hr>
+<h2 id="更新数据">更新数据</h2>
+<pre><code class="language-SQL">UPDATE 表名 SET 字段1 = 字段1的值, 字段2 = 字段2的值, ...;
+</code></pre>
+<p>上面便是更新数据的语法格式，但是如果仅仅是套用这个格式的话，例如下面这条语句：</p>
+<pre><code class="language-SQL">UPDATE t_student SET name = 'jack', age = 20;
+</code></pre>
+<p>这条语句将会将整张表的所有数据，<code>name</code> 字段的值都改为 <code>jack</code>，<code>age</code> 字段的值都改为20。</p>
+<p>所以在使用的时候我们还要结合下一大节的<strong>条件语句</strong>进行使用。</p>
+<hr>
+<h2 id="删除数据">删除数据</h2>
+<pre><code class="language-SQL">DELETE FROM 表名;
+</code></pre>
+<p>删除数据的一般语法也很简单，但是和更新数据一样。执行了上面的操作之后，整张表的所有数据都会被删除。所以也要结合<strong>条件语句</strong>进行使用。</p>
+<hr>
+<h2 id="条件语句">条件语句</h2>
+<p>在 <strong>创表</strong> 和 <strong>删表</strong> 时，我们曾经使用过 <code>if</code> 这个关键词，可以理解为<em>如果</em>。但是这个 <code>if</code> 并不是条件判断语句的用词。</p>
+<p>在条件判断语句中，我们使用 <code>where</code> 关键字，可以翻译为 <em>当....时</em>，初次接触时我很好奇，如果不使用 <code>if</code> 的话，为什么不用 <code>when</code> 呢？感觉这里可能更是为了突出 <strong>在某行记录</strong> 的这个概念吧。</p>
+<p>条件语句的格式也很好记忆，即在需要条件判断的语句后面，跟上由 <code>where</code> 开头的条件判断语句即可。</p>
+<table>
+<thead>
+<tr>
+<th>格式</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>WHERE 字段 = 某个值</code></td>
+<td>字段的值是否<strong>等于</strong>某个值</td>
+</tr>
+<tr>
+<td><code>WHERE 字段 != 某个值</code></td>
+<td>字段的值是否<strong>不等于</strong>某个值</td>
+</tr>
+<tr>
+<td><code>WHERE 字段 &gt; 某个值</code></td>
+<td>字段的值是否<strong>大于</strong>某个值</td>
+</tr>
+<tr>
+<td><code>WHERE 字段 &lt; 某个值</code></td>
+<td>字段的值是否<strong>小于</strong>某个值</td>
+</tr>
+<tr>
+<td><code>WHERE 字段1 = 某个值 AND 字段2 &gt; 某个值</code></td>
+<td>关键字 <code>AND</code> 用于连接两个判断条件</td>
+</tr>
+<tr>
+<td><code>WHERE 字段1 = 某个值 OR 字段2 &gt; 某个值</code></td>
+<td>关键字 <code>OR</code> 用于连接两个判断条件</td>
+</tr>
+</tbody>
+</table>
+<p>举例：</p>
+<pre><code class="language-SQL">-- 将 t_student 表中年龄大于10并且姓名不等于jack的记录，年龄都改为5。
+UPDATE t_student SET age = 5 WHERE age &gt; 10 AND name != 'jack';
+
+-- 删除 t_student 表中年龄小于等于 10 或者 年龄大于 30 的记录。
+DELETE FROM t_student WHERE age &lt; 10 OR age &gt; 30;
+
+-- 将 t_student 表中名字等于 jack 的记录，score 字段的值都改为 age 字段的值。
+UPDATE t_student SET score = age WHERE name = 'jack';
+</code></pre>
+<ul>
+<li><strong>特别注意</strong>：在 <code>SQLite</code> 中，<strong>等于</strong> 这个概念使用的是 <strong>单独的等号</strong>。和 <code>Obj-C</code> 以及其他大部分编程语言都不相同。</li>
+</ul>
+<hr>
+<h2 id="查询数据">查询数据</h2>
+<p>查询操作使用关键字 <code>select</code>。格式为：</p>
+<pre><code class="language-SQL">SELECT 字段1, 字段2, ... FROM 表名;
+</code></pre>
+<p>如果我们想要查询整张表的数据，可以使用 <code>*</code> 号来代替字段名，即</p>
+<pre><code class="language-SQL">SELECT * FROM 表名;
+</code></pre>
+<p>举个例子：</p>
+<pre><code class="language-SQL">SELECT name, age FROM t_student;
+SELECT * FROM t_student WHERE age &gt; 10;
+</code></pre>
+<h3 id="别名">别名</h3>
+<p>在进行查询操作时，我们可以为 <strong>字段</strong> 和 <strong>表</strong> 起一个 <strong>别名</strong>，从而我们我们查看或者进行某些操作。不过需要注意的是，<strong>别名</strong> 顾名思义，只是另外一个称呼，并不会修改字段本身的名称。</p>
+<p><strong>别名</strong> 使用关键字 <code>as</code>，不过该关键字是可以省略的，而且，这个别名可以使用 <strong>中文</strong>。其格式如下：</p>
+<pre><code class="language-SQL">-- 最基本的写法为：
+SELECT 字段1 AS 别名1, 字段2 AS 别名2, ... FROM 表名 AS 表别名;
+
+-- 当隐藏 AS 时
+SELECT 字段1 别名1, 字段2 别名2, ... FROM 表名 表别名;
+</code></pre>
+<p>同时，如果我们为表起了一个 <strong>别名</strong>，那么我们在查询时就可以这么定义需要查询的字段：</p>
+<pre><code class="language-SQL">SELECT 表别名.字段1 别名1, 表别名.字段2 别名2, ... FROM 表名 表别名;
+</code></pre>
+<p>即用 <strong>表别名</strong> 后接 <code>.</code> 再接字段名的格式，用 <strong>表别名</strong> 来引用表中的字段。这样做的好处是，在使用如 <code>Navicat Premium</code> 时，可以提示该表有哪些字段，以防字段太多我们记不清楚。而且当多表联查时出现了<strong>字段名重名</strong>的问题的话，<strong>表别名</strong> 也是一个很好的解决办法。</p>
+<p>举个例子：</p>
+<pre><code class="language-SQL">SELECT s.name 姓名, s.age 年龄 FROM t_student s;
+</code></pre>
+<h3 id="计算记录的数量">计算记录的数量</h3>
+<p>在 <code>SQL</code> 中有这么一个函数 <code>count()</code> ，其作用为记录某个字段的数量。格式为：</p>
+<pre><code class="language-SQL">SELECT COUNT(字段名) FROM 表名;
+</code></pre>
+<p>不过一般来说，我们直接使用 <code>*</code> 号来代替字段名。即：</p>
+<pre><code class="language-SQL">SELECT COUNT(*) FROM 表名;
+</code></pre>
+<p>举个例子：</p>
+<pre><code class="language-SQL">SELECT COUNT(*) FROM t_student WHERE score &gt;= 60;
+</code></pre>
+<h3 id="查询结果排序">查询结果排序</h3>
+<p>我们可以使用关键字 <code>order by</code> 对查询结果进行排序，其格式为：</p>
+<pre><code class="language-SQL">SELECT 字段名 FROM 表名 ORDER BY 字段名 排序规则;
+</code></pre>
+<p>其默认是按照 <code>asc</code> ，即<strong>升序排列</strong>。我们可以显示的修改排序规则，改为 <code>desc</code>， 即<strong>降序排列</strong>。如果省略排序规则的话，则是默认的升序排列。</p>
+<p>举个例子：</p>
+<pre><code class="language-SQL">-- 省略排序规则。(按照升序排列
+SELECT * FROM t_student ORDER BY age;
+
+-- 降序排列
+SELECT * FROM t_student ORDER BY age DESC;
+</code></pre>
+<p>同时我们还可以指定按照多个字段进行排序，例如下面这条语句：</p>
+<pre><code class="language-SQL">SELECT * FROM t_student ORDER BY age ASC, height DESC;
+</code></pre>
+<p>这条语句会将查询结果按照字段 <code>age</code> 升序排列，年龄相等的话就会按照字段 <code>height</code> 降序排列。</p>
+<hr>
+<p>未完待续 ...</p>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/remove-implicit-animation/" class="post-title gt-a-link">
+                    去掉隐式动画
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

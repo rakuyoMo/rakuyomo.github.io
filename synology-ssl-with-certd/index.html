@@ -1,0 +1,512 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>群晖 NAS 公网访问配置（五）：使用 certd 免费版配置泛域名证书 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    群晖 NAS 公网访问配置（五）：使用 certd 免费版配置泛域名证书
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2026-01-17 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/nas/" class="post-tags">
+                            # nas
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>原本《群晖 NAS 公网访问配置》系列前四篇文章已经够用了，本系列中的 NAS 服务不会开放到公网上，https 本来是可有可无的。</p>
+<p>但是，如果你和本站一样使用了 <code>.dev</code> 域，那么你肯定也会遇到和我一样的问题：只用 <code>http</code> 无法访问服务，浏览器会<strong>强制使用 HTTPS</strong>。</p>
+<!-- more -->
+<p>这个问题的背景是：</p>
+<blockquote>
+<p><code>.dev</code> 是一个正式的通用顶级域（gTLD），由 Google（Charleston Road Registry / Google Registry）运营。<br><br>
+整个 <code>.dev</code> 被放到 HSTS preload 列表里，主流浏览器会把对 <code>.dev</code> 的请求当作必须走 HTTPS 的站点处理——如果没有有效 TLS，浏览器会拒绝/升级连接，导致无法通过 <code>http://yourname.dev</code> 正常打开。也就是说，使用 <code>.dev</code> 发布站点时必须配置有效的证书（Let’s Encrypt 等都可用）。</p>
+</blockquote>
+<p>为了解决这个问题，本篇文章诞生了：本文将教会你如何通过 <a href="https://github.com/certd/certd"><code>certd</code></a> 这个开源项目申请泛域名证书，并通过流水线定时触发 + 脚本导入实现全自动更新，以便在 DSM 面板和 NAS 上的服务都能安全访问。</p>
+<p>本文为《群晖 NAS 公网访问配置》系列文章的第五篇。全部文章请参考：</p>
+<p><a href="/synology-config-ddns/">群晖 NAS 公网访问配置（一）：配置 DDNS</a><br>
+<a href="/synology-with-wireguard/">群晖 NAS 公网访问配置（二）：配置 WireGuard</a><br>
+<a href="/synology-docker-public-access/">群晖 NAS 公网访问配置（三）：配置 Nginx 访问 Docker 服务</a><br>
+<a href="/synology-with-cloud/">群晖 NAS 公网访问配置（四）：配置云服务器</a><br>
+<a href="/synology-ssl-with-certd/">群晖 NAS 公网访问配置（五）：使用 certd 免费版配置泛域名证书</a></p>
+<h2 id="方案概览">方案概览</h2>
+<p>这套方案的核心思路很简单：</p>
+<ul>
+<li>用 <code>certd</code> 免费版通过 DNS-01 验证申请泛域名证书。</li>
+<li>在流水线里把证书写入固定路径，再用脚本自动导入 DSM。</li>
+<li>配置流水线定时触发，证书到期前自动续期并自动导入，实现全自动维护。</li>
+</ul>
+<h2 id="前置条件">前置条件</h2>
+<ul>
+<li>你已按前四篇完成 DDNS、WireGuard、Nginx 等配置。</li>
+<li>域名托管在腾讯云，并且能使用 API 密钥操作 DNS 解析。</li>
+<li>群晖已安装 Container Manager（或 Docker 套件），可以运行容器。</li>
+<li>先在套件中心安装 Python3 套件，脚本会用 <code>python3</code>（或 <code>python</code>）解析 DSM 返回的数据。</li>
+<li>准备一个主域名，支持 <code>*.example.com</code> 泛域名证书。</li>
+</ul>
+<h2 id="在群晖部署-certd">在群晖部署 certd</h2>
+<p><code>certd</code> 官方提供了 <a href="https://certd.docmirror.cn/guide/install/docker/">Docker 部署方式</a>，群晖上直接用 Container Manager 即可。</p>
+<ol>
+<li>打开 Container Manager，新增项目，选择 <code>docker-compose.yaml</code>。</li>
+<li>建议使用下面的精简配置，并把数据目录改成你自己的卷路径。</li>
+</ol>
+<pre><code class="language-yaml">version: &quot;3.3&quot;
+services:
+  certd:
+    image: registry.cn-shenzhen.aliyuncs.com/handsfree/certd:latest
+    container_name: certd
+    restart: unless-stopped
+    volumes:
+      - /volume1/docker/certd:/app/data:delegated
+    ports:
+      - &quot;7001:7001&quot;
+      - &quot;7002:7002&quot;
+    environment:
+      - TZ=Asia/Shanghai
+      - certd_koa_hostname=0.0.0.0
+</code></pre>
+<ol start="3">
+<li>部署完成后访问 <code>http://群晖 IP:7001</code>，使用默认账号 <code>admin/123456</code> 登录，并第一时间修改密码。</li>
+</ol>
+<h2 id="在-certd-中申请泛域名证书">在 certd 中申请泛域名证书</h2>
+<br>
+<h3 id="1-添加腾讯云授权">1. 添加腾讯云授权</h3>
+<p>进入 <code>certd</code> 的授权管理，新增腾讯云授权，填写 <code>SecretId</code> 和 <code>SecretKey</code>。<br>
+这两个值可以复用你在 DDNS 配置时创建的密钥。</p>
+<h3 id="2-创建证书申请流水线">2. 创建证书申请流水线</h3>
+<p>进入证书流水线，新增 “证书申请（JS 版）”，按下面的方式填写：</p>
+<ul>
+<li>域名验证方式：DNS 直接验证。</li>
+<li>证书颁发机构：选择 “Let's Encrypt”。</li>
+<li>DNS 解析服务商：腾讯云。</li>
+<li>证书域名：填写主域名和泛域名，例如 <code>example.com</code> 与 <code>*.example.com</code>。</li>
+<li>更新天数：按需设置（默认值以界面为准），表示证书到期前多少天触发更新。</li>
+</ul>
+<p>保存后不需要手动运行，后面设置定时触发后会自动执行。<br>
+如果你希望尽快拿到证书，可以把定时触发时间设置为当前时间后几分钟，让它自动跑首轮。</p>
+<p>如果失败，多半是 DNS 生效时间不够。可以在流水线里把 “等待解析生效时长” 适当调大，再试一次。</p>
+<h2 id="将证书输出到固定路径">将证书输出到固定路径</h2>
+<p>为了让脚本能拿到证书文件，需要把证书保存到 NAS 上一个固定目录。<code>certd</code> 的流水线里加一个“主机 - 复制到本机”任务即可。</p>
+<ol>
+<li>打开对应流水线，新增任务 “主机 - 复制到本机”。</li>
+<li>证书类型选择 <code>pem</code>。</li>
+<li>路径建议这样填（相对路径会写到 <code>/app/data</code> 下）：
+<ul>
+<li>全链证书保存路径：<code>tmp/fullchain.pem</code></li>
+<li>私钥保存路径：<code>tmp/private.key</code></li>
+<li>中间证书保存路径：<code>tmp/intermediate.pem</code></li>
+</ul>
+</li>
+</ol>
+<p>因为我在 <code>docker-compose.yaml</code> 里把 <code>/volume1/docker/certd</code> 映射到容器的 <code>/app/data</code>，所以上面三个文件最终会落在：</p>
+<ul>
+<li><code>/volume1/docker/certd/tmp/fullchain.pem</code></li>
+<li><code>/volume1/docker/certd/tmp/private.key</code></li>
+<li><code>/volume1/docker/certd/tmp/intermediate.pem</code></li>
+</ul>
+<p>你可以按自己的映射关系调整路径，但脚本里要用同一套路径。</p>
+<h2 id="用脚本导入证书到-dsm">用脚本导入证书到 DSM</h2>
+<br>
+<h3 id="可选为启用-2fa-的账户获取-device-id">（可选）为启用 2FA 的账户获取 device-id</h3>
+<p>如果你的 DSM 账户启用了两步验证（2FA），需要先获取一次 <code>device-id</code>，后续就可以用它来免 OTP 登录。</p>
+<p><strong>在你的本地电脑</strong>（或任何能访问 NAS 内网的设备）上执行以下命令，<strong>只需要执行一次</strong>（记得替换其中的参数）：</p>
+<pre><code class="language-bash">curl -sS -k -G &quot;https://192.168.1.10:5001/webapi/entry.cgi&quot; \
+  --data-urlencode &quot;api=SYNO.API.Auth&quot; \
+  --data-urlencode &quot;version=6&quot; \
+  --data-urlencode &quot;method=login&quot; \
+  --data-urlencode &quot;format=sid&quot; \
+  --data-urlencode &quot;account=admin&quot; \
+  --data-urlencode &quot;passwd=your-password&quot; \
+  --data-urlencode &quot;otp_code=123456&quot; \
+  --data-urlencode &quot;device_name=certd&quot; \
+  --data-urlencode &quot;enable_device_token=yes&quot; \
+  --data-urlencode &quot;enable_syno_token=yes&quot; \
+  | grep -oP '&quot;device_id&quot;\s*:\s*&quot;\K[^&quot;]+'
+</code></pre>
+<p>参数说明：</p>
+<ul>
+<li><code>https://192.168.1.10:5001</code>：你的 NAS 内网地址和端口</li>
+<li><code>account</code>：DSM 管理员账号</li>
+<li><code>passwd</code>：DSM 管理员密码</li>
+<li><code>otp_code</code>：从你的两步验证应用（如 Google Authenticator）获取的 6 位数字</li>
+<li><code>device_name</code>：自定义设备名称，用于在 DSM 中标识该设备，建议填 <code>certd</code></li>
+</ul>
+<p>命令会输出类似 <code>aBcD1234eFgH5678</code> 这样的字符串，这就是你的 <code>device-id</code>，记录下来供后续脚本使用。</p>
+<p>如果命令执行失败或没有输出，可以检查：</p>
+<ul>
+<li>OTP 码是否正确且未过期</li>
+<li>网络是否能访问到 NAS</li>
+<li>账号密码是否正确</li>
+</ul>
+<h3 id="准备导入脚本">准备导入脚本</h3>
+<p>首次使用前不需要手动准备证书记录。执行脚本时传入 <code>--cert-desc</code>，并加上 <code>--create</code>，脚本会在 DSM 里找不到同名描述时自动创建证书记录并导入证书。<br>
+如果你需要手动排查或验证，也可以在 DSM 里走 “新增 → 新增新证书 → 导入证书”，导入一次后再交给脚本更新。</p>
+<blockquote>
+<p>DSM 自带的 <code>Let's Encrypt</code> 需要公网 80 端口可达，且通常不支持 <code>DNS-01</code> 与泛域名，不适合本方案。</p>
+</blockquote>
+<p>把下面脚本保存到 NAS 上，例如 <code>/volume1/docker/certd/scripts/synology-import-cert.sh</code>，无需修改脚本内容，所有配置都通过参数传入。</p>
+<blockquote>
+<p>该脚本同步保存在 Github 上：<a href="https://gist.github.com/rakuyoMo/68c3be53edbc9e5285fc2c33fb67fa49">synology-import-cert.sh</a></p>
+</blockquote>
+<script src="https://gist.github.com/rakuyoMo/68c3be53edbc9e5285fc2c33fb67fa49.js"></script>
+<p>脚本保存到本地后赋予其可执行权限：</p>
+<pre><code class="language-bash">chmod +x /volume1/docker/certd/scripts/synology-import-cert.sh
+</code></pre>
+<h3 id="让流水线自动执行脚本">让流水线自动执行脚本</h3>
+<p>要做到全自动，需要让 <code>certd</code> 在证书更新后自动执行脚本。做法是给流水线增加一个 “主机 - 执行远程主机脚本命令” 任务。</p>
+<ol>
+<li>在 <code>certd</code> 的 “授权管理” 里新增 SSH 授权，主机填 NAS 地址，端口填你的 SSH 端口（可在 DSM 的 “控制面板 → 终端机和 SNMP → 终端机” 中查看，默认为 <code>22</code>），账号使用管理员账户。<br>
+如果你之前没开 SSH，可以在 DSM 的 “控制面板 → 终端机和 SNMP → 终端机” 里开启。</li>
+<li>回到证书流水线，在 “主机 - 复制到本机” 之后新增 “主机 - 执行远程主机脚本命令” 任务。</li>
+<li>选择刚才的 SSH 授权，脚本命令填写下面的内容：</li>
+</ol>
+<blockquote>
+<p>如果启用了 2FA，则在参数上带上之前获取到的 <code>device-id</code></p>
+</blockquote>
+<pre><code class="language-bash">bash /volume1/docker/certd/scripts/synology-import-cert.sh \
+  --base-url &quot;https://192.168.1.10:5001&quot; \
+  --username &quot;admin&quot; \
+  --password &quot;your-password&quot; \
+  --cert-desc &quot;nas-wildcard&quot; \
+  --fullchain &quot;/volume1/docker/certd/tmp/fullchain.pem&quot; \
+  --key &quot;/volume1/docker/certd/tmp/private.key&quot; \
+  --device-id &quot;your-device-id&quot; \
+  --set-default \
+  --assign-services &quot;all&quot; \
+  --insecure \
+  --create
+</code></pre>
+<p>参数说明：</p>
+<ul>
+<li>如果 DSM 证书尚未可信或域名不匹配，请保留 <code>--insecure</code> 参数。携带该参数后将跳过 HTTPS 证书校验，避免首次接入时因自签证书或域名不匹配而登录失败。</li>
+<li>如果你希望一次性覆盖全部服务，保留 <code>--assign-services all</code>；也可以指定具体服务名称，例如 <code>&quot;DSM Desktop Service,Reverse Proxy&quot;</code>。</li>
+</ul>
+<p>配置完成后，可以手动运行一次流水线测试。如果一切正常，证书会自动导入到 DSM。这样流水线每次拿到新证书后都会自动更新 DSM。</p>
+<p>首次运行成功后，建议优化脚本配置：将 <code>--base-url</code> 改为你的域名，并去掉 <code>--insecure</code> 参数，这样可以正常校验 HTTPS 证书，更加安全：</p>
+<pre><code class="language-bash">bash /volume1/docker/certd/scripts/synology-import-cert.sh \
+  --base-url &quot;https://nas.example.com:5001&quot; \
+  --username &quot;admin&quot; \
+  --password &quot;your-password&quot; \
+  --cert-desc &quot;nas-wildcard&quot; \
+  --fullchain &quot;/volume1/docker/certd/tmp/fullchain.pem&quot; \
+  --key &quot;/volume1/docker/certd/tmp/private.key&quot; \
+  --device-id &quot;your-device-id&quot; \
+  --set-default \
+  --assign-services &quot;all&quot; \
+  --create
+</code></pre>
+<h2 id="配置-nginx-使用-ssl-证书">配置 Nginx 使用 SSL 证书</h2>
+<p>现在证书已经能通过 <code>certd</code> 自动管理了，接下来需要让 Nginx 使用这些证书来支持 HTTPS 访问。本文将基于 DSM 自带的 Nginx（参考<a href="/synology-docker-public-access/#%E9%85%8D%E7%BD%AE-nas-%E7%9A%84-nginx">第三篇文章</a>）。</p>
+<h3 id="修改-nginx-配置">修改 Nginx 配置</h3>
+<p>DSM 自带的 Nginx 配置文件在 <code>/etc/nginx/sites-enabled</code> 目录下。</p>
+<p>假设你在第三篇文章中为 calibre 配置了 <code>calibre.example.com.conf</code>，现在需要修改它以支持 HTTPS。</p>
+<p>使用 SSH 连接到 NAS，编辑对应的配置文件：</p>
+<pre><code class="language-bash">sudo vim /etc/nginx/sites-enabled/calibre.example.com.conf
+</code></pre>
+<p>将原有的配置改为：</p>
+<pre><code class="language-nginx"># HTTP 自动跳转到 HTTPS
+server {
+    listen 80;
+    server_name calibre.example.com;
+    return 301 https://$server_name$request_uri;
+}
+
+# HTTPS 配置
+server {
+    listen 443 ssl;
+    server_name calibre.example.com;
+
+    # SSL 证书配置
+    ssl_certificate /volume1/docker/certd/tmp/fullchain.pem;
+    ssl_certificate_key /volume1/docker/certd/tmp/private.key;
+
+    # SSL 协议与加密套件
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    location / {
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Scheme $scheme;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_redirect off;
+        proxy_pass http://172.17.0.1:8083;
+
+        client_max_body_size 2000m;
+    }
+}
+</code></pre>
+<p>关键修改点：</p>
+<ul>
+<li>新增 80 端口的 server 块，自动跳转到 HTTPS</li>
+<li>原有的 server 块改为监听 443 端口，并启用 SSL</li>
+<li>使用 certd 导出的证书路径：<code>/volume1/docker/certd/tmp/fullchain.pem</code> 和 <code>/volume1/docker/certd/tmp/private.key</code></li>
+<li>新增 <code>X-Forwarded-Proto</code> header，让后端应用知道使用的是 HTTPS</li>
+</ul>
+<h3 id="重启-nginx">重启 Nginx</h3>
+<p>保存配置文件后，测试配置并重启 Nginx 使配置生效：</p>
+<pre><code class="language-bash">sudo /usr/bin/nginx -c /etc/nginx/nginx.conf.run -t
+sudo /usr/bin/nginx -c /etc/nginx/nginx.conf.run -s reload
+</code></pre>
+<h3 id="验证-https-是否生效">验证 HTTPS 是否生效</h3>
+<p>用浏览器访问 <code>https://calibre.example.com</code>，检查：</p>
+<ul>
+<li>浏览器地址栏显示小锁图标。</li>
+<li>证书信息显示正确的域名和颁发机构。</li>
+<li>页面能正常加载，没有证书警告。</li>
+</ul>
+<p>如果有问题，可以查看 Nginx 日志：</p>
+<pre><code class="language-bash">sudo tail -f /var/log/nginx/error.log
+</code></pre>
+<p>常见问题：</p>
+<ul>
+<li><strong>证书路径不对</strong>：确认 <code>/volume1/docker/certd/tmp/</code> 下有 <code>fullchain.pem</code> 和 <code>private.key</code> 文件。</li>
+<li><strong>权限问题</strong>：确保 Nginx 能读取证书文件，可以执行 <code>sudo chmod 644 /volume1/docker/certd/tmp/*.pem /volume1/docker/certd/tmp/*.key</code>。</li>
+<li><strong>证书未更新</strong>：certd 更新证书后，Nginx 需要重启才能重新加载证书。你可以在流水线的 “主机 - 执行远程主机脚本命令” 任务中，在导入脚本后面加一个重启命令：</li>
+</ul>
+<pre><code class="language-bash">bash /volume1/docker/certd/scripts/synology-import-cert.sh \
+  --base-url &quot;https://nas.example.com:5001&quot; \
+  --username &quot;admin&quot; \
+  --password &quot;your-password&quot; \
+  --cert-desc &quot;nas-wildcard&quot; \
+  --fullchain &quot;/volume1/docker/certd/tmp/fullchain.pem&quot; \
+  --key &quot;/volume1/docker/certd/tmp/private.key&quot; \
+  --device-id &quot;your-device-id&quot; \
+  --set-default \
+  --assign-services &quot;all&quot; \
+  --create
+
+# 重启 Nginx 以重新加载证书
+sudo /usr/bin/nginx -c /etc/nginx/nginx.conf.run -s reload
+</code></pre>
+<h2 id="续期与维护">续期与维护</h2>
+<p>在创建 <code>certd</code> 流水线时，默认会有包含一个定时触发器，Let's Encrypt 证书有效期是 90 天。要实现全自动，只需要在流水线里配置定时触发即可。</p>
+<p><code>certd</code> 会在证书到期前按照 “更新天数” 设定的天数自动申请新证书并继续执行后续部署任务，没到期前不会重复申请。</p>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/bool-is-prefix-in-swift-and-java/" class="post-title gt-a-link">
+                    为什么 Swift 推荐 Bool 用 is 前缀，而 Java 常规避
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,393 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>解决 swift-collections 1.3.0 在 Xcode 26.1 下的 Lifetime 特性编译错误 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    解决 swift-collections 1.3.0 在 Xcode 26.1 下的 Lifetime 特性编译错误
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2025-12-01 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/tuist/" class="post-tags">
+                            # tuist
+                        </a>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/swift-package-manager/" class="post-tags">
+                            # swift-package-manager
+                        </a>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/xcode/" class="post-tags">
+                            # xcode
+                        </a>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/HEvQ-e7X7/" class="post-tags">
+                            # swift
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>最近在 vibe coding 一款 macOS App，名叫 “Hassan”，具体做什么的暂且按下不表。项目在从 Xcode 16.4 升级到 26.1 后遇到了一个编译错误，花费几个小时研究明白后决定水一篇文章，整理一下这几个小时的收获。</p>
+<!-- 项目从 Xcode 16.4 升级到 26.1，结果 swift-collections 1.3.0 编译不过了。折腾了一圈才发现，这事儿涉及到 Swift 6.2 的实验性特性 `@_lifetime`，还有 SPM 选择 Package.swift 文件的机制。
+
+思来想去决定记录一下解决过程。 -->
+<!-- more -->
+<blockquote>
+<p>现在 Hassan 已经上架啦！详见 <a href="https://hassanstudio.github.io">官网</a>。</p>
+</blockquote>
+<h2 id="问题描述">问题描述</h2>
+<br>
+<h3 id="开发环境">开发环境</h3>
+<p>先交代一些我的开发环境：</p>
+<ul>
+<li>macOS Tahoe 26.1 (25B78)</li>
+<li>Xcode 26.1 (17B55)</li>
+<li>Tuist 4.90.0</li>
+<li>swift-collections 1.3.0</li>
+</ul>
+<h3 id="问题表现">问题表现</h3>
+<p>Hassan 使用了 <a href="https://github.com/apple/swift-collections/releases/tag/1.3.0">Swift Collections 1.3.0</a>。其在 Xcode 16.4 (16F6) 下编译一切正常，但切换到 Xcode 26.1 后，编译失败并报错：</p>
+<pre><code>/Users/rakuyo/Hassan/Tuist/.build/checkouts/swift-collections/Sources/InternalCollectionsUtilities/autogenerated/LifetimeOverride.swift:104:2 '@_lifetime' attribute is only valid when experimental feature Lifetimes is enabled
+/Users/rakuyo/Hassan/Tuist/.build/checkouts/swift-collections/Sources/InternalCollectionsUtilities/autogenerated/LifetimeOverride.swift:107:6 A function cannot return a ~Escapable result
+</code></pre>
+<h2 id="问题分析">问题分析</h2>
+<br>
+<h3 id="根本原因">根本原因</h3>
+<p>看了一下代码，发现报错的地方用了 <code>#if compiler(&gt;=6.2)</code> 做条件编译：</p>
+<ul>
+<li>Xcode 16.4 的编译器版本小于 6.2，所以这部分代码根本不会编译</li>
+<li>Xcode 26.1 的编译器达到了 6.2，就触发了这部分代码的编译</li>
+</ul>
+<h3 id="swift-collections-的-packageswift-文件">swift-collections 的 Package.swift 文件</h3>
+<p>翻了一下 swift-collections 的源码，返现它有两个 Package.swift 文件：</p>
+<ol>
+<li>默认的 <a href="https://github.com/apple/swift-collections/blob/1.3.0/Package.swift">Package.swift</a></li>
+<li>Swift 6.0 版本使用的 <a href="https://github.com/apple/swift-collections/blob/1.3.0/Package%40swift-6.0.swift">Package@swift-6.0.swift</a></li>
+</ol>
+<p>关键的区别在于：</p>
+<ul>
+<li><code>Package.swift</code> 文件中包含了 <code>.enableExperimentalFeature(&quot;Lifetimes&quot;)</code> 配置</li>
+<li><code>Package@swift-6.0.swift</code> 文件中没有这个配置</li>
+</ul>
+<h3 id="关于-_lifetime-特性">关于 <code>@_lifetime</code> 特性</h3>
+<p><code>@_lifetime</code> 是 Swift 6.2 引入的实验性特性，用于处理生命周期依赖关系。虽然 6.2 里已经有了，但它还不是正式的语言特性，所以需要显式开启。</p>
+<p>官方论坛里有讨论：<a href="https://forums.swift.org/t/experimental-support-for-lifetime-dependencies-in-swift-6-2-and-beyond/78638">Experimental support for lifetime dependencies in Swift 6.2 and beyond</a></p>
+<h2 id="解决问题">解决问题</h2>
+<br>
+<h3 id="最初的思路">最初的思路</h3>
+<p>一开始，我认为问题出在 SPM 或 Tuist 错误地选择了 <code>Package@swift-6.0.swift</code> 文件。因为我的项目设置的是 Swift 5.9，Build Settings 里也是 5.9，我认为应该使用默认的 <code>Package.swift</code>（包含了 Lifetimes 特性的启用），这样就不会有编译错误。</p>
+<h3 id="深入调查">深入调查</h3>
+<p>但是继续往下查，发现这事儿比想的复杂：</p>
+<h4 id="spm-使用工具链的-swift-版本">SPM 使用工具链的 Swift 版本</h4>
+<p>SPM 在下载依赖时，使用的是 <strong>工具链</strong> 的 Swift 版本，也就是 <code>swift --version</code> 的版本，而不是项目中 Build Settings 配置的 Swift 版本，它只影响项目的编译，和 SPM 用哪个 <code>Package.swift</code> 无关。</p>
+<h4 id="macos-的-swift-工具链限制">macOS 的 Swift 工具链限制</h4>
+<p>macOS 上没法抛开 Xcode 单独装或配置 Swift 工具链。Swift 工具链是跟 Xcode 绑定的。</p>
+<h4 id="macos-tahoe-与-xcode-版本的限制">macOS Tahoe 与 Xcode 版本的限制</h4>
+<ul>
+<li>macOS Tahoe 无法使用 Xcode 15</li>
+<li>Xcode 16.14 就已经是 Swift 6.0+ 的版本</li>
+<li>如果想在 Swift 5.x 的基础上使用 SPM，就必须使用 Xcode 15.0，但这在 macOS Tahoe 上是不可能的</li>
+</ul>
+<h4 id="swift-tools-version-的实际作用">swift-tools-version 的实际作用</h4>
+<p>项目的 <code>Package.swift</code> 文件顶部的 <code>// swift-tools-version: 5.9</code> 并不能决定用哪个 <code>Package.swift</code> 文件。这个声明只是指定了解析 Package.swift 所需的最低 SPM 工具版本。</p>
+<h3 id="那么单独安装-swift-5101-toolchain-行不行">那么单独安装 Swift 5.10.1 toolchain 行不行？</h3>
+<p>既然 Xcode 自带的工具链是 Swift 6.0+，那能不能单独装个 Swift 5.10.1 的 toolchain？</p>
+<h4 id="使用-swiftly-安装-toolchain">使用 swiftly 安装 toolchain</h4>
+<p><a href="https://github.com/swiftlang/swiftly">swiftly</a> 是 Swift 官方的工具链管理工具，可以装不同版本的 Swift toolchain。</p>
+<p>试了一下，用 Swift 5.10.1 toolchain 跑 SPM 下载依赖，结果又报错了：</p>
+<pre><code>Computing version for https://github.com/devxoul/Then.git
+error: Invalid manifest (compiled with: [&quot;/Users/rakuyo/Library/Developer/Toolchains/swift-5.10.1-RELEASE.xctoolchain/usr/bin/swiftc&quot;, &quot;-vfsoverlay&quot;, &quot;/var/folders/56/hxctgzds50b8p0fw6myh2y500000gn/T/TemporaryDirectory.qkPC2f/vfs.yaml&quot;, &quot;-L&quot;, &quot;/Users/rakuyo/Library/Developer/Toolchains/swift-5.10.1-RELEASE.xctoolchain/usr/lib/swift/pm/ManifestAPI&quot;, &quot;-lPackageDescription&quot;, &quot;-Xlinker&quot;, &quot;-rpath&quot;, &quot;-Xlinker&quot;, &quot;/Users/rakuyo/Library/Developer/Toolchains/swift-5.10.1-RELEASE.xctoolchain/usr/lib/swift/pm/ManifestAPI&quot;, &quot;-target&quot;, &quot;arm64-apple-macosx12.0&quot;, &quot;-sdk&quot;, &quot;/Applications/Xcode-26.1.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.1.sdk&quot;, &quot;-F&quot;, &quot;/Applications/Xcode-26.1.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks&quot;, &quot;-I&quot;, &quot;/Applications/Xcode-26.1.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib&quot;, &quot;-L&quot;, &quot;/Applications/Xcode-26.1.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib&quot;, &quot;-swift-version&quot;, &quot;5&quot;, &quot;-I&quot;, &quot;/Users/rakuyo/Library/Developer/Toolchains/swift-5.10.1-RELEASE.xctoolchain/usr/lib/swift/pm/ManifestAPI&quot;, &quot;-sdk&quot;, &quot;/Applications/Xcode-26.1.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.1.sdk&quot;, &quot;-package-description-version&quot;, &quot;5.0.0&quot;, &quot;/Package.swift&quot;, &quot;-Xfrontend&quot;, &quot;-disable-implicit-concurrency-module-import&quot;, &quot;-Xfrontend&quot;, &quot;-disable-implicit-string-processing-module-import&quot;, &quot;-o&quot;, &quot;/var/folders/56/hxctgzds50b8p0fw6myh2y500000gn/T/TemporaryDirectory.EKOhFy/then-manifest&quot;])
+error: fatalError
+error: compile command failed due to signal 6 (use -v to see invocation)
+/Applications/Xcode-26.1.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.1.sdk/System/Library/Frameworks/Foundation.framework/Modules/Foundation.swiftmodule/arm64e-apple-macos.swiftinterface:1114:149: error: expected ',' separator
+  public mutating func transform&lt;E&gt;(updating range: inout Swift.Range&lt;Foundation.AttributedString.Index&gt;, body: (inout Foundation.AttributedString) throws(E) -&gt; Swift.Void) throws(E) where E : Swift.Error
+</code></pre>
+<p>看报错信息就知道了，虽然用了 Swift 5.10.1 的编译器，但 SPM 还是在链接 Xcode 26.1 的 SDK。Swift 5.10.1 的编译器看不懂 macOS 26.1 SDK 里的新语法（比如 <code>throws(E)</code> 这种类型化抛出），所以编译失败。</p>
+<h4 id="结论">结论</h4>
+<p>单独装 Swift 5.10.1 toolchain 也不行：</p>
+<ul>
+<li>SPM 虽然用了旧版本的 Swift 编译器</li>
+<li>但它还是链接到了 Xcode 26.1 的 SDK</li>
+<li>旧版本编译器处理不了新版本 SDK 的语法</li>
+<li>Swift toolchain 和 Xcode SDK 之间有版本兼容性问题</li>
+</ul>
+<h3 id="官方-issues-的发现">官方 Issues 的发现</h3>
+<p>调查的时候翻了下 swift-collections 的 Issues，找到了相关讨论：<a href="https://github.com/apple/swift-collections/issues/546">#546</a>。</p>
+<p>看起来社区里也有人遇到类似问题，但官方并没有在 <code>Package@swift-6.0.swift</code> 里默认加上 <code>.enableExperimentalFeature(&quot;Lifetimes&quot;)</code> 配置。</p>
+<h2 id="解决方案">解决方案</h2>
+<p>折腾了一圈，最后的结论就是：</p>
+<ol>
+<li><strong>只能用 <code>Package@swift-6.0.swift</code></strong>：因为工具链是 Swift 6.0+，SPM 会自动选这个文件</li>
+<li><strong>必须显式启用 Lifetimes 特性</strong>：得在项目配置里加上 <code>-enable-experimental-feature Lifetimes</code> 编译参数</li>
+</ol>
+<p>具体配置看你用什么构建工具：</p>
+<h3 id="使用-tuist">使用 Tuist</h3>
+<p>在 Tuist 的项目配置中，需要为依赖 swift-collections 的 target 添加编译参数：</p>
+<pre><code class="language-swift">.target(
+    name: &quot;YourTarget&quot;,
+    // ... 其他配置
+    settings: .settings(
+        base: [
+            &quot;OTHER_SWIFT_FLAGS&quot;: &quot;$(inherited) -enable-experimental-feature Lifetimes&quot;
+        ]
+    )
+)
+</code></pre>
+<h3 id="使用-xcode-项目">使用 Xcode 项目</h3>
+<p>在 Build Settings 中，找到 &quot;Other Swift Flags&quot;，添加：</p>
+<pre><code>-enable-experimental-feature Lifetimes
+</code></pre>
+<h2 id="意外收获tuist-的-swift-版本默认配置">意外收获：Tuist 的 Swift 版本默认配置</h2>
+<p>调查的时候还发现了个 Tuist 相关的事情。</p>
+<p>Tuist 默认用的是 <code>SWIFT_VERSION = 5.0</code>。想用 Swift 6.0 的话，也得显式指定。</p>
+<p>相关信息：</p>
+<ul>
+<li>PR：<a href="https://github.com/tuist/tuist/pull/4679">#4679</a></li>
+<li>代码定义：<a href="https://github.com/tuist/tuist/blob/701204857f795b685706cdd2cb2b9863c9567a05/cli/Sources/TuistGenerator/Settings/DefaultSettingsProvider.swift#L258">DefaultSettingsProvider.swift</a></li>
+<li>社区讨论：<a href="https://community.tuist.dev/t/cant-change-swift-version-for-targets-from-5-to-6/41/4">Can't change Swift version for targets (from 5 to 6)</a></li>
+</ul>
+<p>用 Tuist 并且想用 Swift 6.0 的话，得在配置里明确指定：</p>
+<pre><code class="language-swift">.target(
+    name: &quot;YourTarget&quot;,
+    // ... 其他配置
+    settings: .settings(
+        base: [
+            &quot;SWIFT_VERSION&quot;: &quot;6.0&quot;
+        ]
+    )
+)
+</code></pre>
+<h2 id="总结">总结</h2>
+<p>这次折腾下来，对 SPM 的工作机制算是有了更深的理解：</p>
+<ol>
+<li><strong>SPM 用的是工具链版本</strong>：SPM 根据 <code>swift --version</code> 的版本（也就是工具链版本）来选 Package.swift 文件，不是项目配置的 Swift 版本</li>
+<li><strong>Package@swift-X.X.swift 的优先级</strong>：工具链版本满足条件时，SPM 会优先用带版本后缀的 Package.swift 文件</li>
+<li><strong>实验性特性得显式启用</strong>：即使代码里用了实验性特性，Package.swift 里没启用的话，也得在项目级别显式启用</li>
+<li><strong>macOS 的工具链限制</strong>：macOS 上 Swift 工具链跟 Xcode 是绑定的，不像 Linux 那样能灵活切换</li>
+<li><strong>Toolchain 与 SDK 的兼容性</strong>：单独装了旧版本 Swift toolchain 也没用，它可能跟新版本 Xcode SDK 不兼容</li>
+</ol>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/computer-network-osi-and-tcpip-models/" class="post-title gt-a-link">
+                    计算机网络之七 - OSI 与 TCP/IP 分层模型
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

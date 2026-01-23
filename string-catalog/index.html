@@ -1,0 +1,369 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>String Catalog 实践 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    String Catalog 实践
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2024-12-30 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/localization/" class="post-tags">
+                            # localization
+                        </a>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tags">
+                            # ios
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>最近项目有了国际化（i18n）的需求，正好 WWDC23 上 Apple 推出了 String Catalog 功能。趁此机会尝试一下，并将一些经验记录下来。</p>
+<!-- more -->
+<p>如果你对 String Catalog 不太熟悉，可以先参考 <a href="https://xiaozhuanlan.com/topic/4731268095#sectionstringcatalog">老司机技术 WWDC 23 内参</a>，或者直接观看 WWDC 的 <a href="https://developer.apple.com/cn/videos/play/wwdc2023/10155/">官方视频</a> 和 <a href="https://developer.apple.com/documentation/xcode/localizing-and-varying-text-with-a-string-catalog">文档</a> 来了解更多。</p>
+<p>好了废话不多说，开始今天的内容。</p>
+<h2 id="开发环境">开发环境</h2>
+<ul>
+<li><strong>Xcode</strong>：16.2</li>
+<li><strong>Swift</strong>：5.9</li>
+<li><strong>框架</strong>：UIKit</li>
+<li><strong>最低支持版本</strong>：iOS 13</li>
+<li><strong>组件化工具</strong>：CocoaPods</li>
+</ul>
+<p>Xcode 15 及以上版本支持 String Catalog，版本对功能无特别限制。<br>
+但由于项目最低支持版本为 iOS 13，而 <code>String(localized:)</code> 是 iOS 15 引入的 API，因此需要额外处理低版本兼容的问题。</p>
+<p>此外，关于 String Catalog 在 CocoaPods 组件化项目中的使用，相关资料较少，因此这部分内容需要实际摸索一下。</p>
+<h2 id="项目准备工作">项目准备工作</h2>
+<p>首先，在项目的 <strong>PROJECT</strong> 设置中添加需要支持的语言：</p>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyo.dev/post-images/1735550287876.png" alt="添加多语言" loading="lazy"></figure>
+<p>接着可以（可选）调整 Scheme 的模拟器设置，将语言和地区设置为待测试的环境：</p>
+<figure data-type="image" tabindex="2"><img src="https://blog.rakuyo.dev/post-images/1735550299822.png" alt="修改模拟器语言" loading="lazy"></figure>
+<p>例如将语言设置为英语、地区为美国。此操作便于验证翻译效果，但地区设置通常不会影响文案展示。</p>
+<h2 id="string-catalog-cocoapods">String Catalog + CocoaPods</h2>
+<p>在主项目中使用 String Catalog 可以算作在 CocoaPods 中使用的一个子集，所以我们直接讲解如何在 CocoaPods 中使用 String Catalog。</p>
+<h3 id="新建文件">新建文件</h3>
+<p>通过 <strong>Command+N</strong> 新建 String Catalog 文件，效果如下：</p>
+<figure data-type="image" tabindex="3"><img src="https://blog.rakuyo.dev/post-images/1735550314476.png" alt="新建 String Catalog 文件" loading="lazy"></figure>
+<blockquote>
+<p><strong>提示</strong>：<br>
+文件里显示的语言，是根据所属 <code>.xcodeproj</code> 设置里添加的语言自动生成的。<br>
+Pods.xcodeproj 默认包含多种语言，所以 Pods 中的 <code>.xcstrings</code> 文件才会显示这么多的语种。<br>
+但这不会影响最终的 App。鉴于我们平时在使用时，不会将 Pods.xcodeproj 提交到 git，同时 App 的多语言设置不受 Pods 的影响，所以作为开发者你完全可以无视这一点，只从 String Catalog 挑选你关注的语种即可。</p>
+</blockquote>
+<p>这里我新建了一个文件，叫 <code>HomeLocalizable.xcstrings</code>，并加了两个文案。</p>
+<h3 id="修改-podspec-文件">修改 Podspec 文件</h3>
+<p>接着，我们需要修改 podspec，把 <code>.xcstrings</code> 文件加到资源文件中。</p>
+<p>说到这里，聪明的你肯定可以直接猜到，是不是可以仿照 <code>.xcassets</code> 类型的文件，直接将 <code>.xcstrings</code> 文件放到 <code>resource_bundle</code> 的自定义 Bundle 中。没错，确实是这样：</p>
+<pre><code class="language-ruby">s.resource_bundle = {
+  'HomeBundle' =&gt; [
+    'Sources/Resource/**/*.xcstrings',
+    'Sources/Resource/**/*.xcassets',
+  ]
+}
+</code></pre>
+<blockquote>
+<p>注意：<br>
+如果只将 <code>.xcstrings</code> 放入 Bundle 中的话会有一个问题，详见 <a href="#pod-%E4%B8%8E-string-catalog-%E8%87%AA%E5%8A%A8%E5%8C%96">Pod 与 String Catalog 自动化</a> 这一小节。</p>
+</blockquote>
+<p>然后执行 <code>pod install</code>，这样 <code>.xcstrings</code> 文件就会被包含到 <code>HomeBundle</code> 里了。</p>
+<h2 id="添加新的文言">添加新的文言</h2>
+<p>选择我们的默认语种，点击加号即可添加新的文言。此后同样的操作在需要翻译的语种中，设置对应文言的翻译内容即可。</p>
+<p>需要注意的是，默认语种中文言的状态（State）默认是不展示，即 <code>Reviewed</code> 已审核过的，和其他语种中的绿色对勾是一样的。而当我们新建一个文言后，其他语种中文言的状态则是<strong>NEW</strong>。</p>
+<figure data-type="image" tabindex="4"><img src="https://blog.rakuyo.dev/post-images/1735550344436.png" alt="" loading="lazy"></figure>
+<p>我实际测试了一下，当我们向 <strong>NEW</strong> 状态的文言添加对应的翻译，或者修改了 <strong>NEEDS REVIEW</strong> 状态的文言所对应的翻译后，该条文言的状态将自动变为 <code>Reviewed</code>。</p>
+<p>另外，就算文言处于 <strong>NEEDS REVIEW</strong> 状态，只要包含了对应的翻译，那么该翻译也是可以正常显示的。不过从字面上来看这一行为有些<a href="https://stackoverflow.com/questions/77701293/string-catalog-has-no-effect#comment137598271_77701293">危险</a>，稳妥起见建议开发者确保所有文言无误后，将其标记为 <code>Reviewed</code> 后再使用。</p>
+<h2 id="展示国际化文本">展示国际化文本</h2>
+<p>这一节我们就要提到 <code>String(localized:)</code> 的问题了。网上大部分介绍 String Catalog 的文章都会使用 <code>String(localized: )</code> 这一个新的 api，然而当我实际使时才发现，它仅限于 iOS 15 + 的版本。那么该怎么办呢？</p>
+<p>其实我们还可以使用老的 <code>NSLocalizedString</code> 方法。</p>
+<pre><code class="language-swift">let text = NSLocalizedString(
+    &quot;扫码或长按小程序码&quot;, 
+    tableName: &quot;HomeLocalizable&quot;, 
+    bundle: BundleToken.bundle, 
+    comment: &quot;&quot;
+)
+
+private final class BundleToken {
+  static let bundle: Bundle = {
+    #if SWIFT_PACKAGE
+    return Bundle.module
+    #else
+    guard
+      let resourcePath = Bundle(for: BundleToken.self).resourcePath,
+      let bundle = Bundle(path: resourcePath + &quot;/HomeBundle.bundle&quot;) // ⬅️ Watch this.
+    else {
+        fatalError(&quot;Bundle not found, please make sure the Bundle name is correct!&quot;)
+    }
+    return bundle
+    #endif
+  }()
+}
+</code></pre>
+<p><code>tableName</code> 是 <code>.xcstrings</code> 文件名，<code>bundle</code> 是在 podspec 里定义的 <code>HomeBundle</code>。</p>
+<p>这里的 <code>BundleToken</code> 参考了 <a href="https://github.com/SwiftGen/SwiftGen/blob/f7c23b63053e5a8aab4a4dbb633b24920bbb9436/Sources/SwiftGenCLI/templates/json/runtime-swift5.stencil#L98">SwiftGen 的实现</a>，做了一些适配 CocoaPods 的改动：增加 <code>HomeBundle</code>。</p>
+<p>如果你好奇为什么使用老的 <code>NSLocalizedString</code> api 也可以，那么我们可以先 build 编译一下项目，然后在 Products 目录找到编译好了之后的应用，最后找到 <code>HomeBundle.bundle</code>。<br>
+<img src="https://blog.rakuyo.dev/post-images/1735550356345.png" alt="" loading="lazy"></p>
+<p>此时你就会发现，<code>.xcstrings</code> 虽然不像是 <code>.bundle</code> 一样是一个 “包”，但是在编译时，它会被编译为和 <code>.xcstrings</code> 同名的 <code>.strings</code> 文件，所以我们依然可以使用 <code>NSLocalizedString</code> api 来读取相关设置，这点在 WWDC 的视频中也有相关说明：<br>
+<img src="https://blog.rakuyo.dev/post-images/1735550361801.png" alt="" loading="lazy"></p>
+<h2 id="swiftgen">SwiftGen</h2>
+<p>截止文章更新（2025.1.14），SwiftGen 最新版为 <a href="https://github.com/SwiftGen/SwiftGen/releases/tag/6.6.3">6.6.3</a>，尚未正式支持 String Catalog。（SwiftGen 目前好像进入<strong>停更</strong>的状态）</p>
+<p>不过有一个相关的 pr：<a href="https://github.com/SwiftGen/SwiftGen/pull/1124">Xcode 15 String catalog support #1124</a>。</p>
+<p>这个 pr 对 <code>.xcstring</code> 文件进行解析，解析后生成的内容和老版本 <code>.string</code> 解析后生成的内容类似。</p>
+<blockquote>
+<p>顺带一提，这似乎也影响到了 <a href="https://github.com/tuist/tuist/pull/6296">Tuist</a> 对于 String Catalog 的支持。</p>
+</blockquote>
+<p>你可以考虑使用我 fork 的这个版本：<a href="https://github.com/rakuyoMo/SwiftGen/releases/tag/6.6.4-alpha.0">6.6.4-alpha.0</a>。通过 mise 安装时，可以按照下面的格式修改 <code>mise.toml</code> 文件：</p>
+<pre><code class="language-toml">[tools]
+&quot;ubi:rakuyoMo/SwiftGen&quot; = { version = &quot;6.6.4-alpha.0&quot;, matching = &quot;swiftgen-6.6.4-alpha.0-macos.zip&quot;, exe = &quot;swiftgen&quot; }
+</code></pre>
+<p>如果你不想分叉自编译 SwiftGen 可以考虑尝试一个名为 <a href="https://github.com/liamnichols/xcstrings-tool">xcstrings-tool</a> 的新工具，Swift 开发，不支持 brew，但是支持通过 mise 安装 cli 单独使用，详见<a href="https://github.com/liamnichols/xcstrings-tool/blob/9f76a024ac59324bdd71dfa9b39c6abc4ba21c40/Sources/Documentation/XCStringsToolPlugin.docc/Using%20the%20Command%20Line%20Interface.md?plain=1#L27">文档</a></p>
+<h2 id="一些注意">一些注意</h2>
+<p>因为这是我第一次总结 i18n 相关的内容，所以也顺带记录一些问题或者注意事项。可能比较常见，比较基础。</p>
+<h3 id="换行符">换行符</h3>
+<p>如果在 <code>.xcstrings</code> 文件中直接输入 <code>\n</code> 代表换行，在实际展示时是起不到换行的效果，而是会将 <code>\n</code> 展示出来。从 json 文件或Git 中查看会发现，实际内容是 <code>\\n</code>，即转义过后的内容。</p>
+<p>正确的方式是使用 <strong>option + return</strong> 组合键在 <code>.xcstrings</code> 文件中输入换行。或者不嫌麻烦的话可以手动修改 json 文件，效果是一样的（手动狗头）。</p>
+<h3 id="nslocalizedstring_key"><code>nslocalizedstring_key</code></h3>
+<p>SwiftLint 中包含着一条名为 <code>nslocalizedstring_key</code> 的规则，<a href="https://realm.github.io/SwiftLint/nslocalizedstring_key.html">文档</a>在这里。</p>
+<p>它建议不要动态传入 key，比如这样是不推荐的：</p>
+<pre><code class="language-swift">// 不推荐
+let key = &quot;example_key&quot;
+let text = NSLocalizedString(key, comment: &quot;&quot;)
+</code></pre>
+<h3 id="pod-与-string-catalog-自动化">Pod 与 String Catalog 自动化</h3>
+<p>在 Xcode 15 中，如果设置了 <code>Use Compiler to Extract Swift Strings</code> 为 <code>YES</code>，那么 String Catalog 文件就可以自动追踪国际化文本，比如下面这个字符串：</p>
+<pre><code class="language-swift">let test = NSLocalizedString(&quot;Test&quot;, tableName: &quot;TestLocalizable&quot;, comment: &quot;Test&quot;)
+</code></pre>
+<p>编译后会有一个 “Syncing Localizations” 的阶段，在该阶段这个字符串会被自动记录到 <code>TestLocalizable.xcstrings</code> 文件中。</p>
+<figure data-type="image" tabindex="5"><img src="https://blog.rakuyo.dev/post-images/1735616778742.png" alt="" loading="lazy"></figure>
+<p>但是在 pod 组件化项目中，如果该字符串在某个 pod 内，则自动追踪不会生效。原因有以下几点：</p>
+<ol>
+<li>“Syncing Localizations” 阶段仅会扫描当前 Scheme 所包含的 target。一般我们编译时都会选择主项目，此时是不包含 pod target 的，所以不会扫描相应的代码。</li>
+<li>Pod 的 <code>Use Compiler to Extract Swift Strings</code> 设置项默认为 <code>NO</code>，需要在 Podfile 中使用钩子手动开启（Key 为 <a href="https://developer.apple.com/documentation/xcode/build-settings-reference#Use-Compiler-to-Extract-Swift-Strings"><code>SWIFT_EMIT_LOC_STRINGS</code></a>）。</li>
+<li>前文中，<code>.xcstrings</code> 被添加到 Bundle 中，这意味着它会被归入 Bundle 这个 target，比如 Pod 名为 <code>Home</code>，那么 <code>.xcstrings</code> 文件就在 <code>Home-HomeBundle</code> 这个 target 中。而项目代码则在 <code>Home</code> 这个 target 里。此时编译 <code>Home</code>，因为该 target 实际不包含 <code>.xcstrings</code>，所以字符串也不会同步到 <code>.xcstrings</code> 文件中。</li>
+</ol>
+<p>综上，考虑到 CocoaPods 已经停止增加新功能，建议还是尽快迁移到 SPM。</p>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/notes-on-harmonyos-and-arkts-development/" class="post-title gt-a-link">
+                    HarmonyOS 与 ArkTS 开发注意事项
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

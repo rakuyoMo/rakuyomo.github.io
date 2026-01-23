@@ -1,0 +1,456 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>计算机网络之四 - 虚拟网卡与 WireGuard | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    计算机网络之四 - 虚拟网卡与 WireGuard
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2025-08-12 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/ji-suan-ji-wang-luo/" class="post-tags">
+                            # 计算机网络
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>在上一篇文章的结尾，我们探讨了多种内网穿透技术，并初步介绍了 WireGuard 作为一种现代化 VPN 解决方案的优势。其实在更早之前，我们就亲手<a href="/cgo-and-wireGuardkit-compilation.md">编译过 WireGuard 在 iOS 端的 SDK</a>，也使用 WireGuard 实现过<a href="/synology-with-wireguard/">群晖 NAS 的公网访问</a>。</p>
+<p>本文将以 macOS 环境为基础，深入 WireGuard 内部，从内核交互的底层细节出发，解构虚拟网卡的实现机制，并详细剖析其密码学和路由设计。</p>
+<!-- more -->
+<p>本系列其余几篇的目录：</p>
+<ul>
+<li><a href="/computer-network-ip-and-port/">计算机网络之一 - IP 与端口</a></li>
+<li><a href="/computer-network-url-and-dns/">计算机网络之二 - URL 与 DNS</a></li>
+<li><a href="/computer-network-dhcp-and-intranet-penetration/">计算机网络之三 - DHCP 与内网穿透</a></li>
+<li><a href="/computer-network-http-and-https">计算机网络之五 - HTTP 与 HTTPS</a></li>
+<li><a href="/computer-network-tcp-and-udp">计算机网络之六 - 可靠的 TCP 与高效的 UDP</a></li>
+<li><a href="/computer-network-osi-and-tcpip-models">计算机网络之七 - OSI 与 TCP/IP 分层模型</a></li>
+</ul>
+<hr>
+<h2 id="虚拟网卡用户空间与内核的契约">虚拟网卡：用户空间与内核的契约</h2>
+<p>要理解 WireGuard 的工作原理，首先需要解决一个根本性问题：像 WireGuard 这样的普通应用程序，是运行在操作系统的“用户空间”的，而网络数据包的收发、路由选择等核心功能，都由操作系统的“内核空间”牢牢掌控。那么，一个用户空间的程序，是如何能“拦截”并“处理”本应由内核直接发送到物理硬件的IP数据包呢？</p>
+<p>答案就是<strong>虚拟网卡 (Virtual Network Interface)</strong>，它是用户空间与内核空间在网络层面达成的一种“契约”。这个核心思想在不同操作系统上是共通的，但具体实现有所差异。</p>
+<h3 id="内核的委托utun-接口">内核的“委托”：utun 接口</h3>
+<p>在 macOS 上，契约的实现者是 <code>utun</code> 虚拟网络接口。与 Linux 下有明确设备文件路径的 <code>tun</code> 设备不同，<code>utun</code> 接口是由程序在运行时通过向内核发出特定请求来动态创建的。WireGuard 这样的应用会通过系统调用，请求内核创建一个 <code>utun</code> 类型的网络接口，并获得一个用于与其通信的<strong>文件描述符（File Descriptor）</strong>。</p>
+<p>这个文件描述符，就是这份“契约”的实体。它对于应用程序来说，就像一个普通的文件句柄，可以对其进行 <code>read()</code> 和 <code>write()</code> 操作。但它的另一端，连接的却是内核网络协议栈中一个新创建的、功能完整的虚拟网络接口（例如 <code>utun0</code> 或 <code>wg0</code>）。</p>
+<p>当这个接口被 <code>ifconfig</code> 命令激活并分配了IP地址（如 <code>10.8.0.1</code>）后，它就会出现在 <code>ifconfig</code> 的输出中，对于内核的路由、防火墙等子系统来说，它与一张真实的物理网卡并无二致。</p>
+<p>下面是这个过程的伪代码表示，它被 WireGuard 客户端在后台自动处理了：</p>
+<pre><code class="language-c">// 1. 向内核请求创建虚拟接口，获取文件描述符
+int vpn_fd = request_virtual_interface(&quot;wg0&quot;);
+
+// 2. 使用命令行工具为接口配置IP地址并激活
+system(&quot;ifconfig wg0 inet 10.8.0.1/24 up&quot;);
+
+// 3. 进入主循环，像读写文件一样处理网络包
+while(1) {
+  // 从内核的 wg0 接口读取一个IP包
+  int nread = read(vpn_fd, packet_buffer, sizeof(packet_buffer));
+  
+  // ... 对 packet_buffer 进行加密处理 ...
+  
+  // 通过物理网卡的UDP socket发送出去
+  sendto(udp_socket, encrypted_packet, ...);
+}
+</code></pre>
+<h3 id="数据包的契约履行过程">数据包的“契约”履行过程</h3>
+<p>这份契约的履行过程，即数据包的流转，是理解一切的关键：</p>
+<ol>
+<li>
+<p><strong>下行（发送数据）</strong>：</p>
+<ul>
+<li>一个上层应用（如浏览器）试图访问 <code>10.8.0.2</code>。</li>
+<li>内核根据其<strong>主路由表</strong>（可通过 <code>netstat -nr</code> 查看），发现目标地址 <code>10.8.0.2</code> 匹配 <code>10.8.0.0/24 dev utun0</code> 这条规则（这条规则通常由 <code>wg-quick</code> 脚本自动添加）。</li>
+<li>内核将这个原始的、未经任何修改的IP数据包，作为一个字节流，<strong>“写入”</strong> 到与 <code>utun0</code> 关联的那个文件描述符中。</li>
+<li>WireGuard 进程一直在用户空间通过 <code>read()</code> 系统调用<strong>阻塞式地读取</strong>这个文件描述符。一旦内核写入数据，WireGuard 进程就会被唤醒，并读出完整的IP数据包。</li>
+</ul>
+</li>
+<li>
+<p><strong>上行（接收数据）</strong>：</p>
+<ul>
+<li>WireGuard 进程通过物理网卡收到了一个来自对端的、加密的UDP包。</li>
+<li>在用户空间完成解密，还原出原始的IP数据包（例如，一个从 <code>10.8.0.2</code> 发往 <code>10.8.0.1</code> 的ICMP响应包）。</li>
+<li>WireGuard 进程将这个原始IP数据包的字节流，通过 <code>write()</code> 系统调用 <strong>“写入”</strong> 到它持有的文件描述符中。</li>
+<li>数据被写入后，会立刻出现在内核空间的 <code>utun0</code> 接口上，仿佛它刚从外部网络到达。随后，内核的网络协议栈会接管它，进行后续的路由、分发给上层应用等操作。</li>
+</ul>
+</li>
+</ol>
+<p>为了更直观地理解数据包在用户空间与内核空间之间的流转过程，可以参考下面的序列图：</p>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyo.dev/post-images/1755597355526.svg" alt="" loading="lazy"></figure>
+<h2 id="wireguard-的设计哲学与核心机制">WireGuard 的设计哲学与核心机制</h2>
+<p>理解了虚拟网卡如何作为用户空间与内核的桥梁后，我们再来深入探讨 WireGuard 本身的设计。其设计哲学体现在其极其简明的配置文件中，通过解读这份文件，我们就能掌握其核心机制。</p>
+<p>WireGuard 本质上是无状态和无连接的。它不像 TCP 或 OpenVPN 那样需要维持一个长期的、有明确 “连接/断开” 状态的会话。通信双方仅通过基于 Noise 协议框架的握手来交换最新的会话密钥。如果一段时间没有流量，双方不会有任何通信。一旦有数据需要发送，它会尝试使用现有的会话密钥，如果密钥已过期，则会静默地发起一次新的握手。这种设计对移动设备和不稳定的网络环境极为友好。</p>
+<p>一个典型的 WireGuard 配置文件（通常是 <code>wg0.conf</code>）由若干个“块（section）”组成，最核心的就是 <code>[Interface]</code> 块和 <code>[Peer]</code> 块。</p>
+<h3 id="interface-块定义隧道端点"><code>[Interface]</code> 块：定义隧道端点</h3>
+<p><code>[Interface]</code> 块用于配置隧道的“本地”这一端，也就是你正在配置的这台机器上的 <code>wg0</code> 虚拟网卡。</p>
+<pre><code class="language-ini">[Interface]
+# 本机的私钥
+PrivateKey = [私钥内容]
+
+# 本机在 VPN 网络中的内网 IP 地址
+Address = 10.8.0.1/24
+
+# 监听的 UDP 端口
+ListenPort = 51820
+</code></pre>
+<ul>
+<li><strong><code>PrivateKey</code></strong>：一段 Base64 编码的字符串，是该接口的<strong>私钥</strong>。这是接口的唯一身份凭证，<strong>绝不能泄露</strong>。与之配对的公钥（由私钥生成）将分发给其他对端（Peer）。</li>
+<li><strong><code>Address</code></strong>：分配给该接口的<strong>虚拟 IP 地址</strong>。请注意，这是在 WireGuard 构建的虚拟网络内部的地址，而非机器的物理 IP。我们在本系列的第一篇文章《<a href="/computer-network-ip-and-port/">计算机网络之一 - IP 与端口</a>》中已经详细讨论过 IP 地址的概念。</li>
+<li><strong><code>ListenPort</code></strong>：指定 WireGuard 在哪个<strong>物理网络端口</strong>上监听来自其他对端的入站连接。这是一个 UDP 端口，因为 WireGuard 完全基于 UDP 协议。同样，关于<strong>端口</strong>的概念，您也可以回顾第一篇文章。</li>
+</ul>
+<h3 id="peer-块定义通信对端"><code>[Peer]</code> 块：定义通信对端</h3>
+<p><code>[Peer]</code> 块定义了该接口希望连接的 “对端” 或 “伙伴”。你可以有多个 <code>[Peer]</code> 块，每一个块代表一个你希望与之通信的节点（例如，一个中心服务器或另一个客户端）。</p>
+<pre><code class="language-ini">[Peer]
+# 对端的公钥
+PublicKey = [对端公钥内容]
+
+# 允许通过该对端路由的IP地址范围
+AllowedIPs = 10.8.0.2/32
+
+# 对端的公网地址和端口（仅客户端需要）
+Endpoint = server.public.ip.address:51820
+
+# NAT 穿透心跳包（仅客户端需要）
+PersistentKeepalive = 25
+</code></pre>
+<ul>
+<li><strong><code>PublicKey</code></strong>：对端的<strong>公钥</strong>，与对端 <code>[Interface]</code> 中 <code>PrivateKey</code> 相对应。WireGuard 依靠这对密钥来验证对方的身份并加密数据。</li>
+<li><strong><code>Endpoint</code></strong>：对端的公网 <code>IP:端口</code>。这是你的接口将数据包发往的实际网络地址。通常，只有需要主动发起连接的一方（如客户端）才需要配置此项。服务器端因为是被动监听，所以不需要为每个 Peer 指定 <code>Endpoint</code>。</li>
+<li><strong><code>PersistentKeepalive</code></strong>：一个可选的便携功能，用于维持 NAT 映射。它会每隔指定秒数（例如25秒）向对端发送一个“心跳包”，这对于处于 NAT 设备（如家用路由器）后面的客户端非常重要，可以防止连接中断。我们在系列第三篇文章《<a href="/computer-network-dhcp-and-intranet-penetration/">计算机网络之三 - DHCP 与内网穿透</a>》中探讨过 NAT 的工作原理。</li>
+<li><strong><code>AllowedIPs</code></strong>：这是 WireGuard <strong>最具革命性的设计</strong>，也是其 <strong>CryptoKey 路由</strong>机制的核心。这个参数同时承担了<strong>路由</strong>和<strong>安全</strong>两项关键职责：
+<ol>
+<li><strong>路由功能（出站）</strong>：它告诉本地的 <code>wg0</code> 接口：“当有一个IP包需要发送，如果它的<strong>目标IP</strong>地址属于 <code>AllowedIPs</code> 的范围，那么就应该通过隧道，加密后发送给这个 <code>[Peer]</code>”。例如，客户端配置 <code>AllowedIPs = 0.0.0.0/0</code> 意味着将<strong>所有</strong>出站流量都路由到这个 Peer（即中心服务器）。</li>
+<li><strong>安全功能（入站）</strong>：它定义了一个“白名单”。当从这个 Peer 收到一个解密后的数据包时，WireGuard 会检查其<strong>源IP</strong>地址。只有当源IP地址属于 <code>AllowedIPs</code> 范围时，这个包才会被接受，否则将被<strong>静默丢弃</strong>。</li>
+</ol>
+</li>
+</ul>
+<p>这种将密码学身份（公钥）与路由策略（<code>AllowedIPs</code>）紧密绑定的设计，就是 <strong>CryptoKey 路由</strong>。它极大地简化了传统 VPN 复杂的路由表和防火墙策略，使得网络拓扑完全由密钥和 <code>AllowedIPs</code> 静态定义，清晰且安全。并且如果收到一个无法解密，或者解密后源地址不匹配任何 Peer 的 <code>AllowedIPs</code> 的数据包，WireGuard 会<strong>静默丢弃</strong>它。这使得 WireGuard 对网络扫描工具来说是“隐形”的。</p>
+<blockquote>
+<p>让我们对 “静默丢弃” 和 “拒绝” 做一下技术层面的比较：</p>
+<ul>
+<li><strong>拒绝</strong>：当数据包发往一个关闭的端口时，操作系统通常会回复一条 ICMP <code>Port Unreachable</code> 消息。这个响应明确地告知了发送方：端口存在，但是关闭的。</li>
+<li><strong>静默丢弃</strong>：WireGuard 的行为则不同。它接收所有发到监听端口的数据包，但只处理能够被正确解密和验证的。对于所有无效数据包，它在内部直接丢弃，不产生任何对外响应。对于网络扫描工具而言，这种“无响应”的状态与数据包在传输途中被防火墙拦截或网络波动导致丢失是无法区分的。因此，扫描工具无法确认端口的真实状态，从而大大提升了 WireGuard 的隐蔽性。</li>
+</ul>
+</blockquote>
+<h3 id="密码学基石固定的现代加密套件">密码学基石：固定的现代加密套件</h3>
+<p>WireGuard 在安全上的一个核心设计是 “固执己见”（Opinionated），这正是其卓越之处。它不像 IPsec 或者 OpenVPN 那样提供一个庞大的、可协商的加密算法列表，而是<strong>坚定地选择了唯一一套固定的、最先进的密码学原语</strong>。这种“固执”并非限制，而是深思熟虑后的安全与性能保障：</p>
+<blockquote>
+<p>“密码学原语” 指的是构建更复杂密码系统时所使用的、标准化的基础算法模块。它们是功能单一的最小单元，每个原语用于解决一个特定的密码学问题，例如“密钥交换”、“对称加密”或“消息认证”。</p>
+</blockquote>
+<ol>
+<li><strong>极致的简洁与可审计性</strong>：WireGuard 的核心代码库仅有约 4000 行，而 OpenVPN 和 IPsec 则高达数十万行。这种巨大的差异，很大程度上得益于其固定且精简的密码学套件。代码量越小，就越容易进行安全审计，发现并修复潜在的漏洞，从而大大降低了攻击面。</li>
+<li><strong>杜绝配置错误与降级攻击</strong>：在传统的 VPN 协议中，用户或管理员需要从一大堆加密算法中进行选择，这极易因配置不当而引入安全漏洞，甚至遭受“降级攻击”（攻击者强制连接使用较弱的加密算法）。WireGuard 则完全规避了这个问题，它只提供一套经过严格审查的、现代且安全的算法组合，从根本上消除了这类风险。</li>
+<li><strong>卓越的性能表现</strong>：WireGuard 所选用的密码学原语（如 ChaCha20-Poly1305 和 Curve25519）都是为现代 CPU 优化设计的，它们能够以极高的效率完成加密和解密操作，并且天然支持“恒定时间（Constant-Time）”代码，有效抵御旁路攻击。这使得 WireGuard 在吞吐量和延迟方面通常优于 OpenVPN 和 IPsec。</li>
+<li><strong>面向未来的安全性</strong>：WireGuard 从一开始就拥抱了最新的密码学研究成果，摒弃了那些可能存在历史遗留问题或性能瓶颈的旧有算法。这确保了它在当前乃至可预见的未来都具备强大的安全性。</li>
+</ol>
+<p>正是这种对“少即是多”的深刻理解和对现代密码学的坚定选择，让 WireGuard 成为了一个更安全、更快速、更易于部署和维护的 VPN 解决方案。它不仅仅是一个工具，更是一种理念的胜利。</p>
+<p>以下是 WireGuard 所采用的固定密码学原语：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">作用</th>
+<th style="text-align:left">原语名称</th>
+<th style="text-align:left">说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><strong>密钥交换</strong></td>
+<td style="text-align:left">Curve25519 (ECDH)</td>
+<td style="text-align:left">基于椭圆曲线迪菲-赫尔曼协议，让通信双方能在一个不安全的网络上，安全、高效地计算出一个用于加密的共享密钥。</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>对称加密</strong></td>
+<td style="text-align:left">ChaCha20</td>
+<td style="text-align:left">一种流式加密算法，用于高速地加密和解密流经隧道的数据。它以其在通用CPU上的卓越性能和高安全性而闻名。</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>消息认证</strong></td>
+<td style="text-align:left">Poly1305</td>
+<td style="text-align:left">这是一个消息认证码（MAC）算法。它为每个数据包生成一个简短的“标签”，用于验证数据的完整性和真实性，确保数据在传输过程中没有被篡改。</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>哈希</strong></td>
+<td style="text-align:left">BLAKE2s</td>
+<td style="text-align:left">一个速度极快且高度安全的哈希函数，在协议的多种场景中用于生成数据的“指纹”，例如用于密钥派生和公钥哈希。</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>密钥派生</strong></td>
+<td style="text-align:left">HKDF</td>
+<td style="text-align:left">基于哈希的密钥派生函数。它能从一个初始的密钥材料（如密钥交换的结果）中，安全地派生出多个用于不同目的的、独立的加密密钥。</td>
+</tr>
+</tbody>
+</table>
+<p>这套组合不仅性能卓越，且在设计上就非常适合编写成**“恒定时间（Constant-Time）”**代码（即无论处理什么数据，其运算时间都保持一致），能有效抵抗旁路攻击。更重要的是，它消除了因配置错误或降级攻击导致的安全风险，大大提升了协议的健壮性。</p>
+<blockquote>
+<p>**旁路攻击（Side-Channel Attack）**是一种不直接攻击加密算法数学逻辑的攻击方式，它转而通过分析加密设备在运算时产生的物理“副产品”来窃取信息。</p>
+<p>**时序攻击（Timing Attack）**是旁路攻击中最著名的一种。它的核心思想是：精确测量加密操作所花费的时间。如果代码实现不当，处理不同数据时运算时间出现微小差异，攻击者就可能通过分析这些差异，逐步反推出密钥等敏感信息。</p>
+</blockquote>
+<h2 id="当-wireguard-加入后重塑数据之旅">当 WireGuard 加入后：重塑数据之旅</h2>
+<p>在上一篇文章的结尾，我们描绘了一台设备从开机到访问 <code>www.google.com</code> 的标准流程。现在，让我们将 WireGuard（配置为全局隧道模式，即 <code>AllowedIPs = 0.0.0.0/0</code>）加入这个场景，分析启用 WireGuard 后，数据包的流向会发生何种变化。</p>
+<ol>
+<li>
+<p><strong>基础连接（不变）</strong>：</p>
+<ul>
+<li><strong>路由器就位</strong>：路由器通过 DHCP/PPPoE 从 ISP 获取公网 IP。</li>
+<li><strong>设备入网</strong>：你的电脑通过 DHCP 从路由器获取内网 IP <code>192.168.1.100</code>、子网掩码和默认网关 <code>192.168.1.1</code>。<strong>到此为止，一切都和原来一样。这是建立隧道的基础。</strong></li>
+</ul>
+</li>
+<li>
+<p><strong>隧道建立（新步骤）</strong>：</p>
+<ul>
+<li>你在电脑上启动 WireGuard 客户端。</li>
+<li>客户端根据配置，通过物理网络（Wi-Fi/以太网）向远端 WireGuard 服务器（拥有公网 IP）发起握手，建立起一条加密隧道。</li>
+<li>启动后，<code>wg-quick</code> 脚本会自动修改你电脑的<strong>主路由表</strong>，添加一条优先级极高的规则，内容是：“所有目标地址为 <code>0.0.0.0/0</code>（即任何地址）的流量，都必须经由 <code>wg0</code> 这个虚拟网卡发送。”这是实现流量转发的核心步骤。</li>
+</ul>
+</li>
+<li>
+<p><strong>域名解析（路径改变）</strong>：</p>
+<ul>
+<li>你在浏览器输入 <code>www.google.com</code>。操作系统需要解析域名，于是创建一个 DNS 查询请求。</li>
+<li>操作系统查询路由表，发现这个 DNS 请求（无论发往哪个 DNS 服务器）也匹配 <code>0.0.0.0/0</code> 规则。因此，DNS 请求包被<strong>直接交给 <code>wg0</code> 虚拟网卡</strong>，而不是发往物理网络的默认网关 <code>192.168.1.1</code>。</li>
+<li>WireGuard 进程从 <code>wg0</code> 接口读到这个 DNS 包，将其加密，套上一个 UDP 包的外壳，然后通过<strong>物理网卡</strong>发往 WireGuard 服务器。</li>
+<li>WireGuard 服务器收到后解密，代你向公共 DNS（如 <code>8.8.8.8</code>）查询，并将收到的结果加密后，沿隧道发回给你的电脑。</li>
+</ul>
+</li>
+<li>
+<p><strong>访问公网（二次封装）</strong>：</p>
+<ul>
+<li>浏览器拿到了 Google 的 IP 地址 <code>142.250.199.68</code>，于是构建一个目标为此 IP 的 HTTP 请求包。</li>
+<li><strong>路由决策再次生效</strong>：操作系统查询路由表，<code>142.250.199.68</code> 依然匹配 <code>0.0.0.0/0</code> 规则，于是这个 HTTP 包也被<strong>直接交给了 <code>wg0</code> 虚拟网卡</strong>。</li>
+<li><strong>第一次封装（WireGuard）</strong>：WireGuard 进程读到这个 HTTP 包，用 ChaCha20 对其加密，并封装成一个发往 WireGuard 服务器公网地址的 UDP 包。这个 UDP 包的源 IP 是你的内网 IP <code>192.168.1.100</code>。</li>
+<li><strong>第二次封装（路由器 NAT）</strong>：这个 UDP 包被交给<strong>物理网卡</strong>，发往局域网的默认网关 <code>192.168.1.1</code>。路由器收到这个 UDP 包后，并不知道里面是什么，它只做一件事：执行 <strong>NAT</strong>，将 UDP 包的源 IP 从 <code>192.168.1.100</code> 替换为你的家庭公网 IP，然后将其发送到 WireGuard 服务器。</li>
+<li><strong>出口</strong>：最终，你的请求从 <strong>WireGuard 服务器</strong>那里进入公共互联网，访问 Google。Google 服务器看到的访问来源是你的 WireGuard 服务器的 IP，而不是你的家庭公网 IP。</li>
+</ul>
+</li>
+</ol>
+<figure data-type="image" tabindex="2"><img src="https://blog.rakuyo.dev/post-images/1755597479847.svg" alt="" loading="lazy"></figure>
+<p>通过这个流程，WireGuard 借助虚拟网卡和路由表，在操作系统层面 “劫持” 了所有对外流量，将你的设备完全置于一个安全的、加密的虚拟网络中，彻底改变了数据的流向和你在互联网上的“身份”。下面的序列图详细描绘了这一经过重塑的数据之旅：</p>
+<h2 id="总结">总结</h2>
+<p>WireGuard 以其独特的设计，将复杂的 VPN 技术简化为易于理解和审计的配置。它不仅仅是一个工具，更是学习现代网络原理、密码学应用和内核交互的绝佳范例。</p>
+<p>通过虚拟网卡这一巧妙的“契约”，它在用户空间实现了对内核网络流的完全掌控。而其基于公钥的 CryptoKey 路由机制，则为我们提供了一种前所未有的、兼具安全与简洁的网络构建方式。掌握了它，你就拥有了在复杂的公共互联网之上，灵活地构建属于自己的、安全高速的私人网络的能力。</p>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/computer-network-dhcp-and-intranet-penetration/" class="post-title gt-a-link">
+                    计算机网络之三 - DHCP 与内网穿透
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

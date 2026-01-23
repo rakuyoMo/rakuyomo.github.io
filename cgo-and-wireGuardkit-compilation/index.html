@@ -1,0 +1,440 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>CGO 与 WireGuardKit 编译 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    CGO 与 WireGuardKit 编译
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2023-03-31 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tags">
+                            # ios
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>CGO 是一种在 iOS 平台上运行 Go 代码的方案。而 WireGuard 一种 VPN 技术，其中包含了一部分 Go 代码，同时项目提供了一个 <a href="https://github.com/WireGuard/wireguard-apple/blob/master/Sources/WireGuardKitGo/Makefile">Makefile</a> 脚本，使用 CGO 来将相关代码编译成 iOS 静态库。</p>
+<p>写这篇文章的契机是，因为希望使用 Mac Catalyst 将内部工具带到 macOS 平台，我又回过头去看一年前（恰巧是22年3月）研究 WireGuard 的过程。</p>
+<p>发现虽然当时的研究成功，<code>.xcframewrok</code> 文件还在，但是过程已经模糊不清了。另外还需要针对 Mac Cataglyst 构建出新的静态库，所以又要从头进行梳理不过好在是 “模糊不清”，而不是 “一干二净”，多少还记得一些。</p>
+<!-- more -->
+<h1 id="makefile">Makefile</h1>
+<p>我对 Go 语言几乎可以说是一窍不通的。</p>
+<p>而对于 Makefile 也只有很少很少的了解。<br>
+想要执行 Makefile 文件中的脚本，就在命令行中，在进入对应目录后执行以下命令：</p>
+<pre><code class="language-shell"># 前提是说，电脑上要安装 make。一般安装了 Xcode 命令行的话都是有的。
+make
+</code></pre>
+<p>这里我将该 Makefile 先贴过来：</p>
+<pre><code class="language-makefile"># These are generally passed to us by xcode, but we set working defaults for standalone compilation too.
+ARCHS ?= x86_64 arm64
+PLATFORM_NAME ?= macosx
+SDKROOT ?= $(shell xcrun --sdk $(PLATFORM_NAME) --show-sdk-path)
+CONFIGURATION_BUILD_DIR ?= $(CURDIR)/out
+CONFIGURATION_TEMP_DIR ?= $(CURDIR)/.tmp
+
+export PATH := $(PATH):/usr/local/bin:/opt/homebrew/bin
+export CC ?= clang
+LIPO ?= lipo
+DESTDIR ?= $(CONFIGURATION_BUILD_DIR)
+BUILDDIR ?= $(CONFIGURATION_TEMP_DIR)/wireguard-go-bridge
+
+CFLAGS_PREFIX := $(if $(DEPLOYMENT_TARGET_CLANG_FLAG_NAME),-$(DEPLOYMENT_TARGET_CLANG_FLAG_NAME)=$($(DEPLOYMENT_TARGET_CLANG_ENV_NAME)),) -isysroot $(SDKROOT) -arch
+GOARCH_arm64 := arm64
+GOARCH_x86_64 := amd64
+GOOS_macosx := darwin
+GOOS_iphoneos := ios
+
+build: $(DESTDIR)/libwg-go.a
+version-header: $(DESTDIR)/wireguard-go-version.h
+
+REAL_GOROOT := $(shell go env GOROOT 2&gt;/dev/null)
+export GOROOT := $(BUILDDIR)/goroot
+$(GOROOT)/.prepared:
+	[ -n &quot;$(REAL_GOROOT)&quot; ]
+	mkdir -p &quot;$(GOROOT)&quot;
+	rsync -a --delete --exclude=pkg/obj/go-build &quot;$(REAL_GOROOT)/&quot; &quot;$(GOROOT)/&quot;
+	cat goruntime-*.diff | patch -p1 -f -N -r- -d &quot;$(GOROOT)&quot;
+	touch &quot;$@&quot;
+
+define libwg-go-a
+$(BUILDDIR)/libwg-go-$(1).a: export CGO_ENABLED := 1
+$(BUILDDIR)/libwg-go-$(1).a: export CGO_CFLAGS := $(CFLAGS_PREFIX) $(ARCH)
+$(BUILDDIR)/libwg-go-$(1).a: export CGO_LDFLAGS := $(CFLAGS_PREFIX) $(ARCH)
+$(BUILDDIR)/libwg-go-$(1).a: export GOOS := $(GOOS_$(PLATFORM_NAME))
+$(BUILDDIR)/libwg-go-$(1).a: export GOARCH := $(GOARCH_$(1))
+$(BUILDDIR)/libwg-go-$(1).a: $(GOROOT)/.prepared go.mod
+	go build -ldflags=-w -trimpath -v -o &quot;$(BUILDDIR)/libwg-go-$(1).a&quot; -buildmode c-archive
+	rm -f &quot;$(BUILDDIR)/libwg-go-$(1).h&quot;
+endef
+$(foreach ARCH,$(ARCHS),$(eval $(call libwg-go-a,$(ARCH))))
+
+$(DESTDIR)/wireguard-go-version.h: go.mod $(GOROOT)/.prepared
+	 sed -E -n 's/.*golang\.zx2c4\.com\/wireguard +v[0-9.]+-[0-9]+-([0-9a-f]{8})[0-9a-f]{4}.*/#define WIREGUARD_GO_VERSION &quot;\1&quot;/p' &quot;$&lt;&quot; &gt; &quot;$@&quot;
+
+$(DESTDIR)/libwg-go.a: $(foreach ARCH,$(ARCHS),$(BUILDDIR)/libwg-go-$(ARCH).a)
+	@mkdir -vp &quot;$(DESTDIR)&quot;
+	$(LIPO) -create -output &quot;$@&quot; $^
+
+clean:
+	rm -rf &quot;$(BUILDDIR)&quot; &quot;$(DESTDIR)/libwg-go.a&quot; &quot;$(DESTDIR)/wireguard-go-version.h&quot;
+
+install: build
+
+.PHONY: clean build version-header install
+</code></pre>
+<p>这个脚本分为以下几个部分：</p>
+<ul>
+<li>定义变量：最开始的几行都是定义变量，其中 <code>?=</code> 语法则是设置默认值，意思是可以从外部设置该值。</li>
+<li>定义目标：此后脚本定义了4个目标，分别是 <code>build</code>、<code>version-header</code>、<code>clean</code> 和 <code>install</code>。其中 <code>version-header</code> 目标内还定义了一个函数：<code>libwg-go-a</code>。</li>
+<li>目标的执行顺序：最后的 <code>.PHONY</code> 用来定义目标执行顺序，脚本将按照该值的顺序去执行目标。</li>
+</ul>
+<p>看完大块我们来看细节。</p>
+<h2 id="定义变量">定义变量</h2>
+<p>在此不解释每个变量的作用，先重点关注下面几个：</p>
+<pre><code class="language-makefile">ARCHS ?= x86_64 arm64
+PLATFORM_NAME ?= macosx
+SDKROOT ?= $(shell xcrun --sdk $(PLATFORM_NAME) --show-sdk-path)
+
+GOARCH_arm64 := arm64
+GOARCH_x86_64 := amd64
+GOOS_macosx := darwin
+GOOS_iphoneos := ios
+</code></pre>
+<p>上面已经提到了，这个 Makefile 是用来构建 iOS 静态库的。</p>
+<p>那么 <code>ARCHS</code> 这个变量就代表着这个库所支持的架构。默认是 <code>x86_64</code> 和 <code>arm64</code> 两个。</p>
+<p><code>PLATFORM_NAME</code> 和 <code>SDKROOT</code> 要一起看，根据指定的平台获取对应 SDK 的路径，即<strong>用何种 SDK 来构建</strong>静态库。</p>
+<p><code>PLATFORM_NAME</code> 可选的值包括：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">值</th>
+<th style="text-align:left">含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>iphoneos</code></td>
+<td style="text-align:left">iOS</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>macosx</code></td>
+<td style="text-align:left">macOS</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>iphonesimulator</code></td>
+<td style="text-align:left">iOS 模拟器</td>
+</tr>
+</tbody>
+</table>
+<p>后面几个变量则是定义了一些 CGO 的参数，注意这里是没有 <code>iphonesimulator</code> 对应的参数的，只有 iOS 和 macOS。</p>
+<h2 id="libwg-go-a-函数"><code>libwg-go-a</code> 函数</h2>
+<p>前几行是使用 <code>export</code> 来定义一些环境变量，<code>CGO_CFLAGS</code> 和 <code>CGO_LDFLAGS</code> 算是比较重要的两个 CGO 参数，用来指定 C 编译器和链接器的选项，后面还会提及。</p>
+<p>函数内的 <code>$(1)</code> 指的是该方法的第一个参数。在 <code>libwg-go-a</code> 函数的下一行是一个 <code>foreach</code> 语句，它的作用是遍历 <code>ARCHS</code>，再将每一个 <code>ARCH</code> 作为 <code>libwg-go-a</code> 函数的参数传入，来调用 <code>libwg-go-a</code> 函数。所以这里的 <code>$(1)</code> 就是我们在最上面定义的 <code>ARCHS</code> 里的内容。</p>
+<p>我们还可以注意到 <code>$(GOOS_$(PLATFORM_NAME))</code> 这里，代码借助 <code>PLATFORM_NAME</code> 变量套了一层，来拼接获取 <code>GOOS_macosx</code> 或者 <code>GOOS_iphoneos</code> 的值。</p>
+<p>其中比较关键的 <code>go build</code> 命令，就是真正负责构建静态库的命令。最后生成的静态库文件名则是 <code>libwg-go-$(1).a</code>。</p>
+<h2 id="小结">小结</h2>
+<p>到这里 Makefile 大致就算是说完了，弄明白了这个文件的大致结构与各部分的作用，后面才好动手对文件进行修改。</p>
+<p>通过修改 <code>ARCHS</code> 和 <code>PLATFORM_NAME</code> 的值，如果一切顺利的话，我们可以得到 iOS 和 macOS 平台的静态库，大体上工作也就结束了。</p>
+<p>但是往往还会有些额外工作要处理。</p>
+<h1 id="编译支持模拟器的静态库">编译支持模拟器的静态库</h1>
+<p>虽然 WireGuard VPN 本身不支持模拟器，但是跳出这个话题，上面有提到，这个脚本现在是不支持 <code>iphonesimulator</code> 的，如果想要支持模拟器该怎么办呢？</p>
+<p>其实不支持的原因很简单：因为不存在 <code>GOOS_iphonesimulator</code> 变量（想一想 <code>$(GOOS_$(PLATFORM_NAME))</code>）。</p>
+<p>所以我们可以手动定义该变量。通过查阅<a href="https://www.mail-archive.com/wireguard@lists.zx2c4.com/msg06884.html">资料</a>，模拟器对应的 <code>GOOS</code> 也为 <code>ios</code>，所以变量定义如下：</p>
+<pre><code class="language-diff">GOARCH_arm64 := arm64
+GOARCH_x86_64 := amd64
+GOOS_macosx := darwin
+GOOS_iphoneos := ios
++GOOS_iphonesimulator := ios
+</code></pre>
+<p>之后再执行 <code>make</code> 命令，就可以得到支持 iOS 模拟器的静态库了。</p>
+<h1 id="编译支持-mac-cataglyst-的静态库">编译支持 Mac Cataglyst 的静态库</h1>
+<p>回归业务，本次我的工作是要编译支持 Mac Cataglyst 的静态库，那么该怎么做呢？</p>
+<h2 id="x86_64-apple-ios130-macabi"><code>x86_64-apple-ios13.0-macabi</code></h2>
+<p>通过查找<a href="https://github.com/golang/go/issues/36856">资料</a>，我了解到 <code>-target x86_64-apple-ios13.0-macabi</code> 这个用于描述特定操作系统和处理器架构的标识符：</p>
+<ul>
+<li><code>x86_64</code> 表示处理器架构为 64 位的 Intel 或 AMD 处理器；</li>
+<li><code>apple</code> 表示运行在苹果操作系统上；</li>
+<li><code>ios13.0</code> 表示操作系统版本为 iOS 13.0；</li>
+<li><code>macab</code> 表示使用的是 Mac 上的应用程序二进制接口（Mac Application Binary Interface），即我们想要使用的 Mac Cataglyst。</li>
+</ul>
+<p>通过使用这个标识符，我们就可以构建出支持 Mac Cataglyst 的静态库。</p>
+<p>接着通过<a href="https://github.com/golang/go/issues/47228#issuecomment-1212468396">这个回复</a>得知，该值需要赋值给 <code>CGO_CFLAGS</code> 变量。回到脚本中我们可以发现，<code>CGO_CFLAGS</code> 上使用 <code>CFLAGS_PREFIX</code> 进行封装。</p>
+<p>在这一步我遇到了2个问题：</p>
+<ol>
+<li>不要直接将 <code>-target x86_64-apple-ios13.0-macabi</code> 写在 <code>CFLAGS_PREFIX</code> 的末尾。</li>
+</ol>
+<p>省略一些代码后，把两行相关代码放在一起看：</p>
+<pre><code class="language-makefile">CFLAGS_PREFIX := -isysroot $(SDKROOT) -arch
+$(BUILDDIR)/libwg-go-$(1).a: export CGO_CFLAGS := $(CFLAGS_PREFIX) $(ARCH)
+</code></pre>
+<p>可以看到，实际上 <code>export</code> 的内容是 <code>-isysroot $(SDKROOT) -arch x86_64</code>。<br>
+如果我们直接在 <code>CFLAGS_PREFIX</code> 的末尾添加，那么就会把 <code>-arch x86_64</code> 隔开，继而报错。所以添加到 <code>-arch</code> 前即可。</p>
+<ol start="2">
+<li>找不到 <code>x86_64-apple-ios13.0-macabi</code>。</li>
+</ol>
+<p>相关的问题在 golang/go 的 github 上是可以搜到的，可惜这个问题是针对 go-mobile 的，但是可以注意到回复中的，<code>-iosversion=14</code> 字样。</p>
+<p>于是将其改为 <code>x86_64-apple-ios14.0-macabi</code>，果断解决问题。</p>
+<h2 id="编译">编译</h2>
+<p>Mac Cataglyst 虽然操作的是 iOS App，但是最终还是运行在 macOS 上，所以还是要使用 macosx 的 sdk 进行构建。</p>
+<p>修改代码如下：</p>
+<pre><code class="language-diff">ARCHS ?= x86_64 arm64
+PLATFORM_NAME ?= macosx
+SDKROOT ?= $(shell xcrun --sdk $(PLATFORM_NAME) --show-sdk-path)
+
+-CFLAGS_PREFIX := $(if $(DEPLOYMENT_TARGET_CLANG_FLAG_NAME),-$(DEPLOYMENT_TARGET_CLANG_FLAG_NAME)=$($(DEPLOYMENT_TARGET_CLANG_ENV_NAME)),) -isysroot $(SDKROOT) -arch
++CFLAGS_PREFIX := $(if $(DEPLOYMENT_TARGET_CLANG_FLAG_NAME),-$(DEPLOYMENT_TARGET_CLANG_FLAG_NAME)=$($(DEPLOYMENT_TARGET_CLANG_ENV_NAME)),) -isysroot $(SDKROOT) -target x86_64-apple-ios14.0-macabi -arch
+</code></pre>
+<p>但是运行代码后会发现 arm64 架构的包打不出。</p>
+<blockquote>
+<p><strong>Warning</strong><br>
+其实到这里，有关 WireGuard 的相关工作已经 “结束” 了。因为虽然最后我打出了包，但是截止到本文发布，我还未能成功将项目运行起来，所以并不知道接下来的操作是否正确。</p>
+</blockquote>
+<p>通过将 <code>GOOS_macosx</code> 对应的值修改为 <code>ios</code> 可以解决这个问题。所以最终修改为：</p>
+<pre><code class="language-diff">ARCHS ?= x86_64 arm64
+PLATFORM_NAME ?= macosx
+SDKROOT ?= $(shell xcrun --sdk $(PLATFORM_NAME) --show-sdk-path)
+
+-CFLAGS_PREFIX := $(if $(DEPLOYMENT_TARGET_CLANG_FLAG_NAME),-$(DEPLOYMENT_TARGET_CLANG_FLAG_NAME)=$($(DEPLOYMENT_TARGET_CLANG_ENV_NAME)),) -isysroot $(SDKROOT) -arch
++CFLAGS_PREFIX := $(if $(DEPLOYMENT_TARGET_CLANG_FLAG_NAME),-$(DEPLOYMENT_TARGET_CLANG_FLAG_NAME)=$($(DEPLOYMENT_TARGET_CLANG_ENV_NAME)),) -isysroot $(SDKROOT) -target x86_64-apple-ios14.0-macabi -arch
+
+GOARCH_arm64 := arm64
+GOARCH_x86_64 := amd64
+-GOOS_macosx := darwin
++GOOS_macosx := ios
+GOOS_iphoneos := ios
+GOOS_maccatalyst := ios
+GOOS_iphonesimulator := ios
+</code></pre>
+<h1 id="参考">参考</h1>
+<ul>
+<li><a href="https://github.com/golang/go/issues/36856">golang/go with issue #36856</a></li>
+<li><a href="https://github.com/golang/go/issues/47228#issuecomment-1212468396">golang/go with issue #47228</a></li>
+<li><a href="https://www.mail-archive.com/wireguard@lists.zx2c4.com/msg06884.html">Re: Support for M1 MacBook Simulators</a></li>
+</ul>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/epoxy-source-code-notes-1/" class="post-title gt-a-link">
+                    epoxy 源码笔记1：Diffing 算法
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

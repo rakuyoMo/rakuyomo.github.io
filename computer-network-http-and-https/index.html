@@ -1,0 +1,561 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>计算机网络之五 - HTTP 与 HTTPS | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    计算机网络之五 - HTTP 与 HTTPS
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2025-08-18 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/ji-suan-ji-wang-luo/" class="post-tags">
+                            # 计算机网络
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>本系列的前几篇文章中，我们已经探讨了设备如何通过 IP 地址获得身份、如何通过 DNS 将域名解析为地址，以及如何通过 DHCP、NAT 和 VPN 等技术接入并穿梭于复杂的网络环境。至此，我们的设备已经具备了“定位”并“连接”到目标服务器的能力。</p>
+<p>本文将深入探讨这个连接建立之后，应用程序之间进行通信所使用的“语言”——HTTP 协议，以及其安全版本 HTTPS。这两种协议构成了现代万维网的基石。</p>
+<!-- more -->
+<p>本系列其余几篇的目录：</p>
+<ul>
+<li><a href="/computer-network-ip-and-port/">计算机网络之一 - IP 与端口</a></li>
+<li><a href="/computer-network-url-and-dns/">计算机网络之二 - URL 与 DNS</a></li>
+<li><a href="/computer-network-dhcp-and-intranet-penetration/">计算机网络之三 - DHCP 与内网穿透</a></li>
+<li><a href="/computer-network-virtual-nic-and-wireguard">计算机网络之四 - 虚拟网卡与 WireGuard</a></li>
+<li><a href="/computer-network-tcp-and-udp">计算机网络之六 - 可靠的 TCP 与高效的 UDP</a></li>
+<li><a href="/computer-network-osi-and-tcpip-models">计算机网络之七 - OSI 与 TCP/IP 分层模型</a></li>
+</ul>
+<hr>
+<blockquote>
+<p><strong>前置知识说明</strong>：在阅读本文时，您会遇到 <strong>TCP</strong> 和 <strong>UDP</strong> 这两个概念。它们是网络通信的两种基础“运输方式”，我们将在本系列的下一篇文章中深入探讨。为方便您理解本文，您可以暂时将它们想象为：</p>
+<ul>
+<li><strong>TCP</strong>：一种<strong>可靠的“电话通话”</strong>。在通话前，双方必须先建立连接，确保线路通畅，通话过程中能保证数据按顺序、不丢不漏地送达。</li>
+<li><strong>UDP</strong>：一种<strong>简单的“明信片”</strong>。它直接将数据包发出，不保证一定或按序到达，但胜在快捷高效。</li>
+</ul>
+<p>本文中提到的 HTTP/1.1 和 HTTP/2 都构建在可靠的 TCP 之上，而最新的 HTTP/3 则创造性地选择了 UDP 作为基础。带着这个初步印象，您就可以顺利地理解下文内容了。</p>
+</blockquote>
+<h2 id="http构建-web-的无状态协议">HTTP：构建 Web 的无状态协议</h2>
+<p>HTTP (HyperText Transfer Protocol，超文本传输协议) 是一种用于分布式、协作式和超媒体信息系统的应用层协议。它是万维网数据通信的基础。</p>
+<h3 id="核心特性">核心特性</h3>
+<ul>
+<li><strong>基于“请求-响应”模式</strong>：通信由客户端发起。客户端向服务器发送一个 HTTP 请求，服务器在处理后返回一个 HTTP 响应。</li>
+<li><strong>无状态 (Stateless)</strong>：协议本身不保存任何关于过去请求的信息。服务器处理每个请求时，都认为它是一个全新的、独立的事务，不依赖于之前的请求。您可以将它想象成一个记忆力很短的接待员，处理完你的当前请求后，立刻就会忘记你是谁。为了让它记住你，就需要 Cookies 这样的“身份牌”来帮忙。</li>
+<li><strong>灵活可扩展</strong>：通过请求头和响应头，HTTP 允许传输任意类型的数据，不仅仅是 HTML，还包括图片、视频、JSON 等。其基础交互模型如下所示：</li>
+</ul>
+<figure data-type="image" tabindex="1"><img src="https://blog.rakuyo.dev/post-images/1755597038742.svg" alt="" loading="lazy"></figure>
+<h3 id="http-报文结构">HTTP 报文结构</h3>
+<p>HTTP 通信由纯文本的报文（Message）组成，分为请求报文和响应报文。</p>
+<blockquote>
+<p>不知道你有没有想过为什么“message”被翻译成了“报文”？其实是因为前辈们沿用了“电报”时代的相关概念，那时“报文”一词就已经蕴含了“通过电子信号传递的、有特定格式的文书”的意义。另外，“报”字蕴含了遵循协议的规范性，而“文”字则强调了其内容与格式的结构化，如同一份严谨的文书。所以最终这个概念的中文被译为了“报文”。<br>
+至于为何英语沿用通用的“message”而非更专业的词，是因为“message”本就是指代通信内容的基础词，而“telegraph”（电报）则指通信系统本身，而非内容单元。英语习惯用限定词（如 HTTP message）来明确上下文，无需替换基础词。这是两种语言在技术术语演变上的路径差异。</p>
+</blockquote>
+<h4 id="请求报文-request-message">请求报文 (Request Message)</h4>
+<p>一个典型的 HTTP GET 请求报文结构如下：</p>
+<pre><code class="language-http">GET /path/to/resource/index.html HTTP/1.1
+Host: www.example.com
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ...
+Accept: text/html,*/*
+Accept-Language: en-US,en;q=0.5
+
+</code></pre>
+<p>它由三部分构成：</p>
+<ol>
+<li><strong>请求行 (Request Line)</strong>：包含请求方法（<code>GET</code>）、请求资源的路径（<code>/path/...</code>）和 HTTP 协议版本（<code>HTTP/1.1</code>）。</li>
+<li><strong>请求头 (Headers)</strong>：以键值对形式提供关于请求的元数据，或客户端自身的信息。例如 <code>Host</code> 指定了目标服务器的域名，<code>User-Agent</code> 描述了客户端的类型。</li>
+<li><strong>请求体 (Body)</strong>：对于 <code>GET</code> 请求，请求体为空。对于 <code>POST</code> 或 <code>PUT</code> 请求，这里会包含需要提交给服务器的数据，例如表单信息或 JSON 数据。</li>
+</ol>
+<p>常见的请求方法（Method）有：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">方法</th>
+<th style="text-align:left">描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>GET</code></td>
+<td style="text-align:left">请求获取指定资源。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>POST</code></td>
+<td style="text-align:left">向指定资源提交数据，请求服务器进行处理（例如提交表单或上传文件）。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>PUT</code></td>
+<td style="text-align:left">用请求中的数据体替换目标资源的全部当前内容。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>DELETE</code></td>
+<td style="text-align:left">请求服务器删除指定的资源。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>HEAD</code></td>
+<td style="text-align:left">与 <code>GET</code> 类似，但服务器在响应中只返回头部，不返回实体主体内容。</td>
+</tr>
+</tbody>
+</table>
+<h4 id="响应报文-response-message">响应报文 (Response Message)</h4>
+<p>服务器在收到并处理请求后，会返回一个响应报文：</p>
+<pre><code class="language-http">HTTP/1.1 200 OK
+Date: Mon, 18 Aug 2025 10:00:00 GMT
+Content-Type: text/html; charset=UTF-8
+Content-Length: 1270
+
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+...
+&lt;/html&gt;
+</code></pre>
+<p>它同样由三部分构成：</p>
+<ol>
+<li><strong>状态行 (Status Line)</strong>：包含 HTTP 协议版本、状态码（<code>200</code>）和状态描述（<code>OK</code>）。</li>
+<li><strong>响应头 (Headers)</strong>：提供关于响应的元数据，如 <code>Content-Type</code> 指明了响应体的媒体类型。</li>
+<li><strong>响应体 (Body)</strong>：实际返回的资源内容，例如 HTML 文档。</li>
+</ol>
+<p>状态码是服务器对请求处理结果的标准化表示，常见的有：</p>
+<blockquote>
+<p>有一个很好玩的小网站分享给大家：<a href="https://http.cat/">https://http.cat/</a> ，用可爱的猫猫表示 HTTP 状态码。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">状态码</th>
+<th style="text-align:left">名称</th>
+<th style="text-align:left">类别</th>
+<th style="text-align:left">描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>200</code></td>
+<td style="text-align:left">OK</td>
+<td style="text-align:left">成功</td>
+<td style="text-align:left">请求已成功。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>201</code></td>
+<td style="text-align:left">Created</td>
+<td style="text-align:left">成功</td>
+<td style="text-align:left">请求成功，并因此创建了一个新的资源。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>204</code></td>
+<td style="text-align:left">No Content</td>
+<td style="text-align:left">成功</td>
+<td style="text-align:left">服务器成功处理了请求，但没有返回任何内容。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>301</code></td>
+<td style="text-align:left">Moved Permanently</td>
+<td style="text-align:left">重定向</td>
+<td style="text-align:left">请求的资源已被永久移动到新位置。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>302</code></td>
+<td style="text-align:left">Found</td>
+<td style="text-align:left">重定向</td>
+<td style="text-align:left">请求的资源被临时重定向到另一个 URI。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>304</code></td>
+<td style="text-align:left">Not Modified</td>
+<td style="text-align:left">重定向</td>
+<td style="text-align:left">用于缓存。表示资源未被修改，客户端可以继续使用已缓存的版本。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>400</code></td>
+<td style="text-align:left">Bad Request</td>
+<td style="text-align:left">客户端错误</td>
+<td style="text-align:left">由于语法无效，服务器无法理解该请求。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>401</code></td>
+<td style="text-align:left">Unauthorized</td>
+<td style="text-align:left">客户端错误</td>
+<td style="text-align:left">请求要求身份验证。客户端需要提供凭据。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>403</code></td>
+<td style="text-align:left">Forbidden</td>
+<td style="text-align:left">客户端错误</td>
+<td style="text-align:left">服务器理解请求，但拒绝执行。与 401 不同，身份验证无法改变结果。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>404</code></td>
+<td style="text-align:left">Not Found</td>
+<td style="text-align:left">客户端错误</td>
+<td style="text-align:left">服务器找不到请求的资源。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>405</code></td>
+<td style="text-align:left">Method Not Allowed</td>
+<td style="text-align:left">客户端错误</td>
+<td style="text-align:left">服务器知道请求的方法，但目标资源不支持该方法。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>429</code></td>
+<td style="text-align:left">Too Many Requests</td>
+<td style="text-align:left">客户端错误</td>
+<td style="text-align:left">用户在给定的时间内发送了太多的请求（速率限制）。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>500</code></td>
+<td style="text-align:left">Internal Server Error</td>
+<td style="text-align:left">服务器错误</td>
+<td style="text-align:left">服务器遇到了一个未曾预料的状况，导致其无法完成对请求的处理。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>502</code></td>
+<td style="text-align:left">Bad Gateway</td>
+<td style="text-align:left">服务器错误</td>
+<td style="text-align:left">作为网关或代理的服务器，从上游服务器收到了无效的响应。</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>503</code></td>
+<td style="text-align:left">Service Unavailable</td>
+<td style="text-align:left">服务器错误</td>
+<td style="text-align:left">服务器当前无法处理请求（由于超载或停机维护）。</td>
+</tr>
+</tbody>
+</table>
+<p>为了更直观地对比，下表总结了请求报文与响应报文的核心区别：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">构成部分</th>
+<th style="text-align:left">请求报文 (Request)</th>
+<th style="text-align:left">响应报文 (Response)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><strong>起始</strong><br>（行）</td>
+<td style="text-align:left">格式：<code>方法 URI HTTP版本</code><br>示例：<code>GET /index.html HTTP/1.1</code></td>
+<td style="text-align:left">格式：<code>HTTP版本 状态码 描述</code><br>示例：<code>HTTP/1.1 200 OK</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>首部</strong><br>（头）</td>
+<td style="text-align:left">描述客户端信息、请求的资源等。<br>示例：<code>Host</code>, <code>User-Agent</code></td>
+<td style="text-align:left">描述服务器信息、返回内容的类型等。<br>示例：<code>Content-Type</code>, <code>Server</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>正文</strong><br>（体）</td>
+<td style="text-align:left">通常用于 <code>POST</code> 等方法，携带提交给服务器的数据。<code>GET</code> 请求通常为空。</td>
+<td style="text-align:left">包含返回给客户端的实际资源内容，如 HTML 文档、JSON 数据等。</td>
+</tr>
+</tbody>
+</table>
+<h3 id="http-的版本演进与协商机制">HTTP 的版本演进与协商机制</h3>
+<p>HTTP 协议并非一成不变，它在过去几十年中经历了数次重要迭代，以适应日益复杂的 Web 应用和用户对性能的更高要求。</p>
+<h4 id="http10-与-http11">HTTP/1.0 与 HTTP/1.1</h4>
+<ul>
+<li><strong>HTTP/1.0 (1996)</strong>：作为早期版本，其主要特点是<strong>短连接</strong>。每次请求都需要建立一个新的 TCP 连接，请求完成后立即断开，效率低下。</li>
+<li><strong>HTTP/1.1 (1999)</strong>：这是统治了互联网近 20 年的经典版本。它最重要的改进是引入了<strong>持久连接（Keep-Alive）</strong>，允许在同一个 TCP 连接上发送多个请求，极大地减少了连接建立的开销。但它也存在一个著名的问题——<strong>队头阻塞（Head-of-Line Blocking）</strong>，即在一个连接上，前一个请求的响应必须完全接收后，后续的请求才能被处理，导致效率瓶颈。</li>
+</ul>
+<h4 id="http2-2015">HTTP/2 (2015)</h4>
+<p>HTTP/2 的目标是彻底解决 HTTP/1.1 的性能问题，其核心改进包括：</p>
+<ul>
+<li><strong>二进制分帧</strong>：将所有传输的信息分割为更小的消息和帧，并对它们采用二进制格式编码，解析效率更高。</li>
+<li><strong>多路复用 (Multiplexing)</strong>：这是 HTTP/2 最具革命性的特性。它允许在<strong>单个 TCP 连接</strong>上同时、并行地发送和接收多个请求和响应，彻底解决了队头阻塞问题。</li>
+<li><strong>头部压缩 (HPACK)</strong>：使用特定算法压缩冗余的请求头和响应头，减少了传输的数据量。</li>
+</ul>
+<h4 id="http3-2022">HTTP/3 (2022)</h4>
+<p>HTTP/3 的演进更进一步，它将底层的传输协议从 TCP 换成了 <strong>QUIC</strong>。</p>
+<ul>
+<li><strong>基于 QUIC</strong>：QUIC 是一个基于 UDP 的新传输协议，它整合了 TCP 的可靠性、TLS 的安全性以及更多新特性。</li>
+<li><strong>解决 TCP 队头阻塞</strong>：HTTP/2 虽然解决了应用层的队头阻塞，但无法解决 TCP 协议本身的队头阻塞（一个数据包丢失，整个连接都要等待重传）。QUIC 基于 UDP，一个流的丢包不会影响其他流，从根本上解决了这个问题。</li>
+<li><strong>更快的连接建立</strong>：QUIC 将 TCP 和 TLS 的握手过程合并，减少了建立连接所需的往返时间（RTT），让连接更快。</li>
+</ul>
+<h4 id="版本协商客户端与服务器如何对暗号">版本协商：客户端与服务器如何“对暗号”？</h4>
+<p>既然有这么多版本，客户端和服务器是如何确定使用哪个版本的呢？这个过程被称为<strong>协议协商</strong>。</p>
+<ul>
+<li><strong>HTTP/2 的协商</strong>：这是一个有趣的地方。虽然 HTTP/2 的<strong>协议规范</strong>本身并不强制加密（存在明文的 <code>h2c</code> 模式），但所有主流浏览器都达成了一个共识：<strong>只支持通过 HTTPS 运行的 HTTP/2</strong>。这既是为了推动全网加密，也是为了绕过可能不支持新协议的旧网络设备。因此，在浏览器实践中，HTTP/2 的协商几乎总是通过 TLS 的一个扩展 <strong>ALPN (Application-Layer Protocol Negotiation)</strong> 来实现。在 TLS 握手时，客户端会告诉服务器它支持的协议列表（如 <code>[&quot;h2&quot;, &quot;http/1.1&quot;]</code>），服务器则从中选择一个它也支持的最高版本，并在 TLS 握手完成时通知客户端。</li>
+<li><strong>HTTP/3 的协商</strong>：由于 HTTP/3 运行在不同的协议（UDP）上，它的发现机制有所不同。通常，服务器会通过 HTTP/1.1 或 HTTP/2 的响应头 <code>Alt-Svc</code> (Alternative Service) 来“广播”自己的 HTTP/3 服务地址。例如，<code>Alt-Svc: h3=&quot;:443&quot;</code>。浏览器收到后，就会尝试在后台建立一个到该地址的 QUIC 连接，并在后续请求中升级到 HTTP/3。</li>
+</ul>
+<h2 id="https为对话加上安全封印">HTTPS：为对话加上安全封印</h2>
+<p>HTTP 协议本身是明文传输的，这意味着任何在传输路径上的中间节点（如路由器、ISP）都能轻易地读取、甚至篡改通信内容。这带来了三大安全风险：</p>
+<ul>
+<li><strong>窃听风险 (Eavesdropping)</strong>：通信内容可能被第三方窃听。</li>
+<li><strong>篡改风险 (Tampering)</strong>：通信内容在传输过程中可能被修改。</li>
+<li><strong>冒充风险 (Impersonation)</strong>：无法验证通信对方的真实身份，可能连接到伪造的服务器。</li>
+</ul>
+<p>为了解决这些问题，HTTPS (HTTP Secure) 应运而生。</p>
+<h3 id="https-的核心">HTTPS 的核心</h3>
+<p>HTTPS 并非一个全新的协议，它的结构是 <strong>HTTPS = HTTP + TLS/SSL</strong>。它在标准的 HTTP 应用层和 TCP 传输层之间，增加了一个加密、认证和完整性保护的 <strong>TLS/SSL 安全层</strong>。</p>
+<blockquote>
+<p>SSL (Secure Sockets Layer) 是 TLS (Transport Layer Security) 的前身，由于存在安全漏洞现已弃用。<br>
+我们目前实际使用的都是 TLS 协议，但出于历史习惯，人们常将二者并称为 TLS/SSL。</p>
+</blockquote>
+<p>这个安全层主要提供三大核心安全保障：</p>
+<ol>
+<li><strong>加密 (Encryption)</strong>：确保通信内容无法被窃听。有趣的是，这里使用的是<strong>对称加密</strong>。因为非对称加密虽然更灵活，但计算开销巨大，速度过慢，不适合加密海量的应用数据。而对称加密速度极快，正适合此场景。</li>
+<li><strong>身份验证 (Authentication)</strong>：通过数字证书，客户端可以验证服务器的身份，确保连接到的是预期的、真实的服务器，防止冒充。</li>
+<li><strong>数据完整性 (Integrity)</strong>：通过消息认证码（MAC），确保数据在传输过程中没有被篡改。</li>
+</ol>
+<h3 id="tls-握手机制">TLS 握手机制</h3>
+<p>当浏览器访问一个 HTTPS 网站时，在真正发送 HTTP 请求之前，它必须先与服务器完成一次 <strong>TLS 握手</strong>，以建立一个安全的信道。这个过程在概念上可以分为几个步骤，其交互流程可通过以下序列图来描述：</p>
+<figure data-type="image" tabindex="2"><img src="https://blog.rakuyo.dev/post-images/1755590725489.svg" alt="" loading="lazy"></figure>
+<ol>
+<li><strong>客户端问候 (Client Hello)</strong>：客户端向服务器发起连接，并发送它支持的加密算法列表、TLS 版本等信息。</li>
+<li><strong>服务器响应与身份证明 (Server Hello &amp; Certificate)</strong>：服务器从中选择一套双方都支持的加密算法，然后将其<strong>数字证书</strong>（包含了服务器的公钥和由权威证书颁发机构 CA 的签名）发送给客户端。</li>
+<li><strong>客户端验证与密钥交换（非对称加密的应用）</strong>：
+<ul>
+<li>客户端验证服务器证书的有效性（是否由受信任的 CA 签发、是否过期、域名是否匹配等）。</li>
+<li>验证通过后，客户端生成一个用于本次会话的“暗号”（pre-master secret），然后使用从证书中获取的<strong>服务器公钥</strong>对其进行加密（<strong>非对称加密</strong>），并发送给服务器。</li>
+</ul>
+</li>
+<li><strong>生成会话密钥与建立安全信道</strong>：服务器使用自己的<strong>私钥</strong>解密，是全网唯一能获取该“暗号”的实体。随后，客户端和服务器使用这个共享的“暗号”，通过相同的算法，各自生成出完全一样的<strong>对称会话密钥</strong>。握手完成。</li>
+<li><strong>安全通信</strong>：后续所有的 HTTP 数据都将使用这个对称密钥进行加密和解密，实现安全的通信。</li>
+</ol>
+<p>在这个流程中，<strong>非对称加密</strong>（公钥/私钥）被巧妙地用于安全地协商和交换<strong>对称加密</strong>所使用的密钥，兼顾了安全性和性能。这就像用一把非常复杂、开锁很慢但无法被复制的钥匙（非对称加密），去打开一个保险箱，从里面取出一把开门又快又方便的普通钥匙（对称加密），然后锁上保险箱，以后进出都用这把普通钥匙。</p>
+<h4 id="tls-握手与三次握手的区别">TLS 握手与“三次握手”的区别</h4>
+<p>需要明确的是，TLS 握手<strong>不是</strong>我们常说的 TCP“三次握手”。这是一个非常常见但重要的混淆点，它们是两个发生在不同阶段、目的也完全不同的过程：</p>
+<ul>
+<li><strong>三次握手 (TCP Handshake)</strong>：发生在<strong>传输层</strong>，目的是建立一个<strong>可靠的</strong>通信连接，确保双方都准备好了收发数据。它不关心内容是否加密。</li>
+<li><strong>TLS 握手 (TLS Handshake)</strong>：发生在 TCP 连接建立<strong>之后</strong>，目的是在已有的可靠连接上，再建立一个<strong>安全的</strong>加密信道，协商后续通信要使用的加密密钥。</li>
+</ul>
+<p>简单来说，先有 TCP 三次握手建立起“物理通话线路”，再有 TLS 握手在这条线路上约定“加密暗号”。</p>
+<h2 id="融会贯通连接系列知识">融会贯通：连接系列知识</h2>
+<p>HTTP/HTTPS 作为应用层协议，其运行离不开底层网络设施的支持。</p>
+<ul>
+<li>
+<p><strong>协议、端口与 DNS 的协同工作</strong>：在<a href="/computer-network-url-and-dns/">第二篇文章</a>中我们了解到，URL <code>https://www.example.com</code> 中的 <code>https</code> 部分，正是告诉浏览器需要通过 <strong>443 端口</strong>（回顾<a href="/computer-network-ip-and-port/">第一篇</a>）连接到由 DNS 解析出的 IP 地址，并启动上文所述的 TLS 握手流程。</p>
+</li>
+<li>
+<p><strong>应用层加密与网络层加密：HTTPS vs. WireGuard</strong>：在<a href="/computer-network-virtual-nic-and-wireguard">第四篇文章</a>中，我们深入了 WireGuard。现在可以清晰地对比二者的区别：</p>
+<ul>
+<li><strong>HTTPS</strong> 在<strong>应用层</strong>工作，它保护的是<strong>单个应用程序</strong>（如浏览器）与<strong>单个目标服务器</strong>之间的通信内容。它不关心数据包如何路由，只关心应用数据的安全。</li>
+<li><strong>WireGuard</strong> 在<strong>网络层</strong>工作，它保护的是<strong>设备</strong>与<strong>VPN 服务器</strong>之间的<strong>所有 IP 流量</strong>。一旦连接，无论是 HTTP 请求、DNS 查询还是其他任何网络活动，都会被封装在加密隧道中。它提供的是全面的网络链路级安全。</li>
+</ul>
+</li>
+</ul>
+<h2 id="总结">总结</h2>
+<p>HTTP 定义了 Web 内容交换的基本规则，而 HTTPS 则为其增加了至关重要的安全保障。理解这两种协议的原理、结构以及它们在整个网络协议栈中的位置，是理解现代互联网运作方式的关键。它们与底层的 IP、DNS、TCP/UDP 等协议协同工作，共同构成了我们每天都在使用的、复杂而又高效的全球信息网络。</p>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/RaAPIWrapper/" class="post-title gt-a-link">
+                    将 ARouter 的思想带入 Swift：用声明式语法构建类型安全的 API 请求
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

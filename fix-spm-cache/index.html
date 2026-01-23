@@ -1,0 +1,375 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>解决重置SPM缓存失败的问题 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    解决重置SPM缓存失败的问题
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2024-01-23 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/swift-package-manager/" class="post-tags">
+                            # swift-package-manager
+                        </a>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/xcode/" class="post-tags">
+                            # xcode
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>相信经常使用 SPM 的小伙伴，应该都遇到过使用 Reset Package Caches 时报错：<code>An unknown error occurred. reference 'refs/remotes/origin/main' not found (-1)</code>，或者其他分支。</p>
+<p>关于这个问题在 stackoverflow 上有比较多的讨论，例如这个 <a href="https://stackoverflow.com/questions/72631756/spm-unknown-error-reference-not-found-when-changing-branch">SPM unknown error reference not found when changing branch</a>。</p>
+<p>思来想去决定根据上面的回答，记录一下解决方案。</p>
+<!-- more -->
+<blockquote>
+<p>在我的场景下（Xcode 15），仅仅删除 <code>~/Library/Caches/org.swift.swiftpm/repositories</code> 下对应的目录即可解决问题，之后重新 Rest 即可。</p>
+</blockquote>
+<h2 id="问题的发生">问题的发生</h2>
+<p>链接中提到了两种观点。一开始 <a href="https://stackoverflow.com/a/72905516/9166124">@mrwest09</a> 提到，如果使用 ssh（git@）引入依赖，则有可能会产生该问题。实际上这也符合我的使用场景（不过我没有试 https）。</p>
+<p>但是后来 <a href="https://stackoverflow.com/a/76674818/9166124">@Ivan Vavilov</a> 也提到，他使用的 https，但是也依然出现了该问题。</p>
+<p>所以怎么说好呢，这个问题的发生未必可以都归结到 ssh，至于真正的原因仅从上述回答中可能暂时无从得知...</p>
+<h2 id="问题的解决">问题的解决</h2>
+<h3 id="直接方式">直接方式</h3>
+<p>删除 <code>~/Library/Caches/org.swift.swiftpm/repositories</code> 下的内容即可。</p>
+<blockquote>
+<p>除此之外，回答中还提到了一个 “Swift package caches both in the derived data directory of your project”。该缓存的实际目录在 <code>~/Library/Developer/Xcode/DerivedData/$project/SourcePackages/repositories</code>。<br>
+我的场景下仅删除 <code>org.swift.swiftpm</code> 中的内容即可。如果你仅删除它无效，可以看再试试 一并 <code>SourcePackages</code> 下的内容。</p>
+</blockquote>
+<h3 id="自动化处理">自动化处理</h3>
+<p>回答中还有好心的大佬写了2个自动删除缓存的脚本，一个是：</p>
+<pre><code class="language-shell">#!/bin/bash
+
+if [[ $# -eq 0 ]] ; then
+    echo 'Please call the script with the name of your project as it appears in the derived data directory. Case-insensitive.'
+    echo 'For example: ./fix-spm-cache.sh myproject'
+    exit 0
+fi
+
+# Delete all directories named &quot;remotes&quot; from the global Swift Package Manager cache.
+cd ~/Library/Caches/org.swift.swiftpm/repositories
+
+for i in $(find . -name &quot;remotes&quot; -type d); do
+    echo &quot;Deleting $i&quot;
+    rm -rf $i
+done
+
+# Find derived data directories for all projects matching the script argument, and
+# delete all directories named &quot;remotes&quot; from source package repositories cache for those projects. 
+
+cd ~/Library/Developer/Xcode/DerivedData/
+
+for project in $(find . -iname &quot;$1*&quot; -type d -maxdepth 1); do
+    for i in $(find &quot;$project/SourcePackages/repositories&quot; -name &quot;remotes&quot; -type d); do
+        echo &quot;Deleting $i&quot;
+        rm -rf $i
+    done
+done
+</code></pre>
+<p>这个脚本删除了上面提到的两个路径下的缓存，使用时需要 <code>sh ./fix-spm-cache.sh myproject</code>。</p>
+<p>另外一个大佬使用了另外一个思路，编写了一个 python 脚本：</p>
+<pre><code class="language-python"># Sometimes Xcode cannot resolve SPM(File -&gt; Packages -&gt; Resolve Package versions) if the dependency url is ssh
+# This script is a workaround to resolve package versions.
+# Usage:
+#     python spmResolve.py
+# or
+#     python3 spmResolve.py
+import os.path
+import subprocess
+import glob
+import json
+
+
+def main():
+    package_file = &quot;xcshareddata/swiftpm/Package.resolved&quot;
+    xcodeproj = glob.glob('*.xcodeproj')
+    xcworkspace = glob.glob('*.xcworkspace')
+    spmproj = glob.glob('Package.resolved')
+    package_resolved = &quot;&quot;
+    if xcodeproj:
+        package_resolved = xcodeproj[0] + f&quot;/project.xcworkspace/{package_file}&quot;
+    elif xcworkspace:
+        package_resolved = xcworkspace[0] + f&quot;/{package_file}&quot;
+    elif spmproj:
+        package_resolved = spmproj[0]
+    else:
+        print(f&quot;😱 Cannot find *.xcodeproj, *.xcworkspace or Package.resolved file&quot;)
+        exit(-1)
+
+    update_package_resolved(package_resolved)
+
+
+def update_package_resolved(package_resolved):
+    if not os.path.exists(package_resolved):
+        print(f&quot;😱 Package.resolved file doesn't exit: {package_resolved}&quot;)
+        exit(-1)
+
+    print(f&quot;Found: {package_resolved}&quot;)
+    f = open(package_resolved)
+    content = json.load(f)
+    f.close()
+    for pin in content[&quot;pins&quot;]:
+        url = pin[&quot;location&quot;]
+        if &quot;branch&quot; in pin[&quot;state&quot;]:
+            branch = pin[&quot;state&quot;][&quot;branch&quot;]
+            commit_hash = get_git_revision_hash(url, branch)
+            print(f&quot;{url}, {branch}, {commit_hash}&quot;)
+            pin[&quot;state&quot;][&quot;revision&quot;] = commit_hash
+        elif &quot;version&quot; in pin[&quot;state&quot;]:
+            version = pin[&quot;state&quot;][&quot;version&quot;]
+            commit_hash = get_git_revision_by_tag(url, version)
+            print(f&quot;{url}, {version}, {commit_hash}&quot;)
+            pin[&quot;state&quot;][&quot;revision&quot;] = commit_hash
+
+    with open(package_resolved, &quot;w&quot;) as output:
+        json.dump(content,  output, indent=4)
+
+    # resolve SPM
+    subprocess.run(['xcodebuild', '-resolvePackageDependencies'])
+    print('🎉 Well done')
+
+
+def get_git_revision_hash(url, branch) -&gt; str:
+    command = f'git ls-remote {url} refs/heads/{branch} | cut -f 1'
+    return get_git_command_output(command)
+
+
+def get_git_revision_by_tag(url, version) -&gt; str:
+    command = f'git ls-remote {url} -t {version} | cut -f 1'
+    return get_git_command_output(command)
+
+
+def get_git_command_output(command) -&gt; str:
+    return subprocess.check_output(command, stderr=subprocess.STDOUT, shell=True).decode('ascii').rstrip()
+
+
+if __name__ == '__main__':
+    main()
+</code></pre>
+<p>使用方式为在包含 <code>*.xcodeproj</code> 或 <code>*.xcworkspace</code> 文件的路径下，调用 <code>python spmResolve.py</code>。</p>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/remove-illegal-characters-from-string/" class="post-title gt-a-link">
+                    移除字符串中的�
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>

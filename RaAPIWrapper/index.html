@@ -1,0 +1,400 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<title>将 ARouter 的思想带入 Swift：用声明式语法构建类型安全的 API 请求 | Rakuyo&#39;s blog</title>
+
+<link rel="shortcut icon" href="https://blog.rakuyo.dev/favicon.ico?v=1769154921003">
+
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.rakuyo.dev/styles/main.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css"> -->
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages/dockerfile.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/highlight.js/9.12.0/languages//dart.min.js"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.min.js"></script> -->
+<!-- DEMO JS -->
+<!--<script src="media/scripts/index.js"></script>-->
+
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.css">
+    
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.1/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script> 
+    
+</head>
+<body>
+<div class="main gt-bg-theme-color-first">
+    <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand" href="/">
+        <img class="user-avatar" src="/images/avatar.png" alt="头像">
+        <div class="site-name gt-c-content-color-first">
+            Rakuyo&#39;s blog
+        </div>
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" id="changeNavbar">
+        <i class="fas fa-bars gt-c-content-color-first" style="font-size: 18px"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <div class="navbar-nav mr-auto" style="text-align: center">
+            
+            <div class="nav-item">
+                
+                <a href="/" class="menu gt-a-link">
+                    首页
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/archives" class="menu gt-a-link">
+                    归档
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/tags" class="menu gt-a-link">
+                    标签
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/reference" class="menu gt-a-link">
+                    收藏
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/about" class="menu gt-a-link">
+                    关于
+                </a>
+                
+            </div>
+            
+            <div class="nav-item">
+                
+                <a href="/friends" class="menu gt-a-link">
+                    友链
+                </a>
+                
+            </div>
+            
+        </div>
+        <div style="text-align: center">
+            <form id="gridea-search-form" style="position: relative" data-update="1769154921003"
+                action="/search/">
+                <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+                <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+        </div>
+    </div>
+</nav>
+<script>
+    /* 移动端导航栏展开/收起切换 */
+    document.getElementById('changeNavbar').onclick = () => {
+        var element = document.getElementById('navbarSupportedContent');
+        if (element.style.display === 'none' || element.style.display === '') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+</script>
+
+    <div class="post-container">
+        <div class="post-detail gt-bg-theme-color-second">
+            <article class="gt-post-content">
+                <h2 class="post-title">
+                    将 ARouter 的思想带入 Swift：用声明式语法构建类型安全的 API 请求
+                </h2>
+                <div class="post-info">
+                    <time class="post-time gt-c-content-color-first">
+                        · 2025-08-15 ·
+                    </time>
+                    
+                        <a href="https://blog.rakuyo.dev/tag/FeXshwVXj/" class="post-tags">
+                            # ios
+                        </a>
+                    
+                </div>
+                <div class="post-content">
+                    <p>最近读到喵神的《<a href="https://onevcat.com/2024/11/type-as-state/">编译器，靠你了！使用类型改善状态设计</a>》，深受启发。这篇文章让我意识到，我在设计 <a href="https://github.com/RakuyoKit/RaAPIWrapper">RaAPIWrapper</a> 时，为了解决一些工程问题而采用的方案，在不经意间与“类型即状态”的设计思想不谋而合。</p>
+<p>我之前还没有正式介绍过这个库，所以借此机会，正式与大家分享 RaAPIWrapper 的设计，特别是它为了解决特定问题而采用的架构，以及这些决策在事后看来，是如何“碰巧”实现了更先进的设计模式。</p>
+<!-- more -->
+<hr>
+<h2 id="raapiwrapper-的诞生">RaAPIWrapper 的诞生</h2>
+<p>RaAPIWrapper 的设计初衷，源于对现有网络库 Moya 的反思，以及对 Android 路由框架 <a href="https://github.com/alibaba/ARouter">ARouter</a> 设计模式的借鉴。</p>
+<h3 id="为何不直接用-moya">为何不直接用 Moya？</h3>
+<p>在 Swift 社区，<a href="https://github.com/Moya/Moya">Moya</a> 是一个非常优秀的类型安全网络库，它通过 <code>enum</code> 和 <code>protocol</code> 的组合，解决了大量 API 管理中的问题。然而，在深度使用后，我们发现 Moya 的设计在某些方面存在优化空间。</p>
+<p>Moya 的核心是 <code>TargetType</code> 协议，一个 API 的完整定义需要你在 <code>enum</code> 的 <code>switch</code> 中，为 <code>path</code>, <code>method</code>, <code>task</code> 等多个属性分别提供实现。这导致了一个问题：</p>
+<p><strong>一个 API 的核心信息（如请求方法、路径、参数）被分散在了多个代码块中。</strong></p>
+<p>当项目 API 数量增多时，开发者需要在一个庞大的 <code>switch</code> 语句中不断上下文切换和上下跳转，才能拼凑出一个 API 的完整样貌。这降低了代码的可读性和维护性，也是 RaAPIWrapper 希望解决的核心痛点。</p>
+<p>不过需要强调的是，RaAPIWrapper 的目的并非全盘否定 Moya，当前也不具备替代 Moya 的能力。Moya 依然是一个功能强大的网络执行层，尤其在插件化、请求执行等领域。RaAPIWrapper 的设计初衷是<strong>专注于解决 API 定义的内聚性问题</strong>，它被设计为一个上层的“API 定义层”，可以与像 Moya 这样的成熟网络库协同工作，形成优势互补。</p>
+<h3 id="arouter-是什么">ARouter 是什么？</h3>
+<p><a href="https://github.com/alibaba/ARouter">ARouter</a> 是 Android 生态中一个著名的路由框架，由阿里巴巴开发并开源。该框架通过注解 (<code>@Route</code>) 的方式，让开发者能够以一种极其声明式和解耦的方式定义页面路径。在 <a href="https://github.com/alibaba/ARouter/blob/develop/README_CN.md#%E5%9B%9B%E8%BF%9B%E9%98%B6%E7%94%A8%E6%B3%95">README</a> 中有如下的示例：</p>
+<pre><code class="language-Java">@Route(path = &quot;/test/activity&quot;)
+public class Test1Activity extends Activity { ... }
+</code></pre>
+<p>我非常欣赏这种将“路由”从具体的实现中抽离出来，变成一个集中、静态、易于管理的设计。</p>
+<p>于是，一个想法在我脑中萌生：<strong>我能否将这种优雅的、基于注解的声明式语法，从“页面路由”领域迁移到“API 定义”领域？</strong></p>
+<p>这个想法，成为了 RaAPIWrapper 的起点。我的目标是创建一个网络层，它应该具备以下特质：</p>
+<ul>
+<li>
+<p><strong>API 声明化</strong>：API 的定义应该像 ARouter 的路由一样，通过类似注解的语法附加到一个静态属性上，而不是散落在各个业务代码中去手动拼接 URL。</p>
+</li>
+<li>
+<p><strong>集中化管理</strong>：所有单个 API 定义所需要的内容都应该被清晰地组织在一起，不会散落在多个地方，查找起来要非常方便。</p>
+</li>
+<li>
+<p><strong>定义与实现解耦</strong>：API 的“定义”应该与其“如何被请求”完全分离。定义部分只关心 API 的元数据（路径、方法、参数结构），而底层的网络请求库（是 Alamofire 还是 URLSession）可以随时被替换，而不影响定义。</p>
+</li>
+</ul>
+<hr>
+<h2 id="像定义路由一样定义-api">像定义路由一样定义 API</h2>
+<p>为了实现上述目标，我将 RaAPIWrapper 的核心架构设计为一个声明式的 API “地址簿”：</p>
+<blockquote>
+<p>项目带有一个用于演示的 <a href="https://github.com/RakuyoKit/RaAPIWrapper/tree/main/Demo.playground">Playground</a>，您可以通过该项目进一步了解本框架。</p>
+</blockquote>
+<pre><code class="language-swift">@GET(&quot;/api/v1/no_param&quot;)
+static var noParamAPI: APIParameterBuilder&lt;()&gt;? = nil
+
+@POST(&quot;/api/v1/tuple_param&quot;)
+static var tupleParamAPI: APIParameterBuilder&lt;(id: Int, name: String?)&gt;? = .init {
+    // `Dictionary` and `Array` can be used directly as parameters.
+    [&quot;id&quot;: $0.id, &quot;name&quot;: $0.name]
+}
+
+@POST(&quot;/post&quot;)
+static var postWithModel: APIParameterBuilder&lt;Arg&gt;? = .init {
+    // When the parameter `Arg` complies with the `APIParameter` (`Encodable &amp; Hashable`) protocol, 
+    // it can be used directly as a parameter.
+    $0
+}
+</code></pre>
+<p>就像 ARouter 的 <code>@Route(&quot;/path/to/page&quot;)</code> 一样，最核心的信息应该在声明的那一刻就一目了然。这种方式的优势是显而易见的：</p>
+<ol>
+<li><strong>高度可读</strong>：你可以像 Moya 一样将多个接口定义在一个文件中，任何人打开这个文件，就能立刻了解模块中有哪些可用的 API。</li>
+<li><strong>高内聚性</strong>：您不用再通过多次跳转，才能获取到一个接口的全部信息，所有信息都定义在一起。</li>
+<li><strong>易于维护</strong>：修改、添加或废弃一个 API，都只需要在这个“地址簿”中进行，而不需要深入到业务逻辑中去寻找那些零散的 URL 字符串。</li>
+<li><strong>天然解耦</strong>：<code>@GET</code> 和 <code>@POST</code> 的定义，只包含了 API 的元信息。它本身并不关心网络请求是如何发出的。底层的实现被 RaAPIWrapper 的执行层所封装，这为后续替换网络库或增加统一的请求处理逻辑（如加密、加签）提供了极大的便利。</li>
+</ol>
+<hr>
+<h2 id="核心设计一个声明式的-api-定义">核心设计：一个声明式的 API 定义</h2>
+<p>在确立了“声明式、高内聚低耦合”这些核心设计理念之后，我需要寻找一些足够强大的技术手段来支撑它。<code>@propertyWrapper</code> 属性包装器与 Swift 的泛型系统正是实现这些理念的最佳方案。</p>
+<blockquote>
+<p>最初我使用泛型，只是想找到一种方法来避免 <code>switch</code> 语句和增强代码的扩展性，但最终的成果却意外地与“类型即状态”思想相契合。这对我来说，也是一个在实践中学习和发现的过程。</p>
+</blockquote>
+<h3 id="propertywrapper-属性包装器"><code>@propertyWrapper</code> 属性包装器</h3>
+<p><code>@GET</code>、<code>@POST</code> 是基于一个名为 <a href="https://github.com/RakuyoKit/RaAPIWrapper/blob/main/Sources/Core/Wrapper/API.swift#L17"><code>API</code></a> 的通用属性包装器（<code>@propertyWrapper</code>）构建的。</p>
+<p>我们以 <code>@POST</code> 为例，它的<a href="https://github.com/RakuyoKit/RaAPIWrapper/blob/main/Sources/Core/Wrapper/HTTPMethod/POST.swift#L13">定义</a>非常简单，只是一个类型别名（<code>typealias</code>）：</p>
+<pre><code class="language-swift">// file: Sources/Core/Wrapper/HTTPMethod/POST.swift
+
+public enum PostHTTPMethod: APIHTTPMethodWrapper {
+    public static var httpMethod: APIHTTPMethod { &quot;POST&quot; }
+}
+
+/// Encapsulates the data needed to request the `POST` api.
+public typealias POST&lt;Parameter&gt; = API&lt;Parameter, PostHTTPMethod&gt;
+</code></pre>
+<p>真正的核心在于 <code>API</code> 这个类。它是一个泛型属性包装器，接受两个类型参数：<code>Parameter</code> 代表 API 的参数类型，<code>HTTPMethod</code> 则是一个遵循 <a href="https://github.com/RakuyoKit/RaAPIWrapper/blob/main/Sources/Core/Wrapper/API.swift#L10"><code>APIHTTPMethodWrapper</code></a> 协议的类型，用于提供具体的 HTTP 请求方法（如 &quot;POST&quot;）。</p>
+<pre><code class="language-swift">// file: Sources/Core/Wrapper/API.swift
+
+@propertyWrapper
+public class API&lt;Parameter, HTTPMethod: APIHTTPMethodWrapper&gt; {
+
+    public var wrappedValue: APIParameterBuilder&lt;Parameter&gt;?
+    public let path: String
+
+    // ... other properties
+
+    public init(
+        wrappedValue: APIParameterBuilder&lt;Parameter&gt;?,
+        _ path: String,
+        // ... other parameters
+    ) {
+        self.wrappedValue = wrappedValue
+        self.path = path
+        // ...
+    }
+
+    public var projectedValue: API&lt;Parameter, HTTPMethod&gt; { self }
+}
+</code></pre>
+<p><code>@propertyWrapper</code> 的设计要点在于：</p>
+<ol>
+<li><strong>初始化时捕获信息</strong>：当我们写下 <code>@POST(&quot;/post&quot;)</code> 时，Swift 编译器会调用 <code>API</code> 的 <a href="https://github.com/RakuyoKit/RaAPIWrapper/blob/main/Sources/Core/Wrapper/API.swift#L36"><code>init(wrappedValue:_:)</code></a> 方法。路径 <code>&quot;/post&quot;</code> 作为参数被传入，并保存在 <code>path</code> 属性中。<code>wrappedValue</code> 则是我们赋给静态变量的 <a href="https://github.com/RakuyoKit/RaAPIWrapper/blob/main/Sources/Core/Wrapper/APIParameterBuilder.swift#L11"><code>APIParameterBuilder</code></a> 实例，它包含了参数的构建逻辑。</li>
+<li><strong>分离“定义”与“执行”</strong>：<code>API</code> 包装器通过 <a href="https://github.com/RakuyoKit/RaAPIWrapper/blob/main/Sources/Core/Wrapper/API.swift#L22"><code>projectedValue</code></a> 暴露了自身。这意味着，当我们使用 <code>$</code> 符号（如 <code>BasicAPI.$postWithModel</code>）时，我们获取到的是 <code>API</code> 这个包装器对象本身。这个对象已经包含了构建一个完整请求所需的所有信息：路径、HTTP 方法、以及参数构建器。这就实现了 API “定义”与“执行”的分离——定义时只关心元数据，执行时通过 <code>$</code> 获取到一个可执行的请求对象。</li>
+</ol>
+<p>通过这种方式，<code>@propertyWrapper</code> 不仅提供了声明式的语法，更在底层完成了信息的聚合与封装，是实现 API 高内聚设计的关键。</p>
+<h3 id="类型驱动思想">“类型驱动”思想</h3>
+<p>如果说 <code>@propertyWrapper</code> 提供了骨架，那么泛型系统则为这个骨架提供了核心的类型安全保障。如今回顾，我才意识到这个为解决扩展性问题而选择的方案，其本质恰好就是“类型即状态”思想的体现，并且这一思想同时运用在了 <code>API</code> 的两个泛型参数 <code>HTTPMethod</code> 和 <code>Parameter</code> 之上。</p>
+<p>我们再次审视 <code>API</code> 的定义：<code>API&lt;Parameter, HTTPMethod: APIHTTPMethodWrapper&gt;</code>。</p>
+<p>首先，<code>HTTPMethod</code> 参数本身并不是一个字符串值（如 <code>&quot;POST&quot;</code>），而是一个<strong>类型</strong>。例如 <code>PostHTTPMethod</code> 这个类型，它的唯一作用就是通过遵循 <code>APIHTTPMethodWrapper</code> 协议来携带 <code>&quot;POST&quot;</code> 这个字符串。通过 <code>typealias POST&lt;P&gt; = API&lt;P, PostHTTPMethod&gt;</code>，我们将 <code>POST</code> 这个别名与 <code>PostHTTPMethod</code> 这个“状态类型”永久绑定。这样，请求方法就在类型层面被固定下来，杜绝了传入错误字符串的可能性。此外这种写法还有很多好处：</p>
+<ul>
+<li>利于扩展，可以很简单的定义多个 HTTP Method。</li>
+<li>通过 <code>extension</code> + <code>where PostHTTPMethod = ...</code>，可以针对不同的 HTTP Method 定义不同的请求方法。比如业务层面规定 <code>GET</code> 请求不允许携带参数，那么就可以定义不带参数的 <code>request()</code> 方法。</li>
+<li>在业务层需要获取到 HTTP Method 时，可以避免 <code>switch case</code>。</li>
+</ul>
+<p>其次，<code>Parameter</code> 参数以一种更动态的方式应用了同样的思想。观察 API 的定义：</p>
+<pre><code class="language-swift">// API with no parameters
+@GET(&quot;/api/v1/no_param&quot;)
+static var noParamAPI: APIParameterBuilder&lt;()&gt;? = nil
+
+// API with parameters
+@POST(&quot;/api/v1/tuple_param&quot;)
+static var tupleParamAPI: APIParameterBuilder&lt;(id: Int, name: String?)&gt;? = .init { ... }
+</code></pre>
+<p>我们并没有在 <code>@GET</code> 或 <code>@POST</code> 中显式指定 <code>Parameter</code> 的类型。这里的机制是 <strong>Swift 的类型推断</strong>。</p>
+<ul>
+<li>当我们声明 <code>static var noParamAPI: APIParameterBuilder&lt;()&gt;?</code> 时，Swift 编译器会分析变量的类型。它看到 <code>APIParameterBuilder&lt;()&gt;</code>，便会推断出 <code>API</code> 包装器的 <code>Parameter</code> 泛型参数就是 <code>()</code>（即 <code>Void</code>）。</li>
+<li>同理，当声明 <code>tupleParamAPI</code> 的类型为 <code>APIParameterBuilder&lt;(id: Int, name: String?)&gt;?</code> 时，编译器就确切地知道，这个 API 的参数类型是一个元组 <code>(id: Int, name: String?)</code>。</li>
+</ul>
+<p>这种设计带来了显著的优势：</p>
+<ol>
+<li><strong>API 合约化</strong>：API 的参数类型（它的“状态”）被固化在了定义中，成为一个不可改变的“合约”。</li>
+<li><strong>编译期安全</strong>：当你调用 API 时，编译器会强制执行这份合约。
+<ul>
+<li>对于 <code>$noParamAPI</code>，调用 <code>request()</code> 方法时如果试图传入参数，编译器会直接报错。</li>
+<li>对于 <code>$tupleParamAPI</code>，调用 <code>request(with:)</code> 方法时，你必须传入一个 <code>(id: Int, name: String?)</code> 类型的元组，参数名、类型、数量、可选性稍有差池，都无法通过编译。</li>
+</ul>
+</li>
+</ol>
+<p>这与传统 Moya 中使用 <code>[String: Any]</code> 作为参数的方式形成了鲜明对比。字典是类型不安全的，开发者很容易在运行时因为拼错 key、传错 value 类型而导致请求失败。而 RaAPIWrapper 将这种潜在的运行时错误提前到了编译期，这正是该设计的关键优势之一。</p>
+<p>最后，<a href="https://github.com/RakuyoKit/RaAPIWrapper/blob/main/Sources/Core/Wrapper/APIParameterBuilder.swift#L11"><code>APIParameterBuilder&lt;Input&gt;</code></a> 扮演了类型转换的角色。它接收强类型的 <code>Input</code>（即 <code>Parameter</code>），并通过一个闭包，将其转换为网络层所需的、经过类型擦除的 <code>any APIParameter</code> 格式。这使得 API 的定义可以保持类型纯净，而将参数构建的细节封装在了构建器内部。</p>
+<hr>
+<h2 id="回顾与展望">回顾与展望</h2>
+<h3 id="设计的得与失">设计的得与失</h3>
+<p>通过组合运用 <code>@propertyWrapper</code> 的声明式语法和以泛型为核心的类型系统，RaAPIWrapper 成功地将 API 定义从分散、易错的字符串和字典，转变成了集中的、类型安全的 API “地址簿”。这个以提升代码内聚性和可维护性为目标的尝试，最终收获了编译期安全这一关键优势。</p>
+<p>不过，正如一些批判性声音指出的，任何一个设计良好的 Swift 强类型 API，都在某种程度上利用了“类型即状态”。RaAPIWrapper 的创新更多在于其<strong>语法和模式</strong>，而非思想本身。并且这种“事后诸葛亮”的回顾也让我意识到在技术方面我还差的很远，还有很长的路要走。</p>
+<h3 id="清晰的定位api-定义层">清晰的定位：API 定义层</h3>
+<p>更重要的是，必须明确 <strong>RaAPIWrapper 的定位是一个 API 定义的包装层（Wrapper），而非一个大而全的网络请求框架</strong>。</p>
+<p>这一定位意味着它刻意地保持了职责的单一。它只做一件事：<strong>以类型安全和高内聚的方式，构建出一个完整的请求元数据</strong>。至于这个元数据如何被执行、如何处理回调、如何实现插件、如何管理通用请求头等问题，则完全交由其背后的<strong>执行层</strong>来处理。</p>
+<p>这种关注点分离的设计，恰好回答了“为何不直接用 Moya”的问题：</p>
+<ul>
+<li><strong>您可以继续使用 Moya</strong>：Moya 就是一个非常出色的执行层。开发者完全可以将 RaAPIWrapper 作为 API “合约”层，将生成的请求数据传递给 Moya Provider，继续享受 Moya 强大的插件系统和请求管理能力。</li>
+<li><strong>拥抱变化</strong>：如果未来团队希望从 Moya 迁移到 <code>URLSession</code>，或其它新的网络库，您只需要更换执行层的实现，而所有用 RaAPIWrapper 定义的 API 代码都<strong>无需改动</strong>。</li>
+</ul>
+<h3 id="未来规划">未来规划</h3>
+<p>目前，RaAPIWrapper 尚不自带执行层，也未集成插件系统。未来的规划是提供一个基于 <a href="https://github.com/Alamofire/Alamofire.git">Alamofire</a> 的官方默认执行层，并逐步完善其功能，使其成为一个更加开箱即用的网络解决方案。</p>
+
+                </div>
+            </article>
+        </div>
+
+        
+            <div class="next-post">
+                <div class="next gt-c-content-color-first">下一篇</div>
+                <a href="https://blog.rakuyo.dev/computer-network-virtual-nic-and-wireguard/" class="post-title gt-a-link">
+                    计算机网络之四 - 虚拟网卡与 WireGuard
+                </a>
+            </div>
+        
+
+        
+
+        
+            
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.css">
+<script src="https://cdn.jsdelivr.net/npm/gitalk/dist/gitalk.min.js"></script>
+<script>
+    // md5.min.js
+    !function(n){
+        "use strict";
+        function d(n,t){var r=(65535&n)+(65535&t);return(n>>16)+(t>>16)+(r>>16)<<16|65535&r}
+        function f(n,t,r,e,o,u){return d((c=d(d(t,n),d(e,u)))<<(f=o)|c>>>32-f,r);var c,f}
+        function l(n,t,r,e,o,u,c){return f(t&r|~t&e,n,t,o,u,c)}
+        function v(n,t,r,e,o,u,c){return f(t&e|r&~e,n,t,o,u,c)}
+        function g(n,t,r,e,o,u,c){return f(t^r^e,n,t,o,u,c)}
+        function m(n,t,r,e,o,u,c){return f(r^(t|~e),n,t,o,u,c)}
+        function i(n,t){var r,e,o,u,c;n[t>>5]|=128<<t%32,n[14+(t+64>>>9<<4)]=t;var f=1732584193,i=-271733879,a=-1732584194,h=271733878;for(r=0;r<n.length;r+=16)f=l(e=f,o=i,u=a,c=h,n[r],7,-680876936),h=l(h,f,i,a,n[r+1],12,-389564586),a=l(a,h,f,i,n[r+2],17,606105819),i=l(i,a,h,f,n[r+3],22,-1044525330),f=l(f,i,a,h,n[r+4],7,-176418897),h=l(h,f,i,a,n[r+5],12,1200080426),a=l(a,h,f,i,n[r+6],17,-1473231341),i=l(i,a,h,f,n[r+7],22,-45705983),f=l(f,i,a,h,n[r+8],7,1770035416),h=l(h,f,i,a,n[r+9],12,-1958414417),a=l(a,h,f,i,n[r+10],17,-42063),i=l(i,a,h,f,n[r+11],22,-1990404162),f=l(f,i,a,h,n[r+12],7,1804603682),h=l(h,f,i,a,n[r+13],12,-40341101),a=l(a,h,f,i,n[r+14],17,-1502002290),f=v(f,i=l(i,a,h,f,n[r+15],22,1236535329),a,h,n[r+1],5,-165796510),h=v(h,f,i,a,n[r+6],9,-1069501632),a=v(a,h,f,i,n[r+11],14,643717713),i=v(i,a,h,f,n[r],20,-373897302),f=v(f,i,a,h,n[r+5],5,-701558691),h=v(h,f,i,a,n[r+10],9,38016083),a=v(a,h,f,i,n[r+15],14,-660478335),i=v(i,a,h,f,n[r+4],20,-405537848),f=v(f,i,a,h,n[r+9],5,568446438),h=v(h,f,i,a,n[r+14],9,-1019803690),a=v(a,h,f,i,n[r+3],14,-187363961),i=v(i,a,h,f,n[r+8],20,1163531501),f=v(f,i,a,h,n[r+13],5,-1444681467),h=v(h,f,i,a,n[r+2],9,-51403784),a=v(a,h,f,i,n[r+7],14,1735328473),f=g(f,i=v(i,a,h,f,n[r+12],20,-1926607734),a,h,n[r+5],4,-378558),h=g(h,f,i,a,n[r+8],11,-2022574463),a=g(a,h,f,i,n[r+11],16,1839030562),i=g(i,a,h,f,n[r+14],23,-35309556),f=g(f,i,a,h,n[r+1],4,-1530992060),h=g(h,f,i,a,n[r+4],11,1272893353),a=g(a,h,f,i,n[r+7],16,-155497632),i=g(i,a,h,f,n[r+10],23,-1094730640),f=g(f,i,a,h,n[r+13],4,681279174),h=g(h,f,i,a,n[r],11,-358537222),a=g(a,h,f,i,n[r+3],16,-722521979),i=g(i,a,h,f,n[r+6],23,76029189),f=g(f,i,a,h,n[r+9],4,-640364487),h=g(h,f,i,a,n[r+12],11,-421815835),a=g(a,h,f,i,n[r+15],16,530742520),f=m(f,i=g(i,a,h,f,n[r+2],23,-995338651),a,h,n[r],6,-198630844),h=m(h,f,i,a,n[r+7],10,1126891415),a=m(a,h,f,i,n[r+14],15,-1416354905),i=m(i,a,h,f,n[r+5],21,-57434055),f=m(f,i,a,h,n[r+12],6,1700485571),h=m(h,f,i,a,n[r+3],10,-1894986606),a=m(a,h,f,i,n[r+10],15,-1051523),i=m(i,a,h,f,n[r+1],21,-2054922799),f=m(f,i,a,h,n[r+8],6,1873313359),h=m(h,f,i,a,n[r+15],10,-30611744),a=m(a,h,f,i,n[r+6],15,-1560198380),i=m(i,a,h,f,n[r+13],21,1309151649),f=m(f,i,a,h,n[r+4],6,-145523070),h=m(h,f,i,a,n[r+11],10,-1120210379),a=m(a,h,f,i,n[r+2],15,718787259),i=m(i,a,h,f,n[r+9],21,-343485551),f=d(f,e),i=d(i,o),a=d(a,u),h=d(h,c);return[f,i,a,h]}
+        function a(n){var t,r="",e=32*n.length;for(t=0;t<e;t+=8)r+=String.fromCharCode(n[t>>5]>>>t%32&255);return r}
+        function h(n){var t,r=[];for(r[(n.length>>2)-1]=void 0,t=0;t<r.length;t+=1)r[t]=0;var e=8*n.length;for(t=0;t<e;t+=8)r[t>>5]|=(255&n.charCodeAt(t/8))<<t%32;return r}
+        function e(n){var t,r,e="0123456789abcdef",o="";for(r=0;r<n.length;r+=1)t=n.charCodeAt(r),o+=e.charAt(t>>>4&15)+e.charAt(15&t);return o}
+        function r(n){return unescape(encodeURIComponent(n))}
+        function o(n){return a(i(h(t=r(n)),8*t.length));var t}
+        function u(n,t){return function(n,t){var r,e,o=h(n),u=[],c=[];for(u[15]=c[15]=void 0,16<o.length&&(o=i(o,8*n.length)),r=0;r<16;r+=1)u[r]=909522486^o[r],c[r]=1549556828^o[r];return e=i(u.concat(h(t)),512+8*t.length),a(i(c.concat(e),640))}(r(n),r(t))}
+        function t(n,t,r){return t?r?u(t,n):e(u(t,n)):r?o(n):e(o(n))}
+        "function"==typeof define&&define.amd?define(function(){return t}):"object"==typeof module&&module.exports?module.exports=t:n.md5=t;
+    }(this);
+</script>
+
+
+<div id="gitalk-container"></div>
+
+<script>
+
+  var gitalk = new Gitalk({
+    clientID: '30875151c07a20ceb163',
+    clientSecret: '9a57fd47038f45827326ab5b0ab8c796f184a46f',
+    repo: 'rakuyomo.github.io',
+    owner: 'rakuyoMo',
+    admin: ['rakuyoMo'],
+    id: md5(location.pathname),      // Ensure uniqueness and length less than 50
+    distractionFreeMode: false       // Facebook-like distraction free mode
+  })
+
+  gitalk.render('gitalk-container')
+
+</script>
+
+            
+
+            
+        
+
+        
+
+        <div class="site-footer gt-c-content-color-first">
+    <div class="slogan gt-c-content-color-first"></div>
+    <div class="social-container">
+        
+            
+                <a href="https://github.com/rakuyoMo" target="_blank">
+                    <i class="fab fa-github gt-c-content-color-first"></i>
+                </a>
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+    </div>
+    <div class="footer-info">
+        无常为常，变化即永恒
+    </div>
+    <div>
+        Theme <a href="https://github.com/rakuyoMo/gridea-theme-pure" target="_blank">Pure</a>, Powered by <a
+                href="https://gridea.dev" target="_blank">Gridea</a> | <a href="https://blog.rakuyo.dev/atom.xml" target="_blank">RSS</a>
+    </div>
+</div>
+
+<script>
+  hljs.highlightAll()
+</script>
+
+    </div>
+</div>
+</body>
+</html>
