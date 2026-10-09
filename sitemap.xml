@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://blog.rakuyo.dev/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
@@ -458,217 +458,217 @@
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/./</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tags/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/archives/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/js-bridge/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/android/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/vue/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/java/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/tuist/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/ai/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/vibe-coding/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/ios/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/swift/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/sql/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/kai-fa-gong-ju/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/ji-suan-ji-wang-luo/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/surge/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/runtime/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/localization/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/cross-platform/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/arkts/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/harmonyos/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/cicd/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/front-end/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/nas/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/epoxy/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/swift-package-manager/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/mian-shi/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/git/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/xcode/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/python/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/uicollectionviewcompositionallayout/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/objective-c/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/c/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/FeXshwVXj/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/tag/HEvQ-e7X7/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://blog.rakuyo.dev/links/</loc>
-    <lastmod>2026-10-09T17:04:24+08:00</lastmod>
+    <lastmod>2026-10-09T17:04:48+08:00</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
